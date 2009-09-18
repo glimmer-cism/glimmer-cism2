@@ -202,6 +202,7 @@ contains
     use glide_velo
     use glide_thck
     use glide_mask
+    use glide_glenflow, only: calcflwa
     implicit none
 
     !------------------------------------------------------------------------------------
@@ -507,13 +508,13 @@ contains
 
     ! Calculate Glenn's A --------------------------------------------------------
 
-    call calcflwa(model%numerics,        &
-         model%velowk,          &
-         model%paramets%fiddle, &
+    call calcflwa(model%velowk%glenflow,          &
          model%temper%flwa,     &
          model%temper%temp,     &
          model%geometry%thck,   &
-         model%options%whichflwa) 
+         model%options%whichflwa, &
+         model%numerics%thklim,   &
+         model%numerics%sigma) 
 
     ! Output some information ----------------------------------------------------
 #ifdef DEBUG

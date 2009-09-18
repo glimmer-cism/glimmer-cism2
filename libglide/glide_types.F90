@@ -66,6 +66,7 @@ module glide_types
   use profile
   use glimmer_coordinates
   use glimmer_map_types, pi_dummy=>pi
+  use glide_glenflow, only: glenflow_params
 
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -411,7 +412,7 @@ module glide_types
     real(dp),dimension(:,:),pointer :: fslip    => null()
     real(dp),dimension(:,:),pointer :: dintflwa => null()
     real(dp),dimension(:),  pointer :: dups     => null()
-    real(dp),dimension(4) :: fact
+    type(glenflow_params) :: glenflow
     real(dp),dimension(4) :: c    = 0.0
     real(dp) :: watwd  = 3.0d0
     real(dp) :: watct  = 10.0d0

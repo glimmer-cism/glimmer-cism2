@@ -70,17 +70,15 @@ AC_MSG_RESULT($with_netcdf)
 AS_IF([test "x$with_netcdf" != xno],
       [ 
         # sort out the library
-        NETCDF_LDFLAGS=""
+        if test -d "$with_netcdf"; then
+          NETCDF_LDFLAGS=-L"$with_netcdf"/lib
+        else
+          AC_MSG_ERROR([Cannot find directory "$with_netcdf"/lib])
+        fi
         # check whether we should use a non standard library path
         AC_ARG_WITH(netcdf-lib,
           [AS_HELP_STRING([--with-netcdf-lib],[path to where netcdf library files can be found])],
-          [
-           if test -d "$with_netcdf"; then
-               NETCDF_LDFLAGS=-L"$with_netcdf"/lib
-           else
-               AC_MSG_ERROR([Cannot find directory "$with_netcdf"/lib])
-           fi
-          ])
+          [NETCDF_LDFLAGS=-L"$withval"])
 	# check for libraries
 	LDFLAGS="$LDFLAGS $NETCDF_LDFLAGS $HDF5_LDFLAGS"
         # we always need to link to the C libraries, so let's look for them
@@ -89,6 +87,7 @@ AS_IF([test "x$with_netcdf" != xno],
         AC_LANG_POP([C])
 
         LIBS="$NETCDF_LIBS $HDF5_LIBS"
+
         # figure out how to use netcdf from various languages
         AC_LANG_CASE(
         [C],[

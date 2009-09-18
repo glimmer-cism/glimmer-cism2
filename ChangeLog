@@ -1,3 +1,9 @@
+2009-09-18 Ian Rutt
+ * GCISM-refactor-ICR branch: Refactored calculation of Glen's A as an
+   example
+ * m4macros: temporarily reverted to old netcdf macro, since new one
+   doesn't work
+
 2009-09-17 Magnus Hagdorn
  * tests/exact-isothermal/scripts/run_verif.py: handle commandline similarly
    to glide_lauch.py
