@@ -112,6 +112,7 @@ contains
     use glide_mask
     use isostasy
     use glimmer_map_init
+    use glide_glenflow, only: calcflwa
     implicit none
     type(glide_global_type) :: model        !*FD model instance
 
@@ -176,7 +177,15 @@ contains
 
     if (model%options%hotstart.ne.1) then
        ! initialise Glen's flow parameter A using an isothermal temperature distribution
-       call timeevoltemp(model,0)
+       call calcTemp_asSurfTemp(model)
+       ! Calculate Glenn's A --------------------------------------------------------
+       call calcflwa(model%velowk%glenflow,          &
+            model%temper%flwa,     &
+            model%temper%temp,     &
+            model%geometry%thck,   &
+            model%options%whichflwa, &
+            model%numerics%thklim,   &
+            model%numerics%sigma) 
     end if
 
     ! calculate mask
@@ -201,6 +210,8 @@ contains
     use glide_setup
     use glide_temp
     use glide_mask
+    use glide_glenflow, only: calcflwa
+    use glimmer_log, only: write_log, GM_FATAL
     implicit none
 
     type(glide_global_type) :: model        !*FD model instance
@@ -264,7 +275,27 @@ contains
     call glide_prof_start(model,model%glide_prof%temperature)
 #endif
     if ( model%numerics%tinc >  mod(model%numerics%time,model%numerics%ntem)) then
-       call timeevoltemp(model, model%options%whichtemp)
+
+       ! Do ice temperature calculation
+       select case(model%options%whichtemp)
+       case(0)
+          call calcTemp_asSurfTemp(model)
+       case(1)
+          call calcTemp_FullSolution(model)
+       case(2)
+          call calcTemp_VerticalProfile(model)
+       case default
+          call write_log('Unknown temperature option',GM_FATAL)
+       end select
+
+       ! Calculate Glenn's A --------------------------------------------------------
+       call calcflwa(model%velowk%glenflow,          &
+            model%temper%flwa,     &
+            model%temper%temp,     &
+            model%geometry%thck,   &
+            model%options%whichflwa, &
+            model%numerics%thklim,   &
+            model%numerics%sigma) 
        model%temper%newtemps = .true.
     end if
 #ifdef PROFILING

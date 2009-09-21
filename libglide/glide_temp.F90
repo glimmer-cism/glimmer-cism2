@@ -189,12 +189,51 @@ contains
           
        end select
   end subroutine init_temp
-    
 
-  subroutine timeevoltemp(model,which)
+  !------------------------------------------------------------------------------------
 
-    !*FD Calculates the ice temperature, according to one
-    !*FD of several alternative methods.
+  subroutine calcTemp_asSurfTemp(model)
+
+    !*FD Sets ice column temperature to surface temperature
+
+    type(glide_global_type),intent(inout) :: model       !*FD Ice model parameters.
+
+    integer :: ns,ew
+
+    do ns = 1,model%general%nsn
+       do ew = 1,model%general%ewn
+          model%temper%temp(:,ew,ns) = dmin1(0.0d0,dble(model%climate%artm(ew,ns)))
+       end do
+    end do
+
+  end subroutine calcTemp_asSurfTemp
+
+  !------------------------------------------------------------------------------------
+
+  subroutine calcTemp_VerticalProfile(model)
+
+    !*FD Sets ice column temperature to surface temperature at top
+    !*FD and zero at bottom, correcting for pressure melting point
+
+    type(glide_global_type),intent(inout) :: model       !*FD Ice model parameters.
+
+    integer :: ns,ew
+
+    do ns = 1,model%general%nsn
+       do ew = 1,model%general%ewn
+          model%temper%temp(:,ew,ns) = dmin1(0.0d0,dble(model%climate%artm(ew,ns))) * (1.0d0 - model%numerics%sigma)
+          call corrpmpt(model%temper%temp(:,ew,ns),model%geometry%thck(ew,ns),model%temper%bwat(ew,ns),&
+               model%numerics%sigma,model%general%upn)
+       end do
+    end do
+
+  end subroutine calcTemp_VerticalProfile
+
+  !------------------------------------------------------------------------------------
+
+  subroutine calcTemp_FullSolution(model)
+
+    !*FD Calculates the ice temperature - full solution
 
     use glimmer_utils, only: hsum4,tridiag
     use glimmer_global, only : dp
@@ -202,7 +241,6 @@ contains
     use glide_velo
     use glide_thck
     use glide_mask
-    use glide_glenflow, only: calcflwa
     implicit none
 
     !------------------------------------------------------------------------------------
@@ -210,7 +248,6 @@ contains
     !------------------------------------------------------------------------------------
 
     type(glide_global_type),intent(inout) :: model       !*FD Ice model parameters.
-    integer,                  intent(in)    :: which       !*FD Flag to choose method.
 
     !------------------------------------------------------------------------------------
     ! Internal variables
@@ -236,19 +273,6 @@ contains
     !------------------------------------------------------------------------------------
     ! Calculate the ice thickness according to different methods
     !------------------------------------------------------------------------------------
-
-    select case(which)
-
-    case(0) ! Set column to surface air temperature -------------------------------------
-
-       do ns = 1,model%general%nsn
-          do ew = 1,model%general%ewn
-             model%temper%temp(:,ew,ns) = dmin1(0.0d0,dble(model%climate%artm(ew,ns)))
-          end do
-       end do
-
-    case(1) ! Do full temperature solution ---------------------------------------------
-
 
        ! Calculate time-derivatives of thickness and upper surface elevation ------------
 
@@ -494,35 +518,13 @@ contains
             model%general%  ewn, &
             model%general%  nsn)
 
-    case(2) ! Do something else, unspecified ---------------------------------------
-
-       do ns = 1,model%general%nsn
-          do ew = 1,model%general%ewn
-             model%temper%temp(:,ew,ns) = dmin1(0.0d0,dble(model%climate%artm(ew,ns))) * (1.0d0 - model%numerics%sigma)
-             call corrpmpt(model%temper%temp(:,ew,ns),model%geometry%thck(ew,ns),model%temper%bwat(ew,ns),&
-                  model%numerics%sigma,model%general%upn)
-          end do
-       end do
-
-    end select
-
-    ! Calculate Glenn's A --------------------------------------------------------
-
-    call calcflwa(model%velowk%glenflow,          &
-         model%temper%flwa,     &
-         model%temper%temp,     &
-         model%geometry%thck,   &
-         model%options%whichflwa, &
-         model%numerics%thklim,   &
-         model%numerics%sigma) 
-
     ! Output some information ----------------------------------------------------
 #ifdef DEBUG
     print *, "* temp ", model%numerics%time, iter, model%temper%niter, &
          real(model%temper%temp(model%general%upn,model%general%ewn/2+1,model%general%nsn/2+1))
 #endif
 
-  end subroutine timeevoltemp
+  end subroutine calcTemp_FullSolution
 
   !-------------------------------------------------------------------------
 

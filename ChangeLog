@@ -1,3 +1,9 @@
+2009-09-21 Ian Rutt
+ * glide_temp.F90: made a start at pulling apart temperature
+   calculation. Moved calculation of Glen's A outside temperature
+   calculation, and split timeevoltemp into three separate subroutines,
+   one for each option. Regtested against branchpoint for e2.a - OK.
+
 2009-09-18 Ian Rutt
  * GCISM-refactor-ICR branch: Refactored calculation of Glen's A as an
    example

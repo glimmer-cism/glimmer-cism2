@@ -58,6 +58,9 @@ module glide_glenflow
      real(dp) :: fiddle
   end type glenflow_params
 
+  private
+  public :: glenflow_params, glenflow_init, calcflwa
+
 contains
 
   subroutine glenflow_init(params,fiddle)
