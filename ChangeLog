@@ -1,3 +1,7 @@
+2009-09-24 Ian Rutt
+ * Split vertical velo calculation from temperature solution. Plenty of
+	redunant code here.
+
 2009-09-21 Ian Rutt
  * glide_temp.F90: made a start at pulling apart temperature
    calculation. Moved calculation of Glen's A outside temperature

@@ -266,83 +266,12 @@ contains
 
     real(dp), dimension(size(model%numerics%sigma)) :: weff
 
-
     !------------------------------------------------------------------------------------
     ! ewbc/nsbc set the type of boundary condition aplied at the end of
     ! the domain. a value of 0 implies zero gradient.
     !------------------------------------------------------------------------------------
     ! Calculate the ice thickness according to different methods
     !------------------------------------------------------------------------------------
-
-       ! Calculate time-derivatives of thickness and upper surface elevation ------------
-
-       call timeders(model%thckwk,   &
-            model%geometry%thck,     &
-            model%geomderv%dthckdtm, &
-            model%geometry%mask,     &
-            model%numerics%time,     &
-            1)
-
-       call timeders(model%thckwk,   &
-            model%geometry%usrf,     &
-            model%geomderv%dusrfdtm, &
-            model%geometry%mask,     &
-            model%numerics%time,     &
-            2)
-
-       ! Calculate the vertical velocity of the grid ------------------------------------
-
-       call gridwvel(model%numerics%sigma,  &
-            model%numerics%thklim, &
-            model%velocity%uvel,   &
-            model%velocity%vvel,   &
-            model%geomderv,        &
-            model%geometry%thck,   &
-            model%velocity%wgrd)
-
-       ! Calculate the actual vertical velocity; method depends on whichwvel ------------
-
-       select case(model%options%whichwvel)
-       case(0) 
-
-          ! Usual vertical integration
-
-          call wvelintg(model%velocity%uvel,                        &
-               model%velocity%vvel,                        &
-               model%geomderv,                             &
-               model%numerics,                             &
-               model%velowk,                               &
-               model%velocity%wgrd(model%general%upn,:,:), &
-               model%geometry%thck,                        &
-               model%temper%bmlt,                          &
-               model%velocity%wvel)
-
-       case(1)
-
-          ! Vertical integration constrained so kinematic upper BC obeyed.
-
-          call wvelintg(model%velocity%uvel,                        &
-               model%velocity%vvel,                        &
-               model%geomderv,                             &
-               model%numerics,                             &
-               model%velowk,                               &
-               model%velocity%wgrd(model%general%upn,:,:), &
-               model%geometry%thck,                        &
-               model%temper%  bmlt,                        &
-               model%velocity%wvel)
-
-          call chckwvel(model%numerics,                             &
-               model%geomderv,                             &
-               model%velocity%uvel(1,:,:),                 &
-               model%velocity%vvel(1,:,:),                 &
-               model%velocity%wvel,                        &
-               model%geometry%thck,                        &
-               model%climate% acab)
-       end select
-       ! apply periodic ew BC
-       if (model%options%periodic_ew.eq.1) then
-          call wvel_ew(model)
-       end if
 
        model%tempwk%inittemp = 0.0d0
        model%tempwk%initadvt = 0.0d0
@@ -525,6 +454,116 @@ contains
 #endif
 
   end subroutine calcTemp_FullSolution
+
+  !-------------------------------------------------------------------------
+
+  subroutine calcVerticalVelocity(model)
+
+    !*FD Calculates the ice temperature - full solution
+
+    use glimmer_utils, only: hsum4,tridiag
+    use glimmer_global, only : dp
+    use paramets,       only : thk0
+    use glide_velo
+    use glide_thck
+    use glide_mask
+    implicit none
+
+    !------------------------------------------------------------------------------------
+    ! Subroutine arguments
+    !------------------------------------------------------------------------------------
+
+    type(glide_global_type),intent(inout) :: model       !*FD Ice model parameters.
+
+    !------------------------------------------------------------------------------------
+    ! Internal variables
+    !------------------------------------------------------------------------------------
+
+    real(dp),dimension(size(model%numerics%sigma)) :: subd, diag, supd, rhsd
+    real(dp),dimension(size(model%numerics%sigma)) :: prevtemp, iteradvt, diagadvt
+    real(dp) :: tempresid
+
+    integer :: iter
+    integer :: ew,ns
+
+    real(dp),parameter :: tempthres = 0.001d0, floatlim = 10.0d0 / thk0
+    integer, parameter :: mxit = 100
+    integer, parameter :: ewbc = 1, nsbc = 1 
+
+    real(dp), dimension(size(model%numerics%sigma)) :: weff
+
+
+       ! Calculate time-derivatives of thickness and upper surface elevation ------------
+
+       call timeders(model%thckwk,   &
+            model%geometry%thck,     &
+            model%geomderv%dthckdtm, &
+            model%geometry%mask,     &
+            model%numerics%time,     &
+            1)
+
+       call timeders(model%thckwk,   &
+            model%geometry%usrf,     &
+            model%geomderv%dusrfdtm, &
+            model%geometry%mask,     &
+            model%numerics%time,     &
+            2)
+
+       ! Calculate the vertical velocity of the grid ------------------------------------
+
+       call gridwvel(model%numerics%sigma,  &
+            model%numerics%thklim, &
+            model%velocity%uvel,   &
+            model%velocity%vvel,   &
+            model%geomderv,        &
+            model%geometry%thck,   &
+            model%velocity%wgrd)
+
+       ! Calculate the actual vertical velocity; method depends on whichwvel ------------
+
+       select case(model%options%whichwvel)
+       case(0) 
+
+          ! Usual vertical integration
+
+          call wvelintg(model%velocity%uvel,                        &
+               model%velocity%vvel,                        &
+               model%geomderv,                             &
+               model%numerics,                             &
+               model%velowk,                               &
+               model%velocity%wgrd(model%general%upn,:,:), &
+               model%geometry%thck,                        &
+               model%temper%bmlt,                          &
+               model%velocity%wvel)
+
+       case(1)
+
+          ! Vertical integration constrained so kinematic upper BC obeyed.
+
+          call wvelintg(model%velocity%uvel,                        &
+               model%velocity%vvel,                        &
+               model%geomderv,                             &
+               model%numerics,                             &
+               model%velowk,                               &
+               model%velocity%wgrd(model%general%upn,:,:), &
+               model%geometry%thck,                        &
+               model%temper%  bmlt,                        &
+               model%velocity%wvel)
+
+          call chckwvel(model%numerics,                             &
+               model%geomderv,                             &
+               model%velocity%uvel(1,:,:),                 &
+               model%velocity%vvel(1,:,:),                 &
+               model%velocity%wvel,                        &
+               model%geometry%thck,                        &
+               model%climate% acab)
+       end select
+       ! apply periodic ew BC
+       if (model%options%periodic_ew.eq.1) then
+          call wvel_ew(model)
+       end if
+
+  end subroutine calcVerticalVelocity
 
   !-------------------------------------------------------------------------
 

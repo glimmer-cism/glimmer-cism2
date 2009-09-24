@@ -276,6 +276,9 @@ contains
 #endif
     if ( model%numerics%tinc >  mod(model%numerics%time,model%numerics%ntem)) then
 
+       ! Calculate vertical velocities
+       call calcVerticalVelocity(model)
+
        ! Do ice temperature calculation
        select case(model%options%whichtemp)
        case(0)
