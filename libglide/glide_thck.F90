@@ -49,7 +49,7 @@ module glide_thck
   use glide_types
 
   private
-  public :: init_thck, thck_nonlin_evolve, thck_lin_evolve, stagvarb, geomders, timeders, stagleapthck
+  public :: init_thck, thck_nonlin_evolve, thck_lin_evolve, stagvarb, geomders, stagleapthck
 
 #ifdef DEBUG_PICARD
   ! debugging Picard iteration
@@ -756,47 +756,6 @@ contains
                              ipvr(2:ewn,2:nsn)   + ipvr(1:ewn-1,1:nsn-1)) / 4.0d0
 
   end subroutine stagvarb
-
-!---------------------------------------------------------------------------------
-
-  subroutine timeders(thckwk,ipvr,opvr,mask,time,which)
-
-    !*FD Calculates the time-derivative of a field. This subroutine is used by 
-    !*FD the temperature solver only.
-
-    use glimmer_global, only : dp, sp
-    use paramets, only : conv
-
-    implicit none 
-
-    type(glide_thckwk) :: thckwk    !*FD Derived-type containing work data
-    real(dp), intent(out), dimension(:,:) :: opvr  !*FD Input field
-    real(dp), intent(in),  dimension(:,:) :: ipvr  !*FD Output (derivative) field
-    real(sp), intent(in)                  :: time  !*FD current time
-    integer,  intent(in),  dimension(:,:) :: mask  !*FD mask for calculation
-    integer,  intent(in)                  :: which !*FD selector for stored field
-
-    real(sp) :: factor
-
-    factor = (time - thckwk%oldtime)
-    if (factor .eq.0) then
-       opvr = 0.0d0
-    else
-       factor = 1./factor
-       where (mask /= 0)
-          opvr = conv * (ipvr - thckwk%olds(:,:,which)) * factor
-       elsewhere
-          opvr = 0.0d0
-       end where
-    end if
-
-    thckwk%olds(:,:,which) = ipvr
-
-    if (which == thckwk%nwhich) then
-      thckwk%oldtime = time
-    end if
-
-  end subroutine timeders
 
 !---------------------------------------------------------------------------------
 

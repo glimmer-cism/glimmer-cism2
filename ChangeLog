@@ -1,6 +1,7 @@
 2009-09-24 Ian Rutt
- * Split vertical velo calculation from temperature solution. Plenty of
-	redunant code here.
+ * Split vertical velo calculation from temperature solution.
+ * Moved vertical velo calc to glide_velo.F90
+ * Added glide_derv.F90 to hold general derivative code
 
 2009-09-21 Ian Rutt
  * glide_temp.F90: made a start at pulling apart temperature

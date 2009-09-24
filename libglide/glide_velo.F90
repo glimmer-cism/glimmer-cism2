@@ -265,6 +265,77 @@ contains
        end do
     end do
   end subroutine velo_calc_velo
+  !-------------------------------------------------------------------------
+
+  subroutine calcVerticalVelocity(model)
+
+    !*FD Calculates the ice temperature - full solution
+
+    use glide_deriv, only: timeders
+    implicit none
+
+    !------------------------------------------------------------------------------------
+    ! Subroutine arguments
+    !------------------------------------------------------------------------------------
+
+    type(glide_global_type),intent(inout) :: model       !*FD Ice model parameters.
+
+    ! Calculate time-derivatives of thickness and upper surface elevation ------------
+
+    call timeders(model%thckwk,   &
+         model%geometry%thck,     &
+         model%geomderv%dthckdtm, &
+         model%geometry%mask,     &
+         model%numerics%time,     &
+         1)
+
+    call timeders(model%thckwk,   &
+         model%geometry%usrf,     &
+         model%geomderv%dusrfdtm, &
+         model%geometry%mask,     &
+         model%numerics%time,     &
+         2)
+
+    ! Calculate the vertical velocity of the grid ------------------------------------
+
+    call gridwvel(model%numerics%sigma,  &
+         model%numerics%thklim, &
+         model%velocity%uvel,   &
+         model%velocity%vvel,   &
+         model%geomderv,        &
+         model%geometry%thck,   &
+         model%velocity%wgrd)
+
+    ! Calculate the actual vertical velocity ------------
+
+    call wvelintg(model%velocity%uvel,                        &
+         model%velocity%vvel,                        &
+         model%geomderv,                             &
+         model%numerics,                             &
+         model%velowk,                               &
+         model%velocity%wgrd(model%general%upn,:,:), &
+         model%geometry%thck,                        &
+         model%temper%bmlt,                          &
+         model%velocity%wvel)
+
+    ! Vertical integration constrained so kinematic upper BC obeyed.
+
+    if (model%options%whichwvel==1) then
+       call chckwvel(model%numerics,                             &
+            model%geomderv,                             &
+            model%velocity%uvel(1,:,:),                 &
+            model%velocity%vvel(1,:,:),                 &
+            model%velocity%wvel,                        &
+            model%geometry%thck,                        &
+            model%climate% acab)
+    end if
+
+    ! apply periodic ew BC
+    if (model%options%periodic_ew.eq.1) then
+       call wvel_ew(model)
+    end if
+
+  end subroutine calcVerticalVelocity
 
   !*****************************************************************************
   ! old velo functions come here
