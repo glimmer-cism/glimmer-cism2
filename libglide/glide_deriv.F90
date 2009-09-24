@@ -46,22 +46,42 @@
 
 module glide_deriv
 
+  use glimmer_global, only: dp, sp
+
   implicit none
+
+  type timederiv_params
+     real(sp) :: oldtime = 0.0
+     real(dp),dimension(:,:,:),pointer :: olds      => null()
+     integer  :: nwhich  = 2
+  end type timederiv_params
 
 contains
 
-  subroutine timeders(thckwk,ipvr,opvr,mask,time,which)
+  subroutine timeders_init(params,ewn,nsn)
+
+    type(timederiv_params),intent(inout) :: params
+    integer,               intent(in)    :: ewn
+    integer,               intent(in)    :: nsn
+
+    allocate(params%olds(ewn,nsn,params%nwhich))
+    params%olds = 0.0d0
+
+  end subroutine timeders_init
+
+  !-----------------------------------------------------------------------------
+
+  subroutine timeders(params,ipvr,opvr,mask,time,which)
 
     !*FD Calculates the time-derivative of a field. This subroutine is used by 
     !*FD the temperature solver only.
 
     use glimmer_global, only : dp, sp
     use paramets, only : conv
-    use glide_types, only: glide_thckwk
 
     implicit none 
 
-    type(glide_thckwk) :: thckwk    !*FD Derived-type containing work data
+    type(timederiv_params) :: params    !*FD Derived-type containing work data
     real(dp), intent(out), dimension(:,:) :: opvr  !*FD Input field
     real(dp), intent(in),  dimension(:,:) :: ipvr  !*FD Output (derivative) field
     real(sp), intent(in)                  :: time  !*FD current time
@@ -70,24 +90,34 @@ contains
 
     real(sp) :: factor
 
-    factor = (time - thckwk%oldtime)
+    factor = (time - params%oldtime)
     if (factor .eq.0) then
        opvr = 0.0d0
     else
        factor = 1./factor
        where (mask /= 0)
-          opvr = conv * (ipvr - thckwk%olds(:,:,which)) * factor
+          opvr = conv * (ipvr - params%olds(:,:,which)) * factor
        elsewhere
           opvr = 0.0d0
        end where
     end if
 
-    thckwk%olds(:,:,which) = ipvr
+    params%olds(:,:,which) = ipvr
 
-    if (which == thckwk%nwhich) then
-      thckwk%oldtime = time
+    if (which == params%nwhich) then
+      params%oldtime = time
     end if
 
   end subroutine timeders
+
+  !-----------------------------------------------------------------------------
+
+  subroutine timeders_final(params)
+
+     type(timederiv_params) :: params   
+
+     deallocate(params%olds)
+
+  end subroutine timeders_final
 
 end module glide_deriv

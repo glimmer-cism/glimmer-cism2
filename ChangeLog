@@ -2,6 +2,9 @@
  * Split vertical velo calculation from temperature solution.
  * Moved vertical velo calc to glide_velo.F90
  * Added glide_derv.F90 to hold general derivative code
+ * Split out time-derivative data from thckwk, and moved initialisation
+	etc to glide_deriv.F90
+ * Regtested against branchpoint for e2.a - OK.
 
 2009-09-21 Ian Rutt
  * glide_temp.F90: made a start at pulling apart temperature

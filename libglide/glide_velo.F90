@@ -282,14 +282,14 @@ contains
 
     ! Calculate time-derivatives of thickness and upper surface elevation ------------
 
-    call timeders(model%thckwk,   &
+    call timeders(model%timederivs,   &
          model%geometry%thck,     &
          model%geomderv%dthckdtm, &
          model%geometry%mask,     &
          model%numerics%time,     &
          1)
 
-    call timeders(model%thckwk,   &
+    call timeders(model%timederivs,   &
          model%geometry%usrf,     &
          model%geomderv%dusrfdtm, &
          model%geometry%mask,     &
