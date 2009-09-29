@@ -267,37 +267,51 @@ contains
     real(dp), dimension(size(model%numerics%sigma)) :: weff
 
     !------------------------------------------------------------------------------------
-    ! ewbc/nsbc set the type of boundary condition aplied at the end of
+    ! ewbc/nsbc set the type of boundary condition applied at the end of
     ! the domain. a value of 0 implies zero gradient.
     !------------------------------------------------------------------------------------
-    ! Calculate the ice thickness according to different methods
-    !------------------------------------------------------------------------------------
 
-       model%tempwk%inittemp = 0.0d0
-       model%tempwk%initadvt = 0.0d0
+    model%tempwk%inittemp = 0.0d0
+    model%tempwk%initadvt = 0.0d0
 
-       call finddisp(model%tempwk%dissip, &
-            model%geometry%thck, &
-            model%geomderv%stagthck, &
-            model%geomderv%dusrfdew, &
-            model%geomderv%dusrfdns, &
-            model%temper%flwa,       &
-            model%general%ewn,       &
-            model%general%nsn,       &
-            model%tempwk%c1,         &
-            model%numerics%thklim)
+    ! Calculate dissipative term --------------------------------------------------------
 
-       ! translate velo field
-       do ns = 2,model%general%nsn-1
-          do ew = 2,model%general%ewn-1
-             model%tempwk%hadv_u(:,ew,ns) = model%tempwk%advconst(1) * hsum4(model%velocity%uvel(:,ew-1:ew,ns-1:ns))
-             model%tempwk%hadv_v(:,ew,ns) = model%tempwk%advconst(2) * hsum4(model%velocity%vvel(:,ew-1:ew,ns-1:ns))
-          end do
+    call finddisp(model%tempwk%dissip, &
+         model%geometry%thck,          &
+         model%geomderv%stagthck,      &
+         model%geomderv%dusrfdew,      &
+         model%geomderv%dusrfdns,      &
+         model%temper%flwa,            &
+         model%general%ewn,            &
+         model%general%nsn,            &
+         model%tempwk%c1,              &
+         model%numerics%thklim)
+
+    ! translate velo field --------------------------------------------------------------
+
+    do ns = 2,model%general%nsn-1
+       do ew = 2,model%general%ewn-1
+
+          model%tempwk%hadv_u(:,ew,ns) = &
+               model%tempwk%advconst(1) * hsum4(model%velocity%uvel(:,ew-1:ew,ns-1:ns))
+
+          model%tempwk%hadv_v(:,ew,ns) = &
+               model%tempwk%advconst(2) * hsum4(model%velocity%vvel(:,ew-1:ew,ns-1:ns))
+
        end do
+    end do
 
-       call hadvall(model, &
-            model%temper%temp, &
-            model%geometry%thck)
+    ! Calculate initial upwinding terms ------------------------------------------------
+
+    call hadvall(model%tempwk%initadvt, &
+         model%temper%temp,             &
+         model%geometry%thck,           &
+         model%numerics%thklim,         &
+         model%tempwk%hadv_u,           &
+         model%tempwk%hadv_v,           &
+         model%general%ewn,             &
+         model%general%nsn,             &
+         model%general%upn)
 
        ! zeroth iteration
        iter = 0
@@ -316,7 +330,8 @@ contains
                      model%temper%temp(:,ew-2:ew+2,ns),      &
                      model%temper%temp(:,ew,ns-2:ns+2),      &
                      model%tempwk%hadv_u(:,ew,ns), &
-                     model%tempwk%hadv_v(:,ew,ns))
+                     model%tempwk%hadv_v(:,ew,ns), &
+                     model%general%upn)
                
                 call findvtri(model,ew,ns,subd,diag,supd,diagadvt, &
                      weff, &
@@ -362,7 +377,8 @@ contains
                         model%temper%temp(:,ew-2:ew+2,ns),      &
                         model%temper%temp(:,ew,ns-2:ns+2),      &
                         model%tempwk%hadv_u(:,ew,ns), &
-                        model%tempwk%hadv_v(:,ew,ns))
+                        model%tempwk%hadv_v(:,ew,ns), &
+                        model%general%upn)
 
                    call findvtri(model,ew,ns,subd,diag,supd,diagadvt, &
                         weff, &
@@ -459,18 +475,19 @@ contains
 
   !-------------------------------------------------------------------------
 
-  subroutine hadvpnt(iteradvt,diagadvt,tempx,tempy,u,v)
+  subroutine hadvpnt(iteradvt,diagadvt,tempx,tempy,u,v,upn)
 
     use glimmer_global, only : dp
 
     implicit none
 
-    real(dp), dimension(:),   intent(out) :: iteradvt
-    real(dp), dimension(:),   intent(out) :: diagadvt
-    real(dp), dimension(:,:), intent(in)  :: tempx
-    real(dp), dimension(:,:), intent(in)  :: tempy
-    real(dp), dimension(:),   intent(in)  :: u
-    real(dp), dimension(:),   intent(in)  :: v
+    integer,                    intent(in)  :: upn        ! Number of points in vertical
+    real(dp), dimension(upn),   intent(out) :: iteradvt
+    real(dp), dimension(upn),   intent(out) :: diagadvt
+    real(dp), dimension(upn,5), intent(in)  :: tempx
+    real(dp), dimension(upn,5), intent(in)  :: tempy
+    real(dp), dimension(upn),   intent(in)  :: u
+    real(dp), dimension(upn),   intent(in)  :: v
 
     iteradvt = 0.0d0
     diagadvt = 0.0d0
@@ -535,32 +552,39 @@ contains
 
   !-------------------------------------------------------------------------
 
-  subroutine hadvall(model,temp,thck)
+  subroutine hadvall(initadvt,temp,thck,thklim,hadv_u,hadv_v,ewn,nsn,upn)
 
     use glimmer_global, only : dp 
 
     implicit none
 
-    type(glide_global_type) :: model
-    real(dp), dimension(:,0:,0:), intent(in) :: temp
-    real(dp), dimension(:,:), intent(in) :: thck
+    integer,                                     intent(in)  :: ewn
+    integer,                                     intent(in)  :: nsn
+    integer,                                     intent(in)  :: upn
+    real(dp), dimension(upn,ewn,nsn),            intent(out) :: initadvt
+    real(dp), dimension(upn,0:ewn+1,0:nsn+1),    intent(in)  :: temp
+    real(dp), dimension(ewn,nsn),                intent(in)  :: thck
+    real(dp),                                    intent(in)  :: thklim
+    real(dp), dimension(upn,ewn,nsn),            intent(in)  :: hadv_u
+    real(dp), dimension(upn,ewn,nsn),            intent(in)  :: hadv_v
 
-    real(dp), dimension(size(temp,dim=1)) :: diagadvt
+    real(dp), dimension(upn) :: diagadvt
 
     integer :: ew,ns
 
-    model%tempwk%initadvt = 0.0d0
+    initadvt = 0.0d0
 
-    do ns = 2,model%general%nsn-1
-       do ew = 2,model%general%ewn-1
-          if (thck(ew,ns) > model%numerics%thklim) then
+    do ns = 2,nsn-1
+       do ew = 2,ewn-1
+          if (thck(ew,ns) > thklim) then
 
-             call hadvpnt(model%tempwk%initadvt(:,ew,ns), &
+             call hadvpnt(initadvt(:,ew,ns),      &
                   diagadvt,                       &
                   temp(:,ew-2:ew+2,ns),           &
                   temp(:,ew,ns-2:ns+2),           &
-                  model%tempwk%hadv_u(:,ew,ns), &
-                  model%tempwk%hadv_v(:,ew,ns))
+                  hadv_u(:,ew,ns),                &
+                  hadv_v(:,ew,ns),                &
+                  upn)
           end if
        end do
     end do

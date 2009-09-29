@@ -1,5 +1,7 @@
 2009-09-29 Ian Rutt
  * glide_temp.F90: cleaned derived types from finddisp
+ * glide_temp.F90: cleaned derived types from hadvall and hadvpnt
+ * Regtested against branchpoint for e2.a - OK.
 
 2009-09-24 Ian Rutt
  * Split vertical velo calculation from temperature solution.
