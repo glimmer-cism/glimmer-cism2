@@ -1,3 +1,6 @@
+2009-09-29 Ian Rutt
+ * glide_temp.F90: cleaned derived types from finddisp
+
 2009-09-24 Ian Rutt
  * Split vertical velo calculation from temperature solution.
  * Moved vertical velo calc to glide_velo.F90

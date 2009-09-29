@@ -275,15 +275,17 @@ contains
 
        model%tempwk%inittemp = 0.0d0
        model%tempwk%initadvt = 0.0d0
-       !*MH model%tempwk%dissip   = 0.0d0  is also set to zero in finddisp
-       ! ----------------------------------------------------------------------------------
 
-       call finddisp(model, &
+       call finddisp(model%tempwk%dissip, &
             model%geometry%thck, &
             model%geomderv%stagthck, &
             model%geomderv%dusrfdew, &
             model%geomderv%dusrfdns, &
-            model%temper%flwa)
+            model%temper%flwa,       &
+            model%general%ewn,       &
+            model%general%nsn,       &
+            model%tempwk%c1,         &
+            model%numerics%thklim)
 
        ! translate velo field
        do ns = 2,model%general%nsn-1
@@ -697,40 +699,43 @@ contains
     end if
     rhsd(2:model%general%upn-1) = model%tempwk%inittemp(2:model%general%upn-1,ew,ns) - iteradvt(2:model%general%upn-1)
   end subroutine findvtri_rhs
+
   !-----------------------------------------------------------------------
 
-  subroutine finddisp(model,thck,stagthck,dusrfdew,dusrfdns,flwa)
+  subroutine finddisp(dissip,thck,stagthck,dusrfdew,dusrfdns,flwa,ewn,nsn,c1,thklim)
 
     use glimmer_global, only : dp
     use physcon, only : gn
 
     implicit none
 
-    type(glide_global_type) :: model
-    real(dp), dimension(:,:), intent(in) :: thck, stagthck, dusrfdew, dusrfdns
-    real(dp), dimension(:,:,:), intent(in) :: flwa
+    real(dp), dimension(:,:,:), intent(out) :: dissip
+    real(dp), dimension(:,:),   intent(in)  :: thck
+    real(dp), dimension(:,:),   intent(in)  :: stagthck
+    real(dp), dimension(:,:),   intent(in)  :: dusrfdew
+    real(dp), dimension(:,:),   intent(in)  :: dusrfdns
+    real(dp), dimension(:,:,:), intent(in)  :: flwa
+    integer,                    intent(in)  :: ewn,nsn
+    real(dp), dimension(:),     intent(in)  :: c1
+    real(dp),                   intent(in)  :: thklim
 
     integer, parameter :: p1 = gn + 1  
     integer :: ew,ns
 
     real(dp) :: c2
 
-    ! two methods of doing this. 
-    ! 1. find dissipation at u-pts and then average
-    ! 2. find dissipation at H-pts by averaging quantities from u-pts
-    ! 2. works best for eismint divide (symmetry) but 1 likely to be better for full expts
+    ! find dissipation term at H-pts by averaging quantities from u-pts
 
-
-    model%tempwk%dissip = 0.0d0
+    dissip = 0.0d0
     
-    do ns = 2, model%general%nsn-1
-       do ew = 2, model%general%ewn-1
-          if (thck(ew,ns) > model%numerics%thklim) then
+    do ns = 2, nsn-1
+       do ew = 2, ewn-1
+          if (thck(ew,ns) > thklim) then
              
              c2 = (0.25*sum(stagthck(ew-1:ew,ns-1:ns)) * dsqrt((0.25*sum(dusrfdew(ew-1:ew,ns-1:ns)))**2 &
                   + (0.25*sum(dusrfdns(ew-1:ew,ns-1:ns)))**2))**p1
              
-             model%tempwk%dissip(:,ew,ns) = c2 * model%tempwk%c1 * ( &
+             dissip(:,ew,ns) = c2 * c1 * ( &
                   flwa(:,ew-1,ns-1) + flwa(:,ew-1,ns+1) + flwa(:,ew+1,ns+1) + flwa(:,ew+1,ns-1) + &
                   2*(flwa(:,ew-1,ns)+flwa(:,ew+1,ns)+flwa(:,ew,ns-1)+flwa(:,ew,ns+1)) + &
                   4*flwa(:,ew,ns))             
