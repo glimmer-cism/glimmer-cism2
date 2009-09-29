@@ -210,9 +210,9 @@ contains
     use glimmer_utils,  only: hsum4,tridiag
     use glimmer_global, only: dp
     use paramets,       only: thk0
-    use glide_velo
-    use glide_thck
-    use glide_mask
+    use glide_thck,     only: stagvarb
+    use glide_mask,     only: is_float, is_thin
+
     implicit none
 
     !------------------------------------------------------------------------------------
@@ -314,13 +314,21 @@ contains
                      model%tempwk%hadv_v(:,ew,ns),           &
                      model%general%upn)
 
-                call findvtri(model%zCoord,model%geometry%thck(ew,ns),subd,diag,supd,diagadvt, &
-                     weff,is_float(model%geometry%thkmask(ew,ns)),model%general%upn, &
-                     model%tempwk%cons(1),model%tempwk%cons(2))
+                call findvtri(model%zCoord,      &
+                     model%geometry%thck(ew,ns), &
+                     subd,                       &
+                     diag,                       &
+                     supd,                       &
+                     diagadvt,                   &
+                     weff,is_float(model%geometry%thkmask(ew,ns)), &
+                     model%general%upn,          &
+                     model%tempwk%cons(1),       &
+                     model%tempwk%cons(2))
 
-                if(iter==0) &
-                     call findvtri_init(model,ew,ns,subd,diag,supd,weff,model%temper%temp(:,ew,ns), &
-                     model%geometry%thck(ew,ns),is_float(model%geometry%thkmask(ew,ns)))
+                if (iter==0) then
+                   call findvtri_init(model,ew,ns,subd,diag,supd,weff,model%temper%temp(:,ew,ns), &
+                        model%geometry%thck(ew,ns),is_float(model%geometry%thkmask(ew,ns)))
+                end if
 
                 call findvtri_rhs(model,ew,ns,model%climate%artm(ew,ns),iteradvt,rhsd, &
                      is_float(model%geometry%thkmask(ew,ns)))
