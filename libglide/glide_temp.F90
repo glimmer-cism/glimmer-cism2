@@ -301,7 +301,7 @@ contains
        end do
     end do
 
-    ! Calculate initial upwinding terms ------------------------------------------------
+    ! Calculate initial upwinding terms -------------------------------------------------
 
     call hadvall(model%tempwk%initadvt, &
          model%temper%temp,             &
@@ -313,9 +313,14 @@ contains
          model%general%nsn,             &
          model%general%upn)
 
-       ! zeroth iteration
-       iter = 0
+    ! Iterative temperature solution ----------------------------------------------------
+
+    iter = 0
+    tempresid = abs(tempthres*2.0)  ! To make sure the loop is executed at least once
+   
+    do while (tempresid.gt.tempthres .and. iter.le.mxit)
        tempresid = 0.0d0
+
        do ns = 2,model%general%nsn-1
           do ew = 2,model%general%ewn-1
              if(model%geometry%thck(ew,ns)>model%numerics%thklim) then
@@ -332,17 +337,18 @@ contains
                      model%tempwk%hadv_u(:,ew,ns), &
                      model%tempwk%hadv_v(:,ew,ns), &
                      model%general%upn)
-               
+
                 call findvtri(model,ew,ns,subd,diag,supd,diagadvt, &
                      weff, &
                      is_float(model%geometry%thkmask(ew,ns)))
 
-                call findvtri_init(model,ew,ns,subd,diag,supd,weff,model%temper%temp(:,ew,ns), &
+                if(iter==0) &
+                     call findvtri_init(model,ew,ns,subd,diag,supd,weff,model%temper%temp(:,ew,ns), &
                      model%geometry%thck(ew,ns),is_float(model%geometry%thkmask(ew,ns)))
 
                 call findvtri_rhs(model,ew,ns,model%climate%artm(ew,ns),iteradvt,rhsd, &
                      is_float(model%geometry%thkmask(ew,ns)))
-                
+
                 prevtemp = model%temper%temp(:,ew,ns)
 
                 call tridiag(subd(1:model%general%upn), &
@@ -354,57 +360,13 @@ contains
                 call corrpmpt(model%temper%temp(:,ew,ns),model%geometry%thck(ew,ns),model%temper%bwat(ew,ns), &
                      model%numerics%sigma,model%general%upn)
 
-
                 tempresid = max(tempresid,maxval(abs(model%temper%temp(:,ew,ns)-prevtemp(:))))
              endif
           end do
        end do
 
-       do while (tempresid.gt.tempthres .and. iter.le.mxit)
-          tempresid = 0.0d0
-
-          do ns = 2,model%general%nsn-1
-             do ew = 2,model%general%ewn-1
-                if(model%geometry%thck(ew,ns)>model%numerics%thklim) then
-
-                   weff = model%velocity%wvel(:,ew,ns) - model%velocity%wgrd(:,ew,ns)
-                   if (maxval(abs(weff)) > model%tempwk%wmax) then
-                      weff = 0.0d0
-                   end if
-
-                   call hadvpnt(iteradvt,                               &
-                        diagadvt,                               &
-                        model%temper%temp(:,ew-2:ew+2,ns),      &
-                        model%temper%temp(:,ew,ns-2:ns+2),      &
-                        model%tempwk%hadv_u(:,ew,ns), &
-                        model%tempwk%hadv_v(:,ew,ns), &
-                        model%general%upn)
-
-                   call findvtri(model,ew,ns,subd,diag,supd,diagadvt, &
-                        weff, &
-                        is_float(model%geometry%thkmask(ew,ns)))
-
-                   call findvtri_rhs(model,ew,ns,model%climate%artm(ew,ns),iteradvt,rhsd, &
-                        is_float(model%geometry%thkmask(ew,ns)))
-
-                   prevtemp = model%temper%temp(:,ew,ns)
-
-                   call tridiag(subd(1:model%general%upn), &
-                        diag(1:model%general%upn), &
-                        supd(1:model%general%upn), &
-                        model%temper%temp(1:model%general%upn,ew,ns), &
-                        rhsd(1:model%general%upn))
-
-                   call corrpmpt(model%temper%temp(:,ew,ns),model%geometry%thck(ew,ns),model%temper%bwat(ew,ns), &
-                        model%numerics%sigma,model%general%upn)
-
-                   tempresid = max(tempresid,maxval(abs(model%temper%temp(:,ew,ns)-prevtemp(:))))
-                endif
-             end do
-          end do
-
-          iter = iter + 1
-       end do
+       iter = iter + 1
+    end do
 
        model%temper%niter = max(model%temper%niter, iter )
        
