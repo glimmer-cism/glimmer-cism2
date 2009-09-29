@@ -235,9 +235,9 @@ contains
 
     !*FD Calculates the ice temperature - full solution
 
-    use glimmer_utils, only: hsum4,tridiag
-    use glimmer_global, only : dp
-    use paramets,       only : thk0
+    use glimmer_utils,  only: hsum4,tridiag
+    use glimmer_global, only: dp
+    use paramets,       only: thk0
     use glide_velo
     use glide_thck
     use glide_mask
@@ -325,22 +325,25 @@ contains
           do ew = 2,model%general%ewn-1
              if(model%geometry%thck(ew,ns)>model%numerics%thklim) then
 
+                ! Calculate effective vertical velocity
                 weff = model%velocity%wvel(:,ew,ns) - model%velocity%wgrd(:,ew,ns)
+
+                ! Set effective vertical velocity to zero if it exceeds a threshold
                 if (maxval(abs(weff)) > model%tempwk%wmax) then
                    weff = 0.0d0
                 end if
 
-                call hadvpnt(iteradvt,                               &
+                ! Calculate upwinded advection term
+                call hadvpnt(iteradvt,                       &
                      diagadvt,                               &
                      model%temper%temp(:,ew-2:ew+2,ns),      &
                      model%temper%temp(:,ew,ns-2:ns+2),      &
-                     model%tempwk%hadv_u(:,ew,ns), &
-                     model%tempwk%hadv_v(:,ew,ns), &
+                     model%tempwk%hadv_u(:,ew,ns),           &
+                     model%tempwk%hadv_v(:,ew,ns),           &
                      model%general%upn)
 
                 call findvtri(model,ew,ns,subd,diag,supd,diagadvt, &
-                     weff, &
-                     is_float(model%geometry%thkmask(ew,ns)))
+                     weff,is_float(model%geometry%thkmask(ew,ns)))
 
                 if(iter==0) &
                      call findvtri_init(model,ew,ns,subd,diag,supd,weff,model%temper%temp(:,ew,ns), &
@@ -351,9 +354,9 @@ contains
 
                 prevtemp = model%temper%temp(:,ew,ns)
 
-                call tridiag(subd(1:model%general%upn), &
-                     diag(1:model%general%upn), &
-                     supd(1:model%general%upn), &
+                call tridiag(subd(1:model%general%upn),            &
+                     diag(1:model%general%upn),                    &
+                     supd(1:model%general%upn),                    &
                      model%temper%temp(1:model%general%upn,ew,ns), &
                      rhsd(1:model%general%upn))
 
@@ -368,64 +371,66 @@ contains
        iter = iter + 1
     end do
 
-       model%temper%niter = max(model%temper%niter, iter )
+    model%temper%niter = max(model%temper%niter, iter )
        
-       ! set temperature of thin ice to the air temperature and set ice free nodes to zero
-       do ns = 1,model%general%nsn
-          do ew = 1,model%general%ewn
-             if (is_thin(model%geometry%thkmask(ew,ns))) then
-                model%temper%temp(:,ew,ns) = min(0.0d0,dble(model%climate%artm(ew,ns)))
-             else if (model%geometry%thkmask(ew,ns)<0) then
-                model%temper%temp(:,ew,ns) = 0.0d0
-             end if
-          end do
+    ! set temperature of thin ice to the air temperature and set ice free nodes to zero
+
+    do ns = 1,model%general%nsn
+       do ew = 1,model%general%ewn
+          if (is_thin(model%geometry%thkmask(ew,ns))) then
+             model%temper%temp(:,ew,ns) = min(0.0d0,dble(model%climate%artm(ew,ns)))
+          else if (model%geometry%thkmask(ew,ns)<0) then
+             model%temper%temp(:,ew,ns) = 0.0d0
+          end if
        end do
+    end do
 
-       ! apply periodic ew BC
-       if (model%options%periodic_ew.eq.1) then
-          model%temper%temp(:,0,:) = model%temper%temp(:,model%general%ewn-2,:)
-          model%temper%temp(:,1,:) = model%temper%temp(:,model%general%ewn-1,:)
-          model%temper%temp(:,model%general%ewn,:) = model%temper%temp(:,2,:)
-          model%temper%temp(:,model%general%ewn+1,:) = model%temper%temp(:,3,:)
-       end if
+    ! apply periodic ew BC ----------------------------------------------------------
 
-       ! Calculate basal melt rate --------------------------------------------------
+    if (model%options%periodic_ew.eq.1) then
+       model%temper%temp(:,0,:) = model%temper%temp(:,model%general%ewn-2,:)
+       model%temper%temp(:,1,:) = model%temper%temp(:,model%general%ewn-1,:)
+       model%temper%temp(:,model%general%ewn,:) = model%temper%temp(:,2,:)
+       model%temper%temp(:,model%general%ewn+1,:) = model%temper%temp(:,3,:)
+    end if
 
-       call calcbmlt(model, &
-            model%temper%temp, &
-            model%geometry%thck, &
-            model%geomderv%stagthck, &
-            model%geomderv%dusrfdew, &
-            model%geomderv%dusrfdns, &
-            model%velocity%ubas, &
-            model%velocity%vbas, &
-            model%temper%bmlt, &
-            is_float(model%geometry%thkmask))
+    ! Calculate basal melt rate --------------------------------------------------
 
-       ! Calculate basal water depth ------------------------------------------------
+    call calcbmlt(model,                  &
+         model%temper%temp,               &
+         model%geometry%thck,             &
+         model%geomderv%stagthck,         &
+         model%geomderv%dusrfdew,         &
+         model%geomderv%dusrfdns,         &
+         model%velocity%ubas,             &
+         model%velocity%vbas,             &
+         model%temper%bmlt,               &
+         is_float(model%geometry%thkmask))
 
-       call calcbwat(model, &
-            model%options%whichbwat, &
-            model%temper%bmlt, &
-            model%temper%bwat, &
-            model%geometry%thck, &
-            model%geometry%topg, &
-            model%temper%temp(model%general%upn,:,:), &
-            is_float(model%geometry%thkmask))
+    ! Calculate basal water depth ------------------------------------------------
 
-       ! Transform basal temperature and pressure melting point onto velocity grid -
+    call calcbwat(model,                           &
+         model%options%whichbwat,                  &
+         model%temper%bmlt,                        &
+         model%temper%bwat,                        &
+         model%geometry%thck,                      &
+         model%geometry%topg,                      &
+         model%temper%temp(model%general%upn,:,:), &
+         is_float(model%geometry%thkmask))
 
-       call stagvarb(model%temper%temp(model%general%upn,1:model%general%ewn,1:model%general%nsn), &
-            model%temper%stagbtemp ,&
-            model%general%  ewn, &
-            model%general%  nsn)
+    ! Transform basal temperature and pressure melting point onto velocity grid -
+
+    call stagvarb(model%temper%temp(model%general%upn,1:model%general%ewn,1:model%general%nsn), &
+         model%temper%stagbtemp ,  &
+         model%general%  ewn,      &
+         model%general%  nsn)
        
-       call calcbpmp(model,model%geometry%thck,model%temper%bpmp)
+    call calcbpmp(model,model%geometry%thck,model%temper%bpmp)
 
-       call stagvarb(model%temper%bpmp, &
-            model%temper%stagbpmp ,&
-            model%general%  ewn, &
-            model%general%  nsn)
+    call stagvarb(model%temper%bpmp, &
+         model%temper%stagbpmp ,     &
+         model%general%ewn,          &
+         model%general%nsn)
 
     ! Output some information ----------------------------------------------------
 #ifdef DEBUG
