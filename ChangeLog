@@ -2,6 +2,8 @@
  * glide_temp.F90: cleaned derived types from finddisp
  * glide_temp.F90: cleaned derived types from hadvall and hadvpnt
  * glide_temp.F90: reorganised iterative solution to avoid duplicated code
+ * glide_temp.F90: cleaned model dreived type from findvtri; created new
+   type to hold vertical coordinate information (in glide_vertcoord.F90)
  * Regtested against branchpoint for e2.a - OK.
 
 2009-09-24 Ian Rutt

@@ -68,6 +68,7 @@ module glide_types
   use glimmer_map_types, pi_dummy=>pi
   use glide_glenflow, only: glenflow_params
   use glide_deriv, only: timederiv_params
+  use glide_vertcoord, only: vertCoord
 
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -460,11 +461,7 @@ module glide_types
     real(dp),dimension(:,:,:),pointer :: inittemp => null()
     real(dp),dimension(:,:,:),pointer :: dissip   => null()
     real(dp),dimension(:,:,:),pointer :: initadvt => null()
-    real(dp),dimension(:),    pointer :: dupa     => null()
-    real(dp),dimension(:),    pointer :: dupb     => null()
-    real(dp),dimension(:),    pointer :: dupc     => null()
     real(dp),dimension(:),    pointer :: c1       => null()
-    real(dp),dimension(:,:),  pointer :: dups     => null()
     real(dp),dimension(:,:),  pointer :: wphi     => null()
     real(dp),dimension(:,:),  pointer :: bwatu    => null()
     real(dp),dimension(:,:),  pointer :: bwatv    => null()
@@ -481,7 +478,6 @@ module glide_types
     real(dp) :: noflow      = -1
     real(dp),dimension(2) :: advconst = 0.0
     real(dp) :: zbed        = 0.0
-    real(dp) :: dupn        = 0.0
     real(dp) :: wmax        = 0.0
     real(dp) :: dt_wat      = 0.0
     real(dp) :: watvel      = 0.0
@@ -536,6 +532,7 @@ module glide_types
     type(glide_prof_type) :: glide_prof
     type(isos_type)      :: isos
     type(timederiv_params) :: timederivs
+    type(vertCoord)        :: zCoord
   end type glide_global_type
 
 !MH!  !MAKE_RESTART

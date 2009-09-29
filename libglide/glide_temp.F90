@@ -82,6 +82,7 @@ contains
     !*FD initialise temperature module
     use physcon, only : rhoi, shci, coni, scyr, grav, gn, lhci, rhow
     use paramets, only : tim0, thk0, acc0, len0, vis0, vel0
+    use glide_vertcoord, only: initVertCoord
     use glimmer_global, only : dp 
     use glimmer_log
     implicit none
@@ -104,12 +105,7 @@ contains
     allocate(model%tempwk%inittemp(model%general%upn,model%general%ewn,model%general%nsn))
     allocate(model%tempwk%dissip(model%general%upn,model%general%ewn,model%general%nsn))
 
-    allocate(model%tempwk%dups(model%general%upn,3))
-
     allocate(model%tempwk%c1(model%general%upn))
-
-    allocate(model%tempwk%dupa(model%general%upn),model%tempwk%dupb(model%general%upn))
-    allocate(model%tempwk%dupc(model%general%upn))
 
     allocate(model%tempwk%smth(model%general%ewn,model%general%nsn))
     allocate(model%tempwk%wphi(model%general%ewn,model%general%nsn))
@@ -119,21 +115,12 @@ contains
     allocate(model%tempwk%fluxns(model%general%ewn,model%general%nsn))
     allocate(model%tempwk%bint(model%general%ewn-1,model%general%nsn-1))
 
+    call initVertCoord(model%zCoord,model%numerics%sigma)
+
     model%tempwk%advconst(1) = HORIZ_ADV*model%numerics%dttem / (16.0d0 * model%numerics%dew)
     model%tempwk%advconst(2) = HORIZ_ADV*model%numerics%dttem / (16.0d0 * model%numerics%dns)
 
-    model%tempwk%dups = 0.0d0
-
-    do up = 2, model%general%upn-1
-       model%tempwk%dups(up,1) = 1.d0/((model%numerics%sigma(up+1) - model%numerics%sigma(up-1)) * &
-            (model%numerics%sigma(up)   - model%numerics%sigma(up-1)))
-       model%tempwk%dups(up,2) = 1.d0/((model%numerics%sigma(up+1) - model%numerics%sigma(up-1)) *  &
-            (model%numerics%sigma(up+1) - model%numerics%sigma(up)))
-       model%tempwk%dups(up,3) = 1.d0/(model%numerics%sigma(up+1)  - model%numerics%sigma(up-1))
-    end do
-
     model%tempwk%zbed = 1.0d0 / thk0
-    model%tempwk%dupn = model%numerics%sigma(model%general%upn) - model%numerics%sigma(model%general%upn-1)
     model%tempwk%wmax = 5.0d0 * tim0 / (scyr * thk0)
 
     model%tempwk%cons = (/ 2.0d0 * tim0 * model%numerics%dttem * coni / (2.0d0 * rhoi * shci * thk0**2), &
@@ -143,21 +130,6 @@ contains
 
     model%tempwk%c1 = STRAIN_HEAT *(model%numerics%sigma * rhoi * grav * thk0**2 / len0)**p1 * &
          2.0d0 * vis0 * model%numerics%dttem * tim0 / (16.0d0 * rhoi * shci)
-
-    model%tempwk%dupc = (/ (model%numerics%sigma(2) - model%numerics%sigma(1)) / 2.0d0, &
-         ((model%numerics%sigma(up+1) - model%numerics%sigma(up-1)) / 2.0d0, &
-         up=2,model%general%upn-1), (model%numerics%sigma(model%general%upn) - &
-         model%numerics%sigma(model%general%upn-1)) / 2.0d0  /)
-    model%tempwk%dupa = (/ 0.0d0, 0.0d0, &
-         ((model%numerics%sigma(up) - model%numerics%sigma(up-1)) / &
-         ((model%numerics%sigma(up-2) - model%numerics%sigma(up-1)) * &
-         (model%numerics%sigma(up-2) - model%numerics%sigma(up))), &
-         up=3,model%general%upn)  /)
-    model%tempwk%dupb = (/ 0.0d0, 0.0d0, &
-         ((model%numerics%sigma(up) - model%numerics%sigma(up-2)) / &
-         ((model%numerics%sigma(up-1) - model%numerics%sigma(up-2)) * &
-         (model%numerics%sigma(up-1) - model%numerics%sigma(up))), &
-         up=3,model%general%upn)  /)
     
     model%tempwk%f = (/ tim0 * coni / (thk0**2 * lhci * rhoi), &
          tim0 / (thk0 * lhci * rhoi), &
@@ -342,8 +314,9 @@ contains
                      model%tempwk%hadv_v(:,ew,ns),           &
                      model%general%upn)
 
-                call findvtri(model,ew,ns,subd,diag,supd,diagadvt, &
-                     weff,is_float(model%geometry%thkmask(ew,ns)))
+                call findvtri(model%zCoord,model%geometry%thck(ew,ns),subd,diag,supd,diagadvt, &
+                     weff,is_float(model%geometry%thkmask(ew,ns)),model%general%upn, &
+                     model%tempwk%cons(1),model%tempwk%cons(2))
 
                 if(iter==0) &
                      call findvtri_init(model,ew,ns,subd,diag,supd,weff,model%temper%temp(:,ew,ns), &
@@ -560,35 +533,37 @@ contains
 
   !-------------------------------------------------------------------------
 
-  subroutine findvtri(model,ew,ns,subd,diag,supd,diagadvt,weff,float)
+  subroutine findvtri(zCoord,thck,subd,diag,supd,diagadvt,weff,float,upn,cons1,cons2)
 
-    use glimmer_global, only : dp
+    use glide_vertcoord, only: vertCoord
+    use glimmer_global,  only: dp
 
     implicit none
 
-    type(glide_global_type) :: model
-    integer, intent(in) :: ew, ns
-    real(dp), dimension(:), intent(in) :: weff,  diagadvt
-    real(dp), dimension(:), intent(out) :: subd, diag, supd
-    logical, intent(in) :: float
+    type(vertCoord),        intent(in)  :: zCoord
+    real(dp),               intent(in)  :: thck
+    real(dp), dimension(:), intent(in)  :: weff
+    real(dp), dimension(:), intent(in)  :: diagadvt
+    real(dp), dimension(:), intent(out) :: subd
+    real(dp), dimension(:), intent(out) :: diag
+    real(dp), dimension(:), intent(out) :: supd
+    logical,                intent(in)  :: float
+    integer,                intent(in)  :: upn
+    real(dp),               intent(in)  :: cons1
+    real(dp),               intent(in)  :: cons2
 
-    real(dp) :: fact(3)
+    real(dp) :: diff_factor,adv_factor
 
-    fact(1) = VERT_DIFF*model%tempwk%cons(1) / model%geometry%thck(ew,ns)**2
-    fact(2) = VERT_ADV*model%tempwk%cons(2) / model%geometry%thck(ew,ns)    
+    diff_factor = VERT_DIFF * cons1 / thck**2
+    adv_factor  = VERT_ADV  * cons2 / thck
     
-    subd(2:model%general%upn-1) = fact(2) * weff(2:model%general%upn-1) * &
-         model%tempwk%dups(2:model%general%upn-1,3)
+    subd(2:upn-1) =   adv_factor  * weff(2:upn-1) * zCoord%dups(2:upn-1,3)
+    supd(2:upn-1) = - subd(2:upn-1) - diff_factor * zCoord%dups(2:upn-1,2)
+    subd(2:upn-1) =   subd(2:upn-1) - diff_factor * zCoord%dups(2:upn-1,1)
 
-    supd(2:model%general%upn-1) = - subd(2:model%general%upn-1) - fact(1) * &
-         model%tempwk%dups(2:model%general%upn-1,2)
+    diag(2:upn-1) = 1.0d0 - subd(2:upn-1) - supd(2:upn-1) + diagadvt(2:upn-1)
 
-    subd(2:model%general%upn-1) = subd(2:model%general%upn-1) - fact(1) * &
-         model%tempwk%dups(2:model%general%upn-1,1)
-
-    diag(2:model%general%upn-1) = 1.0d0 - subd(2:model%general%upn-1) &
-         - supd(2:model%general%upn-1) &
-         + diagadvt(2:model%general%upn-1)
+    ! Upper surface: hold temperature constant
 
     supd(1) = 0.0d0
     subd(1) = 0.0d0
@@ -599,20 +574,18 @@ contains
     ! for floating ice, temperature held constant
 
     if (float) then
-
-       supd(model%general%upn) = 0.0d0
-       subd(model%general%upn) = 0.0d0
-       diag(model%general%upn) = 1.0d0
-
+       supd(upn) = 0.0d0
+       subd(upn) = 0.0d0
+       diag(upn) = 1.0d0
     else 
-
-       supd(model%general%upn) = 0.0d0 
-       subd(model%general%upn) = -0.5*fact(1)/(model%tempwk%dupn**2)
-       diag(model%general%upn) = 1.0d0 - subd(model%general%upn) + diagadvt(model%general%upn)
-
+       supd(upn) = 0.0d0 
+       subd(upn) = -0.5*diff_factor/(zCoord%dupn**2)
+       diag(upn) = 1.0d0 - subd(upn) + diagadvt(upn)
     end if
 
   end subroutine findvtri
+
+  !-------------------------------------------------------------------------
 
   subroutine findvtri_init(model,ew,ns,subd,diag,supd,weff,temp,thck,float)
     !*FD called during first iteration to set inittemp
@@ -661,14 +634,16 @@ contains
        model%tempwk%inittemp(model%general%upn,ew,ns) = temp(model%general%upn) * &
             (2.0d0 - diag(model%general%upn)) &
             - temp(model%general%upn-1) * subd(model%general%upn) &
-            - 0.5*model%tempwk%cons(3) * model%temper%bheatflx(ew,ns) / (thck * model%tempwk%dupn) & ! geothermal heat flux (diff)
-            - model%tempwk%slide_f(1)*slterm/ model%tempwk%dupn &                                    ! sliding heat flux    (diff)
+            - 0.5*model%tempwk%cons(3) * model%temper%bheatflx(ew,ns) / (thck * model%zCoord%dupn) & ! geothermal heat flux (diff)
+            - model%tempwk%slide_f(1)*slterm/ model%zCoord%dupn &                                    ! sliding heat flux    (diff)
             - model%tempwk%cons(4) * model%temper%bheatflx(ew,ns) * weff(model%general%upn) &        ! geothermal heat flux (adv)
             - model%tempwk%slide_f(2)*thck*slterm* weff(model%general%upn) &                         ! sliding heat flux    (adv)
             - model%tempwk%initadvt(model%general%upn,ew,ns)  &
             + model%tempwk%dissip(model%general%upn,ew,ns)
     end if
   end subroutine findvtri_init
+
+  !-------------------------------------------------------------------------
 
   subroutine findvtri_rhs(model,ew,ns,artm,iteradvt,rhsd,float)
     !*FD RHS of temperature tri-diag system
@@ -811,14 +786,14 @@ contains
 
                 bmlt(ew,ns) = 0.0d0
                 newmlt = model%tempwk%f(4) * slterm - model%tempwk%f(2)*model%temper%bheatflx(ew,ns) + model%tempwk%f(3) * &
-                     model%tempwk%dupc(model%general%upn) * &
+                     model%zCoord%dupc(model%general%upn) * &
                      thck(ew,ns) * model%tempwk%dissip(model%general%upn,ew,ns)
 
                 up = model%general%upn - 1
 
                 do while (abs(temp(up,ew,ns)-pmptemp(up)) .lt. 0.001 .and. up .ge. 3)
                    bmlt(ew,ns) = bmlt(ew,ns) + newmlt
-                   newmlt = model%tempwk%f(3) * model%tempwk%dupc(up) * thck(ew,ns) * model%tempwk%dissip(up,ew,ns)
+                   newmlt = model%tempwk%f(3) * model%zCoord%dupc(up) * thck(ew,ns) * model%tempwk%dissip(up,ew,ns)
                    up = up - 1
                 end do
 
@@ -826,12 +801,12 @@ contains
 
                 if (up == model%general%upn) then
                    bmlt(ew,ns) = newmlt - &
-                        model%tempwk%f(1) * ( (temp(up-2,ew,ns) - pmptemp(up-2)) * model%tempwk%dupa(up) &
-                        + (temp(up-1,ew,ns) - pmptemp(up-1)) * model%tempwk%dupb(up) ) / thck(ew,ns) 
+                        model%tempwk%f(1) * ( (temp(up-2,ew,ns) - pmptemp(up-2)) * model%zCoord%dupa(up) &
+                        + (temp(up-1,ew,ns) - pmptemp(up-1)) * model%zCoord%dupb(up) ) / thck(ew,ns) 
                 else
                    bmlt(ew,ns) = bmlt(ew,ns) + max(0.0d0, newmlt - &
-                        model%tempwk%f(1) * ( (temp(up-2,ew,ns) - pmptemp(up-2)) * model%tempwk%dupa(up) &
-                        + (temp(up-1,ew,ns) - pmptemp(up-1)) * model%tempwk%dupb(up) ) / thck(ew,ns)) 
+                        model%tempwk%f(1) * ( (temp(up-2,ew,ns) - pmptemp(up-2)) * model%zCoord%dupa(up) &
+                        + (temp(up-1,ew,ns) - pmptemp(up-1)) * model%zCoord%dupb(up) ) / thck(ew,ns)) 
                 end if
 
              else
