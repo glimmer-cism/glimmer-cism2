@@ -320,7 +320,8 @@ contains
                      diag,                       &
                      supd,                       &
                      diagadvt,                   &
-                     weff,is_float(model%geometry%thkmask(ew,ns)), &
+                     weff,                       &
+                     is_float(model%geometry%thkmask(ew,ns)), &
                      model%general%upn,          &
                      model%tempwk%cons(1),       &
                      model%tempwk%cons(2))
@@ -346,13 +347,12 @@ contains
                         model%general%upn)
                 end if
 
-                call findvtri_rhs(model,        &
-                     ew,                        &
-                     ns,                        &
-                     model%climate%artm(ew,ns), &
-                     iteradvt,                  &
-                     rhsd,                      &
-                     is_float(model%geometry%thkmask(ew,ns)))
+                call findvtri_rhs(model%tempwk%inittemp(:,ew,ns), &
+                     model%climate%artm(ew,ns),                   &
+                     iteradvt,                                    &
+                     rhsd,                                        &
+                     is_float(model%geometry%thkmask(ew,ns)),     &
+                     model%general%upn)
 
                 prevtemp = model%temper%temp(:,ew,ns)
 
@@ -697,25 +697,33 @@ contains
 
   !-------------------------------------------------------------------------
 
-  subroutine findvtri_rhs(model,ew,ns,artm,iteradvt,rhsd,float)
-    !*FD RHS of temperature tri-diag system
+  subroutine findvtri_rhs(inittemp,artm,iteradvt,rhsd,float,upn)
+
+    !*FD RHS of temperature tri-diag system for a single column
+
     use glimmer_global, only : dp, sp 
+
     implicit none
-    type(glide_global_type) :: model
-    integer, intent(in) :: ew, ns
-    real(sp), intent(in) :: artm 
-    real(dp), dimension(:), intent(in) :: iteradvt
-    real(dp), dimension(:), intent(out) :: rhsd
-    logical, intent(in) :: float    
+
+    real(dp),dimension(:),intent(in)  :: inittemp
+    real(sp),             intent(in)  :: artm 
+    real(dp),dimension(:),intent(in)  :: iteradvt
+    real(dp),dimension(:),intent(out) :: rhsd
+    logical,              intent(in)  :: float
+    integer,              intent(in)  :: upn
 
     ! upper boundary condition
+
     rhsd(1) = artm
+
     if (float) then
-       rhsd(model%general%upn) = model%tempwk%inittemp(model%general%upn,ew,ns)    
+       rhsd(upn) = inittemp(upn)    
     else
-       rhsd(model%general%upn) = model%tempwk%inittemp(model%general%upn,ew,ns) - iteradvt(model%general%upn)
+       rhsd(upn) = inittemp(upn) - iteradvt(upn)
     end if
-    rhsd(2:model%general%upn-1) = model%tempwk%inittemp(2:model%general%upn-1,ew,ns) - iteradvt(2:model%general%upn-1)
+
+    rhsd(2:upn-1) = inittemp(2:upn-1) - iteradvt(2:upn-1)
+
   end subroutine findvtri_rhs
 
   !-----------------------------------------------------------------------

@@ -1,3 +1,7 @@
+2009-10-06 Ian Rutt
+ * glide_temp.F90: cleaned derived types from findvtri_rhs
+ * Regtested against branchpoint for e2.a - OK.
+
 2009-10-02 Ian Rutt
  * glide_temp.F90: cleaned most derived types from findvtri_init. Not sure
 	what to do with what's left in tempwk. A task for later...
