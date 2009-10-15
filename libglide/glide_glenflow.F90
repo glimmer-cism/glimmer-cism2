@@ -66,7 +66,7 @@ contains
   subroutine glenflow_init(params,fiddle)
 
     use physcon,  only: arrmlh, arrmll, actenh, actenl, gascon
-    use paramets, only: vis0
+    use glimmer_paramets, only: vis0
 
     implicit none
 
@@ -92,7 +92,7 @@ contains
 
     use physcon, only : pmlt, rhoi, grav
     use glimmer_global, only: dp
-    use paramets, only : thk0
+    use glimmer_paramets, only : thk0
 
     implicit none
 

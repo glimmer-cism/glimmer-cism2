@@ -22,7 +22,7 @@
 
 import ConfigParser, sys, time, string,re, os.path
 
-NOATTRIB = ['name','dimensions','dimlen','data','factor','load','hot','type','average']
+NOATTRIB = ['name','dimensions','dimlen','data','factor','load','hot','type','average','coordinates']
 hotvars = []
 dimensions = {}
 module = {}
@@ -315,6 +315,9 @@ class PrintNC_template(PrintVars):
         if not is_dimvar(var):
             self.stream.write("%s    if (glimmap_allocated(model%%projection)) then\n"%(spaces*' '))
             self.stream.write("%s       status = nf90_put_att(NCO%%id, %s, 'grid_mapping',glimmer_nc_mapvarname)\n"%(spaces*' ',idstring))
+            attrib='coordinates'
+            if attrib in var:
+                self.stream.write("%s       status = nf90_put_att(NCO%%id, %s, '%s', '%s')\n"%(spaces*' ',idstring,attrib,var[attrib]))
             self.stream.write("%s    end if\n"%(spaces*' '))
             self.stream.write("%s  end if\n"%(spaces*' '))
         else:
@@ -408,7 +411,7 @@ class PrintNC_template(PrintVars):
     def print_var_read(self,var):
         """Write single variable block to stream for reading netCDF data."""
 
-        if 'load' in var and not is_dimvar(var):
+        if 'load' in var:
             if var['load'].lower() in ['1','true','t']:
                 dims = string.split(var['dimensions'],',')
                 dims.reverse()
@@ -458,7 +461,7 @@ class PrintNC_template(PrintVars):
             # get
             self.stream.write("  subroutine %s_get_%s(data,outarray)\n"%(module['name'],var['name']))
             self.stream.write("    use glimmer_scales\n")
-            self.stream.write("    use paramets\n")
+            self.stream.write("    use glimmer_paramets\n")
             self.stream.write("    use %s\n"%module['datamod'])
             self.stream.write("    implicit none\n")
             self.stream.write("    type(%s) :: data\n"%module['datatype'])
@@ -477,7 +480,7 @@ class PrintNC_template(PrintVars):
             if len(var['data'].split('data'))<3:
                 self.stream.write("  subroutine %s_set_%s(data,inarray)\n"%(module['name'],var['name']))
                 self.stream.write("    use glimmer_scales\n")
-                self.stream.write("    use paramets\n")
+                self.stream.write("    use glimmer_paramets\n")
                 self.stream.write("    use %s\n"%module['datamod'])
                 self.stream.write("    implicit none\n")
                 self.stream.write("    type(%s) :: data\n"%module['datatype'])

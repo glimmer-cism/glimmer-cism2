@@ -1,3 +1,58 @@
+2009-10-15 Magnus Hagdorn
+ * merged trunk r1321:1329 with ChangeLog changes below:
+
+----------------------------------------------------------------------
+2009-10-15 Magnus Hagdorn
+ * libglide/Makefile.am: fix out-of-dir build bugs
+
+2009-10-15 Magnus Hagdorn
+ * example-drivers/EISMINT-3/EISMINT-3/EISMINT3GL.input.nc: make CF compliant
+ * example-drivers/eis/fenscan/europe.20km.nc: ditto
+ * tests/EISMINT/EISMINT-2/mound.nc: ditto
+ * tests/EISMINT/EISMINT-2/trough.nc: ditto
+
+2009-10-14 Magnus Hagdorn
+ * libglide/glide_lithot_vars.def: new variable definition file for lithot
+   variables
+ * libglide/Makefile.am: add new file
+ * libglide/glide.F90: optionally handle lithot I/O
+ * libglide/glide_stop.F90: ditto
+ * libglide/glide_vars.def: take out lithot variables, fix standard name of
+   of wvel variable
+ * libglide/glimmer_ncio.F90: bump convention to 1.4
+ * scripts/generate_ncvars.py: only output coordinate attribute if mapping
+   is available
+
+2009-10-14 Magnus Hagdorn
+ * libglide/glide_nc_custom.F90: handle coordinate values
+ * libglide/glide_types.F90: add arrays for storing coordinate values
+ * libglide/glide_vars.def: improve CF standard compliance
+ * libglide/glimmer_ncio.F90: check if the number of vertical levels is as
+   expected, bump CF version number to 1.3
+ * scripts/generate_ncvars.py: load some dimension variables
+
+2009-10-14 Magnus Hagdorn
+ * libglimmer/glimmer_paramets.F90: rename module
+ * scripts/generate_ncvars.py, lots of .F90: rename module
+
+2009-10-13 Magnus Hagdorn
+ * tests/exact-isothermal/scripts/plot_diff.py: reimplemented using matplotlib
+   and numpy
+ * tests/exact-isothermal/scripts/plot_errors.py: ditto
+ * tests/exact-isothermal/scripts/plot_time.py: ditto
+ * tests/exact-isothermal/scripts/plot_vol.py: ditto
+ * tests/exact-isothermal/scripts/process_verif.py: ditto
+ * tests/exact-isothermal/tests/Makefile.am: call new visualisation programs
+
+2009-10-07 Magnus Hagdorn
+ * libglint/Makefile.am: forgot to add module directory
+ * m4macros/hdf5.m4: improved hdf5 detector, it's similar to the netcdf one
+ * m4macros/netcdf.m4: change how HDF5 libraries are handled
+ * scripts/glide_launch.py: fix location of SGE submission script
+ * tests/exact-isothermal/scripts/run_verif.py: ditto
+ * tests/exact-isothermal/tests/Makefile.am: add SGE options
+----------------------------------------------------------------------
+
 2009-10-07 Ian Rutt
  * Merged in changes from glimmer-cism2/trunk. Regtested. Commit messages follow:
 	
