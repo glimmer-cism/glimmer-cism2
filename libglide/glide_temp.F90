@@ -401,7 +401,8 @@ contains
 
     ! Calculate basal melt rate --------------------------------------------------
 
-    call calcbmlt(model,                  &
+    call calcbmlt(model%tempwk,           &
+         model%zCoord,                    &
          model%temper%temp,               &
          model%geometry%thck,             &
          model%geomderv%stagthck,         &
@@ -409,8 +410,15 @@ contains
          model%geomderv%dusrfdns,         &
          model%velocity%ubas,             &
          model%velocity%vbas,             &
+         model%temper%bheatflx,           &
          model%temper%bmlt,               &
-         is_float(model%geometry%thkmask))
+         is_float(model%geometry%thkmask),&
+         model%general%upn,               &
+         model%general%nsn,               &
+         model%general%ewn,               &
+         model%numerics%thklim,           &
+         model%numerics%sigma,            &
+         model%options%periodic_ew)
 
     ! Calculate basal water depth ------------------------------------------------
 
@@ -809,31 +817,45 @@ contains
 
   !-----------------------------------------------------------------------------------
 
-  subroutine calcbmlt(model,temp,thck,stagthck,dusrfdew,dusrfdns,ubas,vbas,bmlt,floater)
+  subroutine calcbmlt(tempwk,zCoord,temp,thck,stagthck,dusrfdew,dusrfdns,ubas,vbas,bheatflx, &
+       bmlt,floater,upn,nsn,ewn,thklim,sigma,periodic_ew)
 
     use glimmer_global, only : dp 
 
     implicit none 
 
-    type(glide_global_type) :: model
-    real(dp), dimension(:,0:,0:), intent(in) :: temp
-    real(dp), dimension(:,:), intent(in) :: thck,  stagthck, dusrfdew, dusrfdns, ubas, vbas  
-    real(dp), dimension(:,:), intent(out) :: bmlt
-    logical, dimension(:,:), intent(in) :: floater
+    type(glide_tempwk),           intent(in)  :: tempwk
+    type(vertCoord),              intent(in)  :: zCoord
+    real(dp), dimension(:,0:,0:), intent(in)  :: temp
+    real(dp), dimension(:,:),     intent(in)  :: thck
+    real(dp), dimension(:,:),     intent(in)  :: stagthck
+    real(dp), dimension(:,:),     intent(in)  :: dusrfdew
+    real(dp), dimension(:,:),     intent(in)  :: dusrfdns
+    real(dp), dimension(:,:),     intent(in)  :: ubas
+    real(dp), dimension(:,:),     intent(in)  :: vbas
+    real(dp), dimension(:,:),     intent(in)  :: bheatflx
+    real(dp), dimension(:,:),     intent(out) :: bmlt
+    logical,  dimension(:,:),     intent(in)  :: floater
+    integer,                      intent(in)  :: upn
+    integer,                      intent(in)  :: nsn
+    integer,                      intent(in)  :: ewn
+    real(dp),                     intent(in)  :: thklim
+    real(dp), dimension(:),       intent(in)  :: sigma
+    integer,                      intent(in)  :: periodic_ew
 
-    real(dp), dimension(size(model%numerics%sigma)) :: pmptemp
+    real(dp), dimension(upn) :: pmptemp
     real(dp) :: slterm, newmlt
 
     integer :: ewp, nsp,up,ew,ns
 
 
-    do ns = 2, model%general%nsn-1
-       do ew = 2, model%general%ewn-1
-          if (thck(ew,ns) > model%numerics%thklim .and. .not. floater(ew,ns)) then
+    do ns = 2, nsn-1
+       do ew = 2, ewn-1
+          if (thck(ew,ns) > thklim .and. .not. floater(ew,ns)) then
 
-             call calcpmpt(pmptemp,thck(ew,ns),model%numerics%sigma)
+             call calcpmpt(pmptemp,thck(ew,ns),sigma)
 
-             if (abs(temp(model%general%upn,ew,ns)-pmptemp(model%general%upn)) .lt. 0.001) then
+             if (abs(temp(upn,ew,ns)-pmptemp(upn)) .lt. 0.001) then
 
                 slterm = 0.0d0
 
@@ -845,28 +867,27 @@ contains
                 end do
 
                 bmlt(ew,ns) = 0.0d0
-                newmlt = model%tempwk%f(4) * slterm - model%tempwk%f(2)*model%temper%bheatflx(ew,ns) + model%tempwk%f(3) * &
-                     model%zCoord%dupc(model%general%upn) * &
-                     thck(ew,ns) * model%tempwk%dissip(model%general%upn,ew,ns)
+                newmlt = tempwk%f(4) * slterm - tempwk%f(2)*bheatflx(ew,ns) + tempwk%f(3) * &
+                     zCoord%dupc(upn) * thck(ew,ns) * tempwk%dissip(upn,ew,ns)
 
-                up = model%general%upn - 1
+                up = upn - 1
 
                 do while (abs(temp(up,ew,ns)-pmptemp(up)) .lt. 0.001 .and. up .ge. 3)
                    bmlt(ew,ns) = bmlt(ew,ns) + newmlt
-                   newmlt = model%tempwk%f(3) * model%zCoord%dupc(up) * thck(ew,ns) * model%tempwk%dissip(up,ew,ns)
+                   newmlt = tempwk%f(3) * zCoord%dupc(up) * thck(ew,ns) * tempwk%dissip(up,ew,ns)
                    up = up - 1
                 end do
 
                 up = up + 1
 
-                if (up == model%general%upn) then
+                if (up == upn) then
                    bmlt(ew,ns) = newmlt - &
-                        model%tempwk%f(1) * ( (temp(up-2,ew,ns) - pmptemp(up-2)) * model%zCoord%dupa(up) &
-                        + (temp(up-1,ew,ns) - pmptemp(up-1)) * model%zCoord%dupb(up) ) / thck(ew,ns) 
+                        tempwk%f(1) * ( (temp(up-2,ew,ns) - pmptemp(up-2)) * zCoord%dupa(up) &
+                        + (temp(up-1,ew,ns) - pmptemp(up-1)) * zCoord%dupb(up) ) / thck(ew,ns) 
                 else
                    bmlt(ew,ns) = bmlt(ew,ns) + max(0.0d0, newmlt - &
-                        model%tempwk%f(1) * ( (temp(up-2,ew,ns) - pmptemp(up-2)) * model%zCoord%dupa(up) &
-                        + (temp(up-1,ew,ns) - pmptemp(up-1)) * model%zCoord%dupb(up) ) / thck(ew,ns)) 
+                        tempwk%f(1) * ( (temp(up-2,ew,ns) - pmptemp(up-2)) * zCoord%dupa(up) &
+                        + (temp(up-1,ew,ns) - pmptemp(up-1)) * zCoord%dupb(up) ) / thck(ew,ns)) 
                 end if
 
              else
@@ -884,10 +905,10 @@ contains
     end do
 
     ! apply periodic BC
-    if (model%options%periodic_ew.eq.1) then
-       do ns = 2,model%general%nsn-1
-          bmlt(1,ns) = bmlt(model%general%ewn-1,ns)
-          bmlt(model%general%ewn,ns) = bmlt(2,ns)
+    if (periodic_ew.eq.1) then
+       do ns = 2,nsn-1
+          bmlt(1,ns) = bmlt(ewn-1,ns)
+          bmlt(ewn,ns) = bmlt(2,ns)
        end do
     end if
   end subroutine calcbmlt
