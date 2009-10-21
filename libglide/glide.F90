@@ -184,7 +184,7 @@ contains
 
     if (model%options%hotstart.ne.1) then
        ! initialise Glen's flow parameter A using an isothermal temperature distribution
-       call calcTemp_asSurfTemp(model)
+       call calcTemp_asSurfTemp(model%temper%temp,model%climate%artm)
        ! Calculate Glenn's A --------------------------------------------------------
        call calcflwa(model%velowk%glenflow,          &
             model%temper%flwa,     &
@@ -289,11 +289,38 @@ contains
        ! Do ice temperature calculation
        select case(model%options%whichtemp)
        case(0)
-          call calcTemp_asSurfTemp(model)
+          call calcTemp_asSurfTemp(model%temper%temp,model%climate%artm)
        case(1)
-          call calcTemp_FullSolution(model,model%numerics%dttem)
+          call calcTemp_FullSolution( &
+               model%options,         &
+               model%geomderv,        &
+               model%temper,          &
+               model%zCoord,          &
+               model%temper%temp,     &
+               model%climate%artm,    &
+               model%geometry%thck,   &
+               model%geometry%thkmask,&
+               model%geometry%topg,   &
+               model%velocity%uvel,   &
+               model%velocity%vvel,   &
+               model%velocity%ubas,   &
+               model%velocity%vbas,   &
+               model%velocity%wvel,   &
+               model%velocity%wgrd,   &
+               model%numerics%sigma,  &
+               model%numerics%dttem,  &
+               model%numerics%dew,    &
+               model%numerics%dns,    &
+               model%numerics%thklim, &
+               model%paramets%hydtim, &
+               model%paramets%bwat_smooth)
        case(2)
-          call calcTemp_VerticalProfile(model)
+          call calcTemp_VerticalProfile( &
+               model%temper%temp,    &
+               model%climate%artm,   &
+               model%numerics%sigma, &
+               model%geometry%thck,  &
+               model%temper%bwat)
        case default
           call write_log('Unknown temperature option',GM_FATAL)
        end select
