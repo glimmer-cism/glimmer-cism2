@@ -461,27 +461,6 @@ module glide_types
 
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-  type glide_tempwk
-    real(dp),dimension(:,:,:),pointer :: inittemp => null()
-    real(dp),dimension(:,:,:),pointer :: dissip   => null()
-    real(dp),dimension(:,:,:),pointer :: initadvt => null()
-    real(dp),dimension(:,:),  pointer :: wphi     => null()
-    real(dp),dimension(:,:),  pointer :: bwatu    => null()
-    real(dp),dimension(:,:),  pointer :: bwatv    => null()
-    real(dp),dimension(:,:),  pointer :: fluxew   => null()
-    real(dp),dimension(:,:),  pointer :: fluxns   => null()
-    real(dp),dimension(:,:),  pointer :: bint     => null()
-    real(dp),dimension(:,:),  pointer :: smth     => null()
-    real(dp),dimension(:,:,:),pointer :: hadv_u   => null()
-    real(dp),dimension(:,:,:),pointer :: hadv_v   => null()
-    real(dp),dimension(8)             :: c        = 0.0
-    real(dp) :: dt_wat      = 0.0
-    real(dp) :: watvel      = 0.0
-    integer  :: nwat        = 0
-  end type glide_tempwk
-
-  !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
   type glide_paramets
     real(dp),dimension(5) :: bpar = (/ 2.0d0, 10.0d0, 10.0d0, 0.0d0, 1.0d0 /)
     real(dp) :: btrac_const = 0.d0 ! m yr^{-1} Pa^{-1} (gets scaled during init)
@@ -521,7 +500,6 @@ module glide_types
     type(glide_velowk)   :: velowk
     type(glide_pcgdwk)   :: pcgdwk
     type(glide_thckwk)   :: thckwk
-    type(glide_tempwk)   :: tempwk
     type(glide_paramets) :: paramets
     type(glimmap_proj) :: projection
     type(profile_type)   :: profile
