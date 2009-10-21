@@ -885,8 +885,8 @@ contains
                 end do
 
                 bmlt(ew,ns) = 0.0d0
-                newmlt = tempwk%f(4) * slterm - tempwk%f(2)*bheatflx(ew,ns) + tempwk%f(3) * &
-                     zCoord%dupc(upn) * thck(ew,ns) * tempwk%dissip(upn,ew,ns)
+                newmlt = f4 * slterm - f2 * bheatflx(ew,ns) &
+                     + f3 * zCoord%dupc(upn) * thck(ew,ns) * tempwk%dissip(upn,ew,ns)
 
                 up = upn - 1
 
@@ -900,11 +900,11 @@ contains
 
                 if (up == upn) then
                    bmlt(ew,ns) = newmlt - &
-                        tempwk%f(1) * ( (temp(up-2,ew,ns) - pmptemp(up-2)) * zCoord%dupa(up) &
+                        f1 * ( (temp(up-2,ew,ns) - pmptemp(up-2)) * zCoord%dupa(up) &
                         + (temp(up-1,ew,ns) - pmptemp(up-1)) * zCoord%dupb(up) ) / thck(ew,ns) 
                 else
                    bmlt(ew,ns) = bmlt(ew,ns) + max(0.0d0, newmlt - &
-                        tempwk%f(1) * ( (temp(up-2,ew,ns) - pmptemp(up-2)) * zCoord%dupa(up) &
+                        f1 * ( (temp(up-2,ew,ns) - pmptemp(up-2)) * zCoord%dupa(up) &
                         + (temp(up-1,ew,ns) - pmptemp(up-1)) * zCoord%dupb(up) ) / thck(ew,ns)) 
                 end if
 
