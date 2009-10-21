@@ -1,3 +1,7 @@
+2009-10-21 Ian Rutt
+ * libglide/glide_temp.F90: More refactoring progress. Preparation for
+   variable time-step. Regtest FAILS at present.
+
 2009-10-20 Ian Rutt
  * libglide/glide_temp.F90: rationalised derived types in calcbmlt
    interface. Only uses tempwk and zCoord. Builds, but not regtested.

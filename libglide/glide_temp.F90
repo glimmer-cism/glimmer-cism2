@@ -88,7 +88,6 @@ contains
     implicit none
     type(glide_global_type),intent(inout) :: model       !*FD Ice model parameters.
 
-    integer, parameter :: p1 = gn + 1  
     integer up
     real(dp) :: estimate
 
@@ -105,8 +104,6 @@ contains
     allocate(model%tempwk%inittemp(model%general%upn,model%general%ewn,model%general%nsn))
     allocate(model%tempwk%dissip(model%general%upn,model%general%ewn,model%general%nsn))
 
-    allocate(model%tempwk%c1(model%general%upn))
-
     allocate(model%tempwk%smth(model%general%ewn,model%general%nsn))
     allocate(model%tempwk%wphi(model%general%ewn,model%general%nsn))
     allocate(model%tempwk%bwatu(model%general%ewn,model%general%nsn))
@@ -116,29 +113,6 @@ contains
     allocate(model%tempwk%bint(model%general%ewn-1,model%general%nsn-1))
 
     call initVertCoord(model%zCoord,model%numerics%sigma)
-
-    model%tempwk%advconst(1) = HORIZ_ADV*model%numerics%dttem / (16.0d0 * model%numerics%dew)
-    model%tempwk%advconst(2) = HORIZ_ADV*model%numerics%dttem / (16.0d0 * model%numerics%dns)
-
-    model%tempwk%zbed = 1.0d0 / thk0
-    model%tempwk%wmax = 5.0d0 * tim0 / (scyr * thk0)
-
-    model%tempwk%cons = (/ 2.0d0 * tim0 * model%numerics%dttem * coni / (2.0d0 * rhoi * shci * thk0**2), &
-         model%numerics%dttem / 2.0d0, &
-         VERT_DIFF*2.0d0 * tim0 * model%numerics%dttem / (thk0 * rhoi * shci), &
-         VERT_ADV*tim0 * acc0 * model%numerics%dttem / coni /)
-
-    model%tempwk%c1 = STRAIN_HEAT *(model%numerics%sigma * rhoi * grav * thk0**2 / len0)**p1 * &
-         2.0d0 * vis0 * model%numerics%dttem * tim0 / (16.0d0 * rhoi * shci)
-    
-    model%tempwk%f = (/ tim0 * coni / (thk0**2 * lhci * rhoi), &
-         tim0 / (thk0 * lhci * rhoi), &
-         tim0 * thk0 * rhoi * shci /  (thk0 * tim0 * model%numerics%dttem * lhci * rhoi), &
-         tim0 * thk0**2 * vel0 * grav * rhoi / (4.0d0 * thk0 * len0 * rhoi * lhci) /)
-
-    ! setting up some factors for sliding contrib to basal heat flux
-    model%tempwk%slide_f = (/ VERT_DIFF * grav * thk0 * model%numerics%dttem/ shci, & ! vert diffusion
-         VERT_ADV * rhoi*grav*acc0*thk0*thk0*model%numerics%dttem/coni /)             ! vert advection
 
     select case(model%options%whichbwat)
        case(0)
@@ -203,15 +177,16 @@ contains
 
   !------------------------------------------------------------------------------------
 
-  subroutine calcTemp_FullSolution(model)
+  subroutine calcTemp_FullSolution(model,dt)
 
     !*FD Calculates the ice temperature - full solution
 
     use glimmer_utils,    only: hsum4,tridiag
     use glimmer_global,   only: dp
-    use glimmer_paramets, only: thk0
+    use glimmer_paramets, only: thk0, acc0, tim0, len0, vis0, scyr
     use glide_thck,       only: stagvarb
     use glide_mask,       only: is_float, is_thin
+    use physcon,          only: rhoi, shci, coni, grav, gn, lhci
 
     implicit none
 
@@ -220,6 +195,7 @@ contains
     !------------------------------------------------------------------------------------
 
     type(glide_global_type),intent(inout) :: model       !*FD Ice model parameters.
+    real(dp),               intent(in)    :: dt          !*FD Timestep (years)
 
     !------------------------------------------------------------------------------------
     ! Internal variables
@@ -235,8 +211,37 @@ contains
     real(dp),parameter :: tempthres = 0.001d0, floatlim = 10.0d0 / thk0
     integer, parameter :: mxit = 100
     integer, parameter :: ewbc = 1, nsbc = 1 
+    real(dp),parameter :: wmax = 5.0d0 * tim0 / (scyr * thk0)
 
     real(dp), dimension(size(model%numerics%sigma)) :: weff
+
+    real(dp) :: advconst1,advconst2
+    real(dp) :: cons1,cons2,cons3,cons4
+    real(dp),dimension(size(model%numerics%sigma)) :: c1
+    real(dp) :: f3
+    real(dp) :: slidef1, slidef2
+
+    !------------------------------------------------------------------------------------
+    ! Set up various parameters
+    !------------------------------------------------------------------------------------
+
+    advconst1 = HORIZ_ADV * dt / (16.0d0 * model%numerics%dew)
+    advconst2 = HORIZ_ADV * dt / (16.0d0 * model%numerics%dns)
+
+    cons1 = 2.0d0 * tim0 * dt * coni / (2.0d0 * rhoi * shci * thk0**2)
+    cons2 = dt / 2.0d0
+    cons3 = VERT_DIFF * 2.0d0 * tim0 * dt / (thk0 * rhoi * shci)
+    cons4 = VERT_ADV  * tim0 * acc0 * dt / coni
+
+    c1 = STRAIN_HEAT * (model%numerics%sigma * rhoi * grav * thk0**2 / len0)**(gn+1) * &
+         2.0d0 * vis0 * dt * tim0 / (16.0d0 * rhoi * shci)
+
+    f3 = tim0 * thk0 * rhoi * shci /  (thk0 * tim0 * dt * lhci * rhoi)
+
+    ! sliding contribution to basal heat flux
+
+    slidef1 = VERT_DIFF * grav * thk0 * dt / shci                      ! vert diffusion
+    slidef2 = VERT_ADV  * rhoi * grav * acc0 * thk0 * thk0 * dt / coni ! vert advection
 
     !------------------------------------------------------------------------------------
     ! ewbc/nsbc set the type of boundary condition applied at the end of
@@ -256,20 +261,15 @@ contains
          model%temper%flwa,            &
          model%general%ewn,            &
          model%general%nsn,            &
-         model%tempwk%c1,              &
+         c1,                           &
          model%numerics%thklim)
 
     ! translate velo field --------------------------------------------------------------
 
     do ns = 2,model%general%nsn-1
        do ew = 2,model%general%ewn-1
-
-          model%tempwk%hadv_u(:,ew,ns) = &
-               model%tempwk%advconst(1) * hsum4(model%velocity%uvel(:,ew-1:ew,ns-1:ns))
-
-          model%tempwk%hadv_v(:,ew,ns) = &
-               model%tempwk%advconst(2) * hsum4(model%velocity%vvel(:,ew-1:ew,ns-1:ns))
-
+          model%tempwk%hadv_u(:,ew,ns) = advconst1 * hsum4(model%velocity%uvel(:,ew-1:ew,ns-1:ns))
+          model%tempwk%hadv_v(:,ew,ns) = advconst2 * hsum4(model%velocity%vvel(:,ew-1:ew,ns-1:ns))
        end do
     end do
 
@@ -301,7 +301,7 @@ contains
                 weff = model%velocity%wvel(:,ew,ns) - model%velocity%wgrd(:,ew,ns)
 
                 ! Set effective vertical velocity to zero if it exceeds a threshold
-                if (maxval(abs(weff)) > model%tempwk%wmax) then
+                if (maxval(abs(weff)) > wmax) then
                    weff = 0.0d0
                 end if
 
@@ -323,8 +323,8 @@ contains
                      weff,                       &
                      is_float(model%geometry%thkmask(ew,ns)), &
                      model%general%upn,          &
-                     model%tempwk%cons(1),       &
-                     model%tempwk%cons(2))
+                     cons1,                      &
+                     cons2)
 
                 if (iter==0) then
                    call findvtri_init(model%tempwk, &
@@ -344,7 +344,11 @@ contains
                         model%temper%temp(:,ew,ns), &
                         model%geometry%thck(ew,ns), &
                         is_float(model%geometry%thkmask(ew,ns)), &
-                        model%general%upn)
+                        model%general%upn,          &
+                        cons3,                      &
+                        cons4,                      &
+                        slidef1,                    &
+                        slidef2)
                 end if
 
                 call findvtri_rhs(model%tempwk%inittemp(:,ew,ns), &
@@ -418,7 +422,8 @@ contains
          model%general%ewn,               &
          model%numerics%thklim,           &
          model%numerics%sigma,            &
-         model%options%periodic_ew)
+         model%options%periodic_ew,       &
+         f3)
 
     ! Calculate basal water depth ------------------------------------------------
 
@@ -492,14 +497,15 @@ contains
 
   !-------------------------------------------------------------------------
 
-  subroutine fohadvpnt(tempwk,iteradvt,diagadvt,tempx,tempy,uvel,vvel)
+  subroutine fohadvpnt(advconst1,advconst2,iteradvt,diagadvt,tempx,tempy,uvel,vvel)
 
-    use glimmer_global, only : dp
-    use glimmer_utils, only: hsum
+    use glimmer_global, only: dp
+    use glimmer_utils,  only: hsum
 
     implicit none
 
-    type(glide_tempwk) :: tempwk
+    real(dp), intent(in) :: advconst1
+    real(dp), intent(in) :: advconst2
     real(dp), dimension(:,:,:), intent(in) :: uvel, vvel
     real(dp), dimension(:,:), intent(in) :: tempx, tempy
     real(dp), dimension(:), intent(out) :: iteradvt, diagadvt
@@ -509,8 +515,8 @@ contains
     iteradvt = 0.0d0
     diagadvt = 0.0d0
 
-    u = tempwk%advconst(1) * hsum(uvel(:,:,:))
-    v = tempwk%advconst(2) * hsum(vvel(:,:,:))
+    u = advconst1 * hsum(uvel(:,:,:))
+    v = advconst2 * hsum(vvel(:,:,:))
 
     if (u(1) > 0.0d0) then
        iteradvt = - u * 2.0d0 * tempx(:,1)
@@ -628,7 +634,8 @@ contains
   !-------------------------------------------------------------------------
 
   subroutine findvtri_init(tempwk,inittemp,bheatflx,dusrfdew,dusrfdns, &
-       zCoord,ew,ns,subd,diag,supd,weff,ubas,vbas,temp,thck,float,upn)
+       zCoord,ew,ns,subd,diag,supd,weff,ubas,vbas,temp,thck,float,upn, &
+       cons3,cons4,slidef1,slidef2)
 
     !*FD called during first iteration to set inittemp
 
@@ -654,6 +661,10 @@ contains
     real(dp),                 intent(in)  :: thck
     logical,                  intent(in)  :: float    
     integer,                  intent(in)  :: upn
+    real(dp),                 intent(in)  :: cons3
+    real(dp),                 intent(in)  :: cons4
+    real(dp),                 intent(in)  :: slidef1
+    real(dp),                 intent(in)  :: slidef2
 
     ! local variables
     real(dp) :: slterm
@@ -692,10 +703,10 @@ contains
 
        inittemp(upn,ew,ns) = temp(upn) * (2.0d0 - diag(upn)) &
             - temp(upn-1) * subd(upn)                        &
-            - 0.5*tempwk%cons(3) * bheatflx(ew,ns) / (thck * zCoord%dupn) & ! geothermal heat flux (diff)
-            - tempwk%slide_f(1)*slterm / zCoord%dupn         &              ! sliding heat flux    (diff)
-            - tempwk%cons(4) * bheatflx(ew,ns) * weff(upn)   &              ! geothermal heat flux (adv)
-            - tempwk%slide_f(2)*thck*slterm* weff(upn)       &              ! sliding heat flux    (adv)
+            - 0.5 * cons3 * bheatflx(ew,ns) / (thck * zCoord%dupn) &  ! geothermal heat flux (diff)
+            - slidef1 * slterm / zCoord%dupn                 &        ! sliding heat flux    (diff)
+            - cons4 * bheatflx(ew,ns) * weff(upn)            &        ! geothermal heat flux (adv)
+            - slidef2 * thck * slterm * weff(upn)            &        ! sliding heat flux    (adv)
             - tempwk%initadvt(upn,ew,ns)                     &
             + tempwk%dissip(upn,ew,ns)
 
@@ -818,9 +829,11 @@ contains
   !-----------------------------------------------------------------------------------
 
   subroutine calcbmlt(tempwk,zCoord,temp,thck,stagthck,dusrfdew,dusrfdns,ubas,vbas,bheatflx, &
-       bmlt,floater,upn,nsn,ewn,thklim,sigma,periodic_ew)
+       bmlt,floater,upn,nsn,ewn,thklim,sigma,periodic_ew,f3)
 
-    use glimmer_global, only : dp 
+    use glimmer_global,   only: dp
+    use glimmer_paramets, only: thk0, tim0, vel0, len0
+    use physcon,          only: coni, lhci, rhoi, grav
 
     implicit none 
 
@@ -842,12 +855,17 @@ contains
     real(dp),                     intent(in)  :: thklim
     real(dp), dimension(:),       intent(in)  :: sigma
     integer,                      intent(in)  :: periodic_ew
+    real(dp),                     intent(in)  :: f3
+    
 
     real(dp), dimension(upn) :: pmptemp
     real(dp) :: slterm, newmlt
 
     integer :: ewp, nsp,up,ew,ns
 
+    real(dp),parameter :: f1 = tim0 * coni / (thk0**2 * lhci * rhoi)
+    real(dp),parameter :: f2 = tim0 / (thk0 * lhci * rhoi)
+    real(dp),parameter :: f4 = tim0 * thk0**2 * vel0 * grav * rhoi / (4.0d0 * thk0 * len0 * rhoi * lhci)
 
     do ns = 2, nsn-1
        do ew = 2, ewn-1
@@ -874,7 +892,7 @@ contains
 
                 do while (abs(temp(up,ew,ns)-pmptemp(up)) .lt. 0.001 .and. up .ge. 3)
                    bmlt(ew,ns) = bmlt(ew,ns) + newmlt
-                   newmlt = tempwk%f(3) * zCoord%dupc(up) * thck(ew,ns) * tempwk%dissip(up,ew,ns)
+                   newmlt = f3 * zCoord%dupc(up) * thck(ew,ns) * tempwk%dissip(up,ew,ns)
                    up = up - 1
                 end do
 

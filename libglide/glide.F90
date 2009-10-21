@@ -291,7 +291,7 @@ contains
        case(0)
           call calcTemp_asSurfTemp(model)
        case(1)
-          call calcTemp_FullSolution(model)
+          call calcTemp_FullSolution(model,model%numerics%dttem)
        case(2)
           call calcTemp_VerticalProfile(model)
        case default

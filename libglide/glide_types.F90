@@ -465,7 +465,6 @@ module glide_types
     real(dp),dimension(:,:,:),pointer :: inittemp => null()
     real(dp),dimension(:,:,:),pointer :: dissip   => null()
     real(dp),dimension(:,:,:),pointer :: initadvt => null()
-    real(dp),dimension(:),    pointer :: c1       => null()
     real(dp),dimension(:,:),  pointer :: wphi     => null()
     real(dp),dimension(:,:),  pointer :: bwatu    => null()
     real(dp),dimension(:,:),  pointer :: bwatv    => null()
@@ -475,14 +474,8 @@ module glide_types
     real(dp),dimension(:,:),  pointer :: smth     => null()
     real(dp),dimension(:,:,:),pointer :: hadv_u   => null()
     real(dp),dimension(:,:,:),pointer :: hadv_v   => null()
-    real(dp),dimension(4)             :: cons     = 0.0
     real(dp),dimension(4)             :: f        = 0.0
     real(dp),dimension(8)             :: c        = 0.0
-    real(dp),dimension(2)             :: slide_f
-    real(dp) :: noflow      = -1
-    real(dp),dimension(2) :: advconst = 0.0
-    real(dp) :: zbed        = 0.0
-    real(dp) :: wmax        = 0.0
     real(dp) :: dt_wat      = 0.0
     real(dp) :: watvel      = 0.0
     integer  :: nwat        = 0
