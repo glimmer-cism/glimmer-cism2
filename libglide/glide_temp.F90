@@ -88,6 +88,7 @@ module glide_temp
      type(vertCoord)                   :: zCoord
      real(dp)                          :: thklim  !< Thickness threshold for calculation
      integer                           :: periodic_ew
+     integer                           :: niter = 0
   end type type_tempFullSoln
 
 contains
@@ -220,7 +221,7 @@ contains
     use glimmer_utils,    only: hsum4,tridiag
     use glimmer_global,   only: dp,sp
     use glimmer_paramets, only: thk0, acc0, tim0, len0, vis0, scyr
-    use glide_thck,       only: stagvarb
+    use glide_utils,       only: stagvarb
     use glide_mask,       only: is_float, is_thin
     use physcon,          only: rhoi, shci, coni, grav, gn, lhci, rhow
     use glide_types,      only: glide_geomderv,glide_temper
@@ -231,7 +232,7 @@ contains
     ! Subroutine arguments
     !------------------------------------------------------------------------------------
 
-    type(type_tempFullSoln),      intent(in)    :: params   !< temperature model parameters
+    type(type_tempFullSoln),      intent(inout) :: params   !< temperature model parameters
     type(glide_geomderv),         intent(in)    :: geomderv !< Model derivatives
     type(glide_temper),           intent(inout) :: temper  !< Temperature stuff
     real(dp), dimension(:,0:,0:), intent(inout) :: temp    !< Ice temperature (upn,0:ewn+1,0:nsn+1)
@@ -273,12 +274,6 @@ contains
     real(dp),dimension(params%upn) :: c1
     real(dp) :: f3
     real(dp) :: slidef1, slidef2
-    real(dp) :: estimate
-    real(dp) :: dt_wat
-    real(dp) :: watvel
-    integer  :: nwat
-    real(dp),dimension(8) :: tempwk_c
-    real(dp) :: hydtim_local
 
     real(dp),dimension(params%upn,size(thck,1),size(thck,2)) :: initadvt
     real(dp),dimension(params%upn,size(thck,1),size(thck,2)) :: inittemp
@@ -308,40 +303,6 @@ contains
     slidef1 = VERT_DIFF * grav * thk0 * dt / shci                      ! vert diffusion
     slidef2 = VERT_ADV  * rhoi * grav * acc0 * thk0 * thk0 * dt / coni ! vert advection
 
-    ! For basal water routing, etc
-
-    select case(whichbwat)
-       case(0)
-
-          hydtim_local = tim0  / (hydtim * scyr)
-          estimate     = 0.2d0 /  hydtim_local
-
-          call find_dt_wat(dt,estimate,dt_wat,nwat) 
-          
-          tempwk_c = (/ &
-               dt_wat, &
-               1.0d0 - 0.5d0 * dt_wat * hydtim_local, &
-               1.0d0 + 0.5d0 * dt_wat * hydtim_local, &
-               0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0 /) 
-
-       case(1)
-
-          watvel = hydtim_local * tim0 / (scyr * len0)
-          estimate = (0.2d0 * watvel) / min(params%dew,params%dns)
-
-          call find_dt_wat(dt,estimate,dt_wat,nwat) 
-
-          tempwk_c = (/ &
-               rhow * grav, &
-               rhoi * grav, &
-               2.0d0  * params%dew, &
-               2.0d0  * params%dns, &
-               0.25d0 * dt_wat / params%dew, &
-               0.25d0 * dt_wat / params%dns, &
-               0.5d0  * dt_wat / params%dew, &
-               0.5d0  * dt_wat / params%dns /)
-       end select
-
     !------------------------------------------------------------------------------------
     ! ewbc/nsbc set the type of boundary condition applied at the end of
     ! the domain. a value of 0 implies zero gradient.
@@ -358,8 +319,8 @@ contains
          geomderv%dusrfdew,            &
          geomderv%dusrfdns,            &
          temper%flwa,                  &
-         params%ewn,                          &
-         params%nsn,                          &
+         params%ewn,                   &
+         params%nsn,                   &
          c1,                           &
          params%thklim)
 
@@ -479,7 +440,7 @@ contains
        iter = iter + 1
     end do
 
-    temper%niter = max(temper%niter, iter )
+    params%niter = max(params%niter, iter )
        
     ! set temperature of thin ice to the air temperature and set ice free nodes to zero
 
@@ -538,11 +499,11 @@ contains
          dt,                                       &
          params%ewn,                               &
          params%nsn,                               &
-         nwat,                                     &
-         tempwk_c,                                 &
-         watvel,                                   &
+         params%dew,                               &
+         params%dns,                               &
          params%periodic_ew,                       &
-         bwat_smooth)
+         bwat_smooth,                              &
+         hydtim)
 
     ! Transform basal temperature and pressure melting point onto velocity grid -
 
@@ -560,7 +521,7 @@ contains
 
     ! Output some information ----------------------------------------------------
 #ifdef DEBUG
-    print *, "* temp ",  iter, temper%niter, &
+    print *, "* temp ",  iter, params%niter, &
          real(temp(params%upn,params%ewn/2+1,params%nsn/2+1))
 #endif
 
@@ -1045,11 +1006,12 @@ contains
   !-------------------------------------------------------------------
 
   subroutine calcbwat(which,bmlt,bwat,stagbwat,thck,topg,btem, &
-       floater,thklim,dt,ewn,nsn,nwat,tempwk_c,watvel,periodic_ew,bwat_smooth)
+       floater,thklim,dt,ewn,nsn,dew,dns,periodic_ew,bwat_smooth,hydtim)
 
     use glimmer_global, only : dp 
-    use glimmer_paramets, only : thk0
-    use glide_thck
+    use glimmer_paramets, only : thk0, tim0, len0
+    use glide_utils, only: stagvarb
+    use physcon, only: rhoi, rhow, grav, scyr
     implicit none
 
     integer,                  intent(in)    :: which
@@ -1064,11 +1026,11 @@ contains
     real(dp),                 intent(in)    :: dt
     integer,                  intent(in)    :: ewn
     integer,                  intent(in)    :: nsn
-    integer,                  intent(in)    :: nwat
-    real(dp), dimension(8),   intent(in)    :: tempwk_c
-    real(dp),                 intent(in)    :: watvel
+    real(dp),                 intent(in)    :: dew
+    real(dp),                 intent(in)    :: dns
     integer,                  intent(in)    :: periodic_ew
     real(dp),                 intent(in)    :: bwat_smooth
+    real(dp),                 intent(in)    :: hydtim
 
     real(dp), dimension(2), parameter :: &
          blim = (/ 0.00001 / thk0, 0.001 / thk0 /)
@@ -1084,6 +1046,49 @@ contains
     real(dp),dimension(ewn,nsn) :: fluxew
     real(dp),dimension(ewn,nsn) :: fluxns
     real(dp),dimension(ewn,nsn) :: bint
+
+    integer  :: nwat
+    real(dp) :: watvel
+    real(dp) :: dt_wat
+    real(dp) :: hydtim_local
+    real(dp) :: estimate
+    real(dp),dimension(8) :: tempwk_c
+
+    ! Initialisation
+
+
+    select case(which)
+    case(0)
+
+       hydtim_local = tim0  / (hydtim * scyr)
+       estimate     = 0.2d0 /  hydtim_local
+
+       call find_dt_wat(dt,estimate,dt_wat,nwat) 
+
+       tempwk_c = (/ &
+            dt_wat, &
+            1.0d0 - 0.5d0 * dt_wat * hydtim_local, &
+            1.0d0 + 0.5d0 * dt_wat * hydtim_local, &
+            0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0 /) 
+
+    case(1)
+
+       watvel = hydtim_local * tim0 / (scyr * len0)
+       estimate = (0.2d0 * watvel) / min(dew,dns)
+
+       call find_dt_wat(dt,estimate,dt_wat,nwat) 
+
+       tempwk_c = (/ &
+            rhow * grav, &
+            rhoi * grav, &
+            2.0d0  * dew, &
+            2.0d0  * dns, &
+            0.25d0 * dt_wat / dew, &
+            0.25d0 * dt_wat / dns, &
+            0.5d0  * dt_wat / dew, &
+            0.5d0  * dt_wat / dns /)
+    end select
+
 
     select case (which)
     case(0)
@@ -1399,6 +1404,18 @@ contains
     end if
 
   end subroutine swapbndt
+
+  !-------------------------------------------------------------------
+
+  integer function get_niter(params)
+
+    implicit none
+
+    type(type_tempFullSoln), intent(in) :: params
+
+    get_niter = params%niter
+
+  end function get_niter
 
 end module glide_temp
 

@@ -1,6 +1,6 @@
 ! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! +                                                           +
-! +  glide_stop.f90 - part of the GLIMMER ice model           + 
+! +  glimmer_utils.f90 - part of the GLIMMER ice model         + 
 ! +                                                           +
 ! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! 
@@ -44,51 +44,29 @@
 #include "config.inc"
 #endif
 
-module glide_stop
-  !*FD module containing finalisation of glide
-  !*FD this subroutine had to be split out from glide.f90 to avoid
-  !*FD circular dependencies
+!+++++++++++++++++++++++++++++
+! N.B. This file is TEMPORARY, until I resolve some circular dependencies
+!+++++++++++++++++++++++++++++
+
+module glide_utils
+
+  implicit none
 
 contains
-  
-  subroutine glide_finalise(model,crash)
-    !*FD finalise GLIDE model instance
-    use glimmer_ncio
-    use glimmer_log
-    use glide_types
-    use glide_io
-    use glide_lithot_io
-    use glide_temp, only: get_niter
-    use profile
-    implicit none
-    type(glide_global_type) :: model        !*FD model instance
-    logical, optional :: crash              !*FD set to true if the model died unexpectedly
-    character(len=100) :: message
 
-    ! force last write if crashed
-    if (present(crash)) then
-       if (crash) then
-          call glide_io_writeall(model,model,.true.)
-          if (model%options%gthf.gt.0) then
-             call glide_lithot_io_writeall(model,model,.true.)
-          end if
-       end if
-    end if
+  subroutine stagvarb(ipvr,opvr,ewn,nsn)
 
-    call closeall_in(model)
-    call closeall_out(model)
-    
-    call glide_deallocarr(model)
+    use glimmer_global, only : dp ! ewn, nsn
+ 
+    implicit none 
 
-    ! write some statistics
-    call write_log('Some Stats')
-    write(message,*) 'Maximum temperature iterations: ',get_niter(model%tempFullSoln)
-    call write_log(message)
+    real(dp), intent(out), dimension(:,:) :: opvr 
+    real(dp), intent(in), dimension(:,:) :: ipvr
+    integer :: ewn,nsn
 
-    ! close profile
-#ifdef PROFILING
-    call profile_close(model%profile)
-#endif
+    opvr(1:ewn-1,1:nsn-1) = (ipvr(2:ewn,1:nsn-1) + ipvr(1:ewn-1,2:nsn) + &
+                             ipvr(2:ewn,2:nsn)   + ipvr(1:ewn-1,1:nsn-1)) / 4.0d0
 
-  end subroutine glide_finalise
-end module glide_stop
+  end subroutine stagvarb
+
+end module glide_utils

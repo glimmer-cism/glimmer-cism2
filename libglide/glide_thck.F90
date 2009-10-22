@@ -49,7 +49,7 @@ module glide_thck
   use glide_types
 
   private
-  public :: init_thck, thck_nonlin_evolve, thck_lin_evolve, stagvarb, geomders, stagleapthck
+  public :: init_thck, thck_nonlin_evolve, thck_lin_evolve, geomders, stagleapthck
 
 #ifdef DEBUG_PICARD
   ! debugging Picard iteration
@@ -154,6 +154,7 @@ contains
     use glimmer_global, only : dp
     use glide_velo
     use glide_setup
+    use glide_utils, only: stagvarb
     implicit none
     ! subroutine arguments
     type(glide_global_type) :: model
@@ -739,23 +740,6 @@ contains
     end function whichway
 
   end subroutine geom2ders
-
-!---------------------------------------------------------------------------------
-
-  subroutine stagvarb(ipvr,opvr,ewn,nsn)
-
-    use glimmer_global, only : dp ! ewn, nsn
- 
-    implicit none 
-
-    real(dp), intent(out), dimension(:,:) :: opvr 
-    real(dp), intent(in), dimension(:,:) :: ipvr
-    integer :: ewn,nsn
-
-    opvr(1:ewn-1,1:nsn-1) = (ipvr(2:ewn,1:nsn-1) + ipvr(1:ewn-1,2:nsn) + &
-                             ipvr(2:ewn,2:nsn)   + ipvr(1:ewn-1,1:nsn-1)) / 4.0d0
-
-  end subroutine stagvarb
 
 !---------------------------------------------------------------------------------
 

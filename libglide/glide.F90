@@ -229,6 +229,7 @@ contains
     use glide_mask
     use glide_glenflow, only: calcflwa
     use glimmer_log, only: write_log, GM_FATAL
+    use glide_utils, only: stagvarb
     implicit none
 
     type(glide_global_type) :: model        !*FD model instance

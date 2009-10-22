@@ -317,7 +317,6 @@ module glide_types
     real(dp),dimension(:,:),  pointer :: bpmp => null() !*FD Basal pressure melting point
     real(dp),dimension(:,:),  pointer :: stagbpmp => null() !*FD Basal pressure melting point on velo grid
     
-    integer  :: niter   = 0      !*FD
     real(sp) :: perturb = 0.0    !*FD
     real(sp) :: grid    = 0.0    !*FD
     integer  :: tpt     = 0      !*FD Pointer to time series data
