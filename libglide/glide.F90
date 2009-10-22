@@ -175,7 +175,17 @@ contains
 
     ! initialise glide components
     call init_velo(model)
-    call init_temp(model)
+
+    call init_tempFullSoln(    &
+         model%tempFullSoln,   &
+         model%general%ewn,    &
+         model%general%nsn,    &
+         model%numerics%dew,   &
+         model%numerics%dns,   &
+         model%numerics%sigma, &
+         model%numerics%thklim,&
+         model%options%periodic_ew)
+
     call init_thck(model)
     if (model%options%gthf.gt.0) then
        call glide_lithot_io_createall(model)
@@ -292,10 +302,9 @@ contains
           call calcTemp_asSurfTemp(model%temper%temp,model%climate%artm)
        case(1)
           call calcTemp_FullSolution( &
-               model%options,         &
+               model%tempFullSoln,    &
                model%geomderv,        &
                model%temper,          &
-               model%zCoord,          &
                model%temper%temp,     &
                model%climate%artm,    &
                model%geometry%thck,   &
@@ -307,13 +316,10 @@ contains
                model%velocity%vbas,   &
                model%velocity%wvel,   &
                model%velocity%wgrd,   &
-               model%numerics%sigma,  &
                model%numerics%dttem,  &
-               model%numerics%dew,    &
-               model%numerics%dns,    &
-               model%numerics%thklim, &
                model%paramets%hydtim, &
-               model%paramets%bwat_smooth)
+               model%paramets%bwat_smooth, &
+               model%options%whichbwat)
        case(2)
           call calcTemp_VerticalProfile( &
                model%temper%temp,    &

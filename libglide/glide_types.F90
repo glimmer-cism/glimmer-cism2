@@ -68,7 +68,7 @@ module glide_types
   use glimmer_map_types, pi_dummy=>pi
   use glide_glenflow, only: glenflow_params
   use glide_deriv, only: timederiv_params
-  use glide_vertcoord, only: vertCoord
+  use glide_temp, only: type_tempFullSoln
 
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -506,7 +506,7 @@ module glide_types
     type(glide_prof_type) :: glide_prof
     type(isos_type)      :: isos
     type(timederiv_params) :: timederivs
-    type(vertCoord)        :: zCoord
+    type(type_tempFullSoln) :: tempFullSoln
   end type glide_global_type
 
 !MH!  !MAKE_RESTART

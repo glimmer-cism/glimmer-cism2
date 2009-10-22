@@ -72,34 +72,64 @@
 
 module glide_temp
 
-  use glide_types
+  use glide_vertcoord, only: vertCoord
+  use glimmer_global, only: dp
 
   private :: find_dt_wat
 
+  type type_tempFullSoln
+     private
+     integer                           :: ewn
+     integer                           :: nsn
+     integer                           :: upn
+     real(dp)                          :: dew
+     real(dp)                          :: dns
+     real(dp),dimension(:),allocatable :: sigma
+     type(vertCoord)                   :: zCoord
+     real(dp)                          :: thklim  !< Thickness threshold for calculation
+     integer                           :: periodic_ew
+  end type type_tempFullSoln
+
 contains
 
-  subroutine init_temp(model)
-    !*FD initialise temperature module
-    use physcon, only : rhoi, shci, coni, scyr, grav, gn, lhci, rhow
-    use glimmer_paramets, only : tim0, thk0, acc0, len0, vis0, vel0
-    use glide_vertcoord, only: initVertCoord
-    use glimmer_global, only : dp 
-    use glimmer_log
-    implicit none
-    type(glide_global_type),intent(inout) :: model       !*FD Ice model parameters.
+  subroutine init_tempFullSoln(params,ewn,nsn,dew,dns,sigma,thklim,periodic_ew)
 
-    integer up
+    use glide_vertcoord, only: initVertCoord
+    use glimmer_log,     only: write_log
+
+    implicit none
+
+    type(type_tempFullSoln),intent(out) :: params
+    integer,                intent(in)  :: ewn
+    integer,                intent(in)  :: nsn
+    real(dp),               intent(in)  :: dew
+    real(dp),               intent(in)  :: dns
+    real(dp),dimension(:),  intent(in)  :: sigma
+    real(dp),               intent(in)  :: thklim  !< Thickness threshold for calculation
+    integer,                intent(in)  :: periodic_ew
 
     if (VERT_DIFF.eq.0.) call write_log('Vertical diffusion is switched off')
     if (HORIZ_ADV.eq.0.) call write_log('Horizontal advection is switched off')
     if (VERT_ADV.eq.0.) call write_log('Vertical advection is switched off')
     if (STRAIN_HEAT.eq.0.) call write_log('Strain heating is switched off')
 
-    ! horizontal advection stuff
+    params%ewn = ewn
+    params%nsn = nsn
+    params%upn = size(sigma)
+    params%dew = dew
+    params%dns = dns
 
-    call initVertCoord(model%zCoord,model%numerics%sigma)
+    if (allocated(params%sigma)) deallocate(params%sigma)
+    allocate(params%sigma(params%upn))
 
-  end subroutine init_temp
+    params%sigma = sigma
+
+    call initVertCoord(params%zCoord,params%sigma)
+
+    params%thklim = thklim
+    params%periodic_ew = periodic_ew
+
+  end subroutine init_tempFullSoln
 
   !------------------------------------------------------------------------------------
 
@@ -108,6 +138,7 @@ contains
     !*FD Sets ice column temperature to surface temperature
 
     use glimmer_log, only: write_log, GM_FATAL
+    use glimmer_global, only: dp,sp
 
     implicit none
    
@@ -143,6 +174,7 @@ contains
     !*FD and zero at bottom, correcting for pressure melting point
 
     use glimmer_log, only: write_log, GM_FATAL
+    use glimmer_global, only: dp,sp
 
     implicit none
 
@@ -180,17 +212,18 @@ contains
 
   !------------------------------------------------------------------------------------
 
-  subroutine calcTemp_FullSolution(options,geomderv,temper,zCoord,temp,artm,thck,thkmask, &
-       topg,uvel,vvel,ubas,vbas,wvel,wgrd,sigma,dt,dew,dns,thklim,hydtim,bwat_smooth)
+  subroutine calcTemp_FullSolution(params,geomderv,temper,temp,artm,thck,thkmask, &
+       topg,uvel,vvel,ubas,vbas,wvel,wgrd,dt,hydtim,bwat_smooth,whichbwat)
 
     !*FD Calculates the ice temperature - full solution
 
     use glimmer_utils,    only: hsum4,tridiag
-    use glimmer_global,   only: dp
+    use glimmer_global,   only: dp,sp
     use glimmer_paramets, only: thk0, acc0, tim0, len0, vis0, scyr
     use glide_thck,       only: stagvarb
     use glide_mask,       only: is_float, is_thin
     use physcon,          only: rhoi, shci, coni, grav, gn, lhci, rhow
+    use glide_types,      only: glide_geomderv,glide_temper
 
     implicit none
 
@@ -198,10 +231,9 @@ contains
     ! Subroutine arguments
     !------------------------------------------------------------------------------------
 
-    type(glide_options),          intent(in)    :: options !< Model options
+    type(type_tempFullSoln),      intent(in)    :: params   !< temperature model parameters
     type(glide_geomderv),         intent(in)    :: geomderv !< Model derivatives
     type(glide_temper),           intent(inout) :: temper  !< Temperature stuff
-    type(vertCoord),              intent(in)    :: zCoord  !< Vertical coordinate
     real(dp), dimension(:,0:,0:), intent(inout) :: temp    !< Ice temperature (upn,0:ewn+1,0:nsn+1)
     real(sp), dimension(:,:),     intent(in)    :: artm    !< Surface air temperature (ewn,nsn)
     real(dp), dimension(:,:),     intent(in)    :: thck    !< Ice thickness (ewn,nsn)
@@ -213,35 +245,32 @@ contains
     real(dp), dimension(:,:),     intent(in)    :: vbas    !< basal y-velocity (ewn-1,nsn-1)
     real(dp), dimension(:,:,:),   intent(in)    :: wvel    !< Vertical velocity (upn,ewn,nsn)
     real(dp), dimension(:,:,:),   intent(in)    :: wgrd    !< Vertical grid velocity (upn,ewn,nsn)
-    real(dp), dimension(:),       intent(in)    :: sigma   !< Sigma levels (upn)
     real(dp),                     intent(in)    :: dt      !< Timestep (years)
-    real(dp),                     intent(in)    :: dew     !< x-spacing
-    real(dp),                     intent(in)    :: dns     !< y-spacing
-    real(dp),                     intent(in)    :: thklim  !< Thickness threshold for calculation
     real(dp),                     intent(in)    :: hydtim  !< Hydrology timescale
     real(dp),                     intent(in)    :: bwat_smooth  !< Basal water smoothing strength
+    integer,                      intent(in)    :: whichbwat
 
     !------------------------------------------------------------------------------------
     ! Internal variables
     !------------------------------------------------------------------------------------
 
-    real(dp),dimension(size(sigma)) :: subd, diag, supd, rhsd
-    real(dp),dimension(size(sigma)) :: prevtemp, iteradvt, diagadvt
+    real(dp),dimension(params%upn) :: subd, diag, supd, rhsd
+    real(dp),dimension(params%upn) :: prevtemp, iteradvt, diagadvt
     real(dp) :: tempresid
 
     integer :: iter
-    integer :: ew,ns,ewn,nsn,upn
+    integer :: ew,ns
 
     real(dp),parameter :: tempthres = 0.001d0, floatlim = 10.0d0 / thk0
     integer, parameter :: mxit = 100
     integer, parameter :: ewbc = 1, nsbc = 1 
     real(dp),parameter :: wmax = 5.0d0 * tim0 / (scyr * thk0)
 
-    real(dp), dimension(size(sigma)) :: weff
+    real(dp), dimension(params%upn) :: weff
 
     real(dp) :: advconst1,advconst2
     real(dp) :: cons1,cons2,cons3,cons4
-    real(dp),dimension(size(sigma)) :: c1
+    real(dp),dimension(params%upn) :: c1
     real(dp) :: f3
     real(dp) :: slidef1, slidef2
     real(dp) :: estimate
@@ -251,31 +280,25 @@ contains
     real(dp),dimension(8) :: tempwk_c
     real(dp) :: hydtim_local
 
-    real(dp),dimension(size(sigma),size(thck,1),size(thck,2)) :: initadvt
-    real(dp),dimension(size(sigma),size(thck,1),size(thck,2)) :: inittemp
-    real(dp),dimension(size(sigma),size(thck,1),size(thck,2)) :: dissip
-    real(dp),dimension(size(sigma),size(thck,1),size(thck,2)) :: hadv_u
-    real(dp),dimension(size(sigma),size(thck,1),size(thck,2)) :: hadv_v
-
-    ! Domain sizes ----------------------------------------------------------------------
-
-    ewn = size(thck,1)
-    nsn = size(thck,2)
-    upn = size(sigma)
+    real(dp),dimension(params%upn,size(thck,1),size(thck,2)) :: initadvt
+    real(dp),dimension(params%upn,size(thck,1),size(thck,2)) :: inittemp
+    real(dp),dimension(params%upn,size(thck,1),size(thck,2)) :: dissip
+    real(dp),dimension(params%upn,size(thck,1),size(thck,2)) :: hadv_u
+    real(dp),dimension(params%upn,size(thck,1),size(thck,2)) :: hadv_v
 
     !------------------------------------------------------------------------------------
     ! Set up various parameters
     !------------------------------------------------------------------------------------
 
-    advconst1 = HORIZ_ADV * dt / (16.0d0 * dew)
-    advconst2 = HORIZ_ADV * dt / (16.0d0 * dns)
+    advconst1 = HORIZ_ADV * dt / (16.0d0 * params%dew)
+    advconst2 = HORIZ_ADV * dt / (16.0d0 * params%dns)
 
     cons1 = 2.0d0 * tim0 * dt * coni / (2.0d0 * rhoi * shci * thk0**2)
     cons2 = dt / 2.0d0
     cons3 = VERT_DIFF * 2.0d0 * tim0 * dt / (thk0 * rhoi * shci)
     cons4 = VERT_ADV  * tim0 * acc0 * dt / coni
 
-    c1 = STRAIN_HEAT * (sigma * rhoi * grav * thk0**2 / len0)**(gn+1) * &
+    c1 = STRAIN_HEAT * (params%sigma * rhoi * grav * thk0**2 / len0)**(gn+1) * &
          2.0d0 * vis0 * dt * tim0 / (16.0d0 * rhoi * shci)
 
     f3 = tim0 * thk0 * rhoi * shci /  (thk0 * tim0 * dt * lhci * rhoi)
@@ -287,7 +310,7 @@ contains
 
     ! For basal water routing, etc
 
-    select case(options%whichbwat)
+    select case(whichbwat)
        case(0)
 
           hydtim_local = tim0  / (hydtim * scyr)
@@ -304,19 +327,19 @@ contains
        case(1)
 
           watvel = hydtim_local * tim0 / (scyr * len0)
-          estimate = (0.2d0 * watvel) / min(dew,dns)
+          estimate = (0.2d0 * watvel) / min(params%dew,params%dns)
 
           call find_dt_wat(dt,estimate,dt_wat,nwat) 
 
           tempwk_c = (/ &
                rhow * grav, &
                rhoi * grav, &
-               2.0d0  * dew, &
-               2.0d0  * dns, &
-               0.25d0 * dt_wat / dew, &
-               0.25d0 * dt_wat / dns, &
-               0.5d0  * dt_wat / dew, &
-               0.5d0  * dt_wat / dns /)
+               2.0d0  * params%dew, &
+               2.0d0  * params%dns, &
+               0.25d0 * dt_wat / params%dew, &
+               0.25d0 * dt_wat / params%dns, &
+               0.5d0  * dt_wat / params%dew, &
+               0.5d0  * dt_wat / params%dns /)
        end select
 
     !------------------------------------------------------------------------------------
@@ -335,15 +358,15 @@ contains
          geomderv%dusrfdew,            &
          geomderv%dusrfdns,            &
          temper%flwa,                  &
-         ewn,                          &
-         nsn,                          &
+         params%ewn,                          &
+         params%nsn,                          &
          c1,                           &
-         thklim)
+         params%thklim)
 
     ! translate velo field --------------------------------------------------------------
 
-    do ns = 2,nsn-1
-       do ew = 2,ewn-1
+    do ns = 2,params%nsn-1
+       do ew = 2,params%ewn-1
           hadv_u(:,ew,ns) = advconst1 * hsum4(uvel(:,ew-1:ew,ns-1:ns))
           hadv_v(:,ew,ns) = advconst2 * hsum4(vvel(:,ew-1:ew,ns-1:ns))
        end do
@@ -354,12 +377,12 @@ contains
     call hadvall(initadvt,              &
          temp,                          &
          thck,                          &
-         thklim,                        &
+         params%thklim,                 &
          hadv_u,                        &
          hadv_v,                        &
-         ewn,                           &
-         nsn,                           &
-         upn)
+         params%ewn,                    &
+         params%nsn,                    &
+         params%upn)
 
     ! Iterative temperature solution ----------------------------------------------------
 
@@ -369,9 +392,9 @@ contains
     do while (tempresid.gt.tempthres .and. iter.le.mxit)
        tempresid = 0.0d0
 
-       do ns = 2,nsn-1
-          do ew = 2,ewn-1
-             if(thck(ew,ns) > thklim) then
+       do ns = 2,params%nsn-1
+          do ew = 2,params%ewn-1
+             if(thck(ew,ns) > params%thklim) then
 
                 ! Calculate effective vertical velocity
                 weff = wvel(:,ew,ns) - wgrd(:,ew,ns)
@@ -388,9 +411,9 @@ contains
                      temp(:,ew,ns-2:ns+2),                   &
                      hadv_u(:,ew,ns),                        &
                      hadv_v(:,ew,ns),                        &
-                     upn)
+                     params%upn)
 
-                call findvtri(zCoord,            &
+                call findvtri(params%zCoord,     &
                      thck(ew,ns),                &
                      subd,                       &
                      diag,                       &
@@ -398,7 +421,7 @@ contains
                      diagadvt,                   &
                      weff,                       &
                      is_float(thkmask(ew,ns)),   &
-                     upn,                        &
+                     params%upn,                 &
                      cons1,                      &
                      cons2)
 
@@ -409,7 +432,7 @@ contains
                         temper%bheatflx,            &
                         geomderv%dusrfdew,          &
                         geomderv%dusrfdns,          &
-                        zCoord,                     &
+                        params%zCoord,              &
                         ew,                         &
                         ns,                         &
                         subd,                       &
@@ -421,7 +444,7 @@ contains
                         temp(:,ew,ns),              &
                         thck(ew,ns),                &
                         is_float(thkmask(ew,ns)),   &
-                        upn,                        &
+                        params%upn,                 &
                         cons3,                      &
                         cons4,                      &
                         slidef1,                    &
@@ -433,20 +456,20 @@ contains
                      iteradvt,                                    &
                      rhsd,                                        &
                      is_float(thkmask(ew,ns)),                    &
-                     upn)
+                     params%upn)
 
                 prevtemp = temp(:,ew,ns)
 
-                call tridiag(subd(1:upn),            &
-                     diag(1:upn),                    &
-                     supd(1:upn),                    &
-                     temp(1:upn,ew,ns),              &
-                     rhsd(1:upn))
+                call tridiag(subd(1:params%upn),            &
+                     diag(1:params%upn),                    &
+                     supd(1:params%upn),                    &
+                     temp(1:params%upn,ew,ns),              &
+                     rhsd(1:params%upn))
 
                 call corrpmpt(temp(:,ew,ns),         &
                      thck(ew,ns),                    &
                      temper%bwat(ew,ns),             &
-                     sigma)
+                     params%sigma)
 
                 tempresid = max(tempresid,maxval(abs(temp(:,ew,ns)-prevtemp(:))))
              endif
@@ -460,8 +483,8 @@ contains
        
     ! set temperature of thin ice to the air temperature and set ice free nodes to zero
 
-    do ns = 1,nsn
-       do ew = 1,ewn
+    do ns = 1,params%nsn
+       do ew = 1,params%ewn
           if (is_thin(thkmask(ew,ns))) then
              temp(:,ew,ns) = min(0.0d0,dble(artm(ew,ns)))
           else if (thkmask(ew,ns)<0) then
@@ -472,17 +495,17 @@ contains
 
     ! apply periodic ew BC ----------------------------------------------------------
 
-    if (options%periodic_ew.eq.1) then
-       temp(:,0    ,:) = temp(:,ewn-2,:)
-       temp(:,1    ,:) = temp(:,ewn-1,:)
-       temp(:,ewn  ,:) = temp(:,2    ,:)
-       temp(:,ewn+1,:) = temp(:,3    ,:)
+    if (params%periodic_ew.eq.1) then
+       temp(:,0           ,:) = temp(:,params%ewn-2,:)
+       temp(:,1           ,:) = temp(:,params%ewn-1,:)
+       temp(:,params%ewn  ,:) = temp(:,2           ,:)
+       temp(:,params%ewn+1,:) = temp(:,3           ,:)
     end if
 
     ! Calculate basal melt rate --------------------------------------------------
 
     call calcbmlt(dissip,                 &
-         zCoord,                          &
+         params%zCoord,                   &
          temp,                            &
          thck,                            &
          geomderv%stagthck,               &
@@ -493,52 +516,52 @@ contains
          temper%bheatflx,                 &
          temper%bmlt,                     &
          is_float(thkmask),               &
-         upn,                             &
-         nsn,                             &
-         ewn,                             &
-         thklim,                          &
-         sigma,                           &
-         options%periodic_ew,             &
+         params%upn,                      &
+         params%nsn,                      &
+         params%ewn,                      &
+         params%thklim,                   &
+         params%sigma,                    &
+         params%periodic_ew,              &
          f3)
 
     ! Calculate basal water depth ------------------------------------------------
 
-    call calcbwat(options%whichbwat,               &
+    call calcbwat(whichbwat,                       &
          temper%bmlt,                              &
          temper%bwat,                              &
          temper%stagbwat,                          & 
          thck,                                     &
          topg,                                     &
-         temp(upn,:,:),                            &
+         temp(params%upn,:,:),                     &
          is_float(thkmask),                        &
-         thklim,                                   &
+         params%thklim,                            &
          dt,                                       &
-         ewn,                                      &
-         nsn,                                      &
+         params%ewn,                               &
+         params%nsn,                               &
          nwat,                                     &
          tempwk_c,                                 &
          watvel,                                   &
-         options%periodic_ew,                      &
+         params%periodic_ew,                       &
          bwat_smooth)
 
     ! Transform basal temperature and pressure melting point onto velocity grid -
 
-    call stagvarb(temp(upn,1:ewn,1:nsn), &
+    call stagvarb(temp(params%upn,1:params%ewn,1:params%nsn), &
          temper%stagbtemp ,              &
-         ewn,                            &
-         nsn)
+         params%ewn,                     &
+         params%nsn)
        
     call calcbpmp(thck,temper%bpmp)
 
     call stagvarb(temper%bpmp,       &
          temper%stagbpmp ,           &
-         ewn,                        &
-         nsn)
+         params%ewn,                 &
+         params%nsn)
 
     ! Output some information ----------------------------------------------------
 #ifdef DEBUG
     print *, "* temp ",  iter, temper%niter, &
-         real(temp(upn,ewn/2+1,nsn/2+1))
+         real(temp(params%upn,params%ewn/2+1,params%nsn/2+1))
 #endif
 
   end subroutine calcTemp_FullSolution
