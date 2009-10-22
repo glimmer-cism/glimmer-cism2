@@ -4,9 +4,8 @@
  * libglide/glide_temp.F90: All tempwk arrays replaced by assumed-shape
    stack arrays in main call. Scalars from tempwk are either parameters
    (declared as such) or depend on the time-step, so must be in main call.
+ * libglide/glide_temp.F90: Reduced derived types in interface.
  * Regtested against e2.a and e2.h
- * libglide/glide_temp.F90: Reduced derived types in interface. Not
-   regtested yet.
 	
 2009-10-20 Ian Rutt
  * libglide/glide_temp.F90: rationalised derived types in calcbmlt
