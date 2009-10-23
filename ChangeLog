@@ -1,10 +1,10 @@
 2009-10-22 Ian Rutt
  * libglide/glide_temp.F90: Created derived type for full temperature
    solution parameters. Began populating this. 
- * Regtested against e2.a and e2.h
  * libglide/glide_temp.F90: began to separate out basal water
    model. Temporarily added utility module to resolve circular make
-   dependencies. This will need refining. Not regtested yet. 
+   dependencies. This will need refining.
+ * Regtested against e2.a and e2.h
 	
 2009-10-21 Ian Rutt
  * libglide/glide_temp.F90: More refactoring progress. Preparation for
