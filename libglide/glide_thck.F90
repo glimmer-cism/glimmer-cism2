@@ -49,7 +49,7 @@ module glide_thck
   use glide_types
 
   private
-  public :: init_thck, thck_nonlin_evolve, thck_lin_evolve, geomders, stagleapthck
+  public :: init_thck, thck_nonlin_evolve, thck_lin_evolve, stagleapthck
 
 #ifdef DEBUG_PICARD
   ! debugging Picard iteration
@@ -154,7 +154,7 @@ contains
     use glimmer_global, only : dp
     use glide_velo
     use glide_setup
-    use glide_utils, only: stagvarb
+    use glide_utils, only: stagvarb, geomders
     implicit none
     ! subroutine arguments
     type(glide_global_type) :: model
@@ -198,17 +198,21 @@ contains
                model%general%  ewn, &
                model%general%  nsn)
 
-          call geomders(model%numerics, &
+          call geomders( &
                model%geometry% usrf, &
                model%geomderv% stagthck,&
                model%geomderv% dusrfdew, &
-               model%geomderv% dusrfdns)
+               model%geomderv% dusrfdns, &
+               model%numerics% dew, &
+               model%numerics% dns)
 
-          call geomders(model%numerics, &
+          call geomders( &
                model%geometry% thck, &
                model%geomderv% stagthck,&
                model%geomderv% dthckdew, &
-               model%geomderv% dthckdns)
+               model%geomderv% dthckdns, &
+               model%numerics% dew, &
+               model%numerics% dns)
 
           call slipvelo(model,                &
                2,                             &
@@ -554,42 +558,6 @@ contains
     end if
 
   end subroutine putpcgc
-  
-!---------------------------------------------------------------------------------
-
-  subroutine geomders(numerics,ipvr,stagthck,opvrew,opvrns)
-
-    use glimmer_global, only : dp
-
-    implicit none 
-
-    type(glide_numerics) :: numerics
-    real(dp), intent(out), dimension(:,:) :: opvrew, opvrns
-    real(dp), intent(in), dimension(:,:) :: ipvr, stagthck
-
-    real(dp) :: dew2, dns2 
-    integer :: ew,ns,ewn,nsn
-
-    ! Obviously we don't need to do this every time,
-    ! but will do so for the moment.
-    dew2 = 1.d0/(2.0d0 * numerics%dew)
-    dns2 = 1.d0/(2.0d0 * numerics%dns)
-    ewn=size(ipvr,1)
-    nsn=size(ipvr,2)
-
-    do ns=1,nsn-1
-       do ew = 1,ewn-1
-          if (stagthck(ew,ns) /= 0.0d0) then
-             opvrew(ew,ns) = (ipvr(ew+1,ns+1)+ipvr(ew+1,ns)-ipvr(ew,ns)-ipvr(ew,ns+1)) * dew2
-             opvrns(ew,ns) = (ipvr(ew+1,ns+1)+ipvr(ew,ns+1)-ipvr(ew,ns)-ipvr(ew+1,ns)) * dns2
-          else
-             opvrew(ew,ns) = 0.
-             opvrns(ew,ns) = 0.
-          end if
-       end do
-    end do
-    
-  end subroutine geomders
 
 !---------------------------------------------------------------------------------
 

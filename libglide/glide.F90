@@ -229,7 +229,9 @@ contains
     use glide_mask
     use glide_glenflow, only: calcflwa
     use glimmer_log, only: write_log, GM_FATAL
-    use glide_utils, only: stagvarb
+    use glide_utils, only: stagvarb, geomders
+    use glide_bwat,  only: calcbwat, calcbpmp
+
     implicit none
 
     type(glide_global_type) :: model        !*FD model instance
@@ -250,17 +252,21 @@ contains
          model%general%  ewn, &
          model%general%  nsn)
 
-    call geomders(model%numerics, &
+    call geomders( &
          model%geometry% usrf, &
          model%geomderv% stagthck,&
          model%geomderv% dusrfdew, &
-         model%geomderv% dusrfdns)
+         model%geomderv% dusrfdns, &
+         model%numerics% dew, &
+         model%numerics% dns)
 
-    call geomders(model%numerics, &
+    call geomders( &
          model%geometry% thck, &
          model%geomderv% stagthck,&
          model%geomderv% dthckdew, &
-         model%geomderv% dthckdns)
+         model%geomderv% dthckdns, &
+         model%numerics% dew, &
+         model%numerics% dns)
 #ifdef PROFILING
     call glide_prof_stop(model,model%glide_prof%geomderv)
 #endif
@@ -304,11 +310,11 @@ contains
        case(1)
           call calcTemp_FullSolution( &
                model%tempFullSoln,    &
-               model%geomderv,        &
                model%temper,          &
                model%temper%temp,     &
                model%climate%artm,    &
                model%geometry%thck,   &
+               model%geometry%usrf,   &
                model%geometry%thkmask,&
                model%geometry%topg,   &
                model%velocity%uvel,   &
@@ -317,10 +323,49 @@ contains
                model%velocity%vbas,   &
                model%velocity%wvel,   &
                model%velocity%wgrd,   &
-               model%numerics%dttem,  &
-               model%paramets%hydtim, &
-               model%paramets%bwat_smooth, &
-               model%options%whichbwat)
+               model%numerics%dttem)
+
+          ! Calculate basal water depth ------------------------------------------------
+
+          call calcbwat(model%options%whichbwat,     &
+               model%temper%bmlt,                    &
+               model%temper%bwat,                    &
+               model%geometry%thck,                  &
+               model%geometry%topg,                  &
+               model%temper%temp(model%general%upn,:,:), &
+               is_float(model%geometry%thkmask),     &
+               model%numerics%thklim,                &
+               model%numerics%dttem,                 &
+               model%general%ewn,                    &
+               model%general%nsn,                    &
+               model%numerics%dew,                   &
+               model%numerics%dns,                   &
+               model%options%periodic_ew,            &
+               model%paramets%bwat_smooth,           &
+               model%paramets%hydtim)
+
+          ! now also calculate basal water in velocity coord system
+
+          call stagvarb(model%temper%bwat,  &
+               model%temper%stagbwat,       &
+               model%general%ewn,           &
+               model%general%nsn)
+
+          ! Transform basal temperature and pressure melting point onto velocity grid -
+
+          call stagvarb(model%temper%temp(model%general%upn,1:model%general%ewn,1:model%general%nsn), &
+               model%temper%stagbtemp,      &
+               model%general%ewn,           &
+               model%general%nsn)
+       
+          ! Calculate the basal pressure melting point and stagger
+          call calcbpmp(model%geometry%thck,model%temper%bpmp)
+
+          call stagvarb(model%temper%bpmp,  &
+               model%temper%stagbpmp,       &
+               model%general%ewn,           &
+               model%general%nsn)
+
        case(2)
           call calcTemp_VerticalProfile( &
                model%temper%temp,    &

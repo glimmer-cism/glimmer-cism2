@@ -75,8 +75,6 @@ module glide_temp
   use glide_vertcoord, only: vertCoord
   use glimmer_global, only: dp
 
-  private :: find_dt_wat
-
   type type_tempFullSoln
      private
      integer                           :: ewn
@@ -213,18 +211,18 @@ contains
 
   !------------------------------------------------------------------------------------
 
-  subroutine calcTemp_FullSolution(params,geomderv,temper,temp,artm,thck,thkmask, &
-       topg,uvel,vvel,ubas,vbas,wvel,wgrd,dt,hydtim,bwat_smooth,whichbwat)
+  subroutine calcTemp_FullSolution(params,temper,temp,artm,thck,usrf,thkmask, &
+       topg,uvel,vvel,ubas,vbas,wvel,wgrd,dt)
 
     !*FD Calculates the ice temperature - full solution
 
     use glimmer_utils,    only: hsum4,tridiag
     use glimmer_global,   only: dp,sp
     use glimmer_paramets, only: thk0, acc0, tim0, len0, vis0, scyr
-    use glide_utils,       only: stagvarb
+    use glide_utils,      only: stagvarb, geomders
     use glide_mask,       only: is_float, is_thin
     use physcon,          only: rhoi, shci, coni, grav, gn, lhci, rhow
-    use glide_types,      only: glide_geomderv,glide_temper
+    use glide_types,      only: glide_temper
 
     implicit none
 
@@ -233,11 +231,11 @@ contains
     !------------------------------------------------------------------------------------
 
     type(type_tempFullSoln),      intent(inout) :: params   !< temperature model parameters
-    type(glide_geomderv),         intent(in)    :: geomderv !< Model derivatives
     type(glide_temper),           intent(inout) :: temper  !< Temperature stuff
     real(dp), dimension(:,0:,0:), intent(inout) :: temp    !< Ice temperature (upn,0:ewn+1,0:nsn+1)
     real(sp), dimension(:,:),     intent(in)    :: artm    !< Surface air temperature (ewn,nsn)
     real(dp), dimension(:,:),     intent(in)    :: thck    !< Ice thickness (ewn,nsn)
+    real(dp), dimension(:,:),     intent(in)    :: usrf    !< Upper surface elevation (ewn,nsn)
     integer,  dimension(:,:),     intent(in)    :: thkmask !< Mask for ice thickness (ewn,nsn)
     real(dp), dimension(:,:),     intent(in)    :: topg    !< basal topography (ewn,nsn)
     real(dp), dimension(:,:,:),   intent(in)    :: uvel    !< x-velocity (ewn-1,nsn-1)
@@ -247,9 +245,6 @@ contains
     real(dp), dimension(:,:,:),   intent(in)    :: wvel    !< Vertical velocity (upn,ewn,nsn)
     real(dp), dimension(:,:,:),   intent(in)    :: wgrd    !< Vertical grid velocity (upn,ewn,nsn)
     real(dp),                     intent(in)    :: dt      !< Timestep (years)
-    real(dp),                     intent(in)    :: hydtim  !< Hydrology timescale
-    real(dp),                     intent(in)    :: bwat_smooth  !< Basal water smoothing strength
-    integer,                      intent(in)    :: whichbwat
 
     !------------------------------------------------------------------------------------
     ! Internal variables
@@ -280,6 +275,9 @@ contains
     real(dp),dimension(params%upn,size(thck,1),size(thck,2)) :: dissip
     real(dp),dimension(params%upn,size(thck,1),size(thck,2)) :: hadv_u
     real(dp),dimension(params%upn,size(thck,1),size(thck,2)) :: hadv_v
+    real(dp),dimension(size(thck,1)-1,size(thck,2)-1) :: stagthck
+    real(dp),dimension(size(thck,1)-1,size(thck,2)-1) :: dusrfdew
+    real(dp),dimension(size(thck,1)-1,size(thck,2)-1) :: dusrfdns
 
     !------------------------------------------------------------------------------------
     ! Set up various parameters
@@ -311,13 +309,18 @@ contains
     inittemp = 0.0d0
     initadvt = 0.0d0
 
+    ! Calculate staggered variables and spatial derivatives -----------------------------
+
+    call stagvarb(thck,stagthck,params%ewn,params%nsn)
+    call geomders(usrf,stagthck,dusrfdew,dusrfdns,params%dew,params%dns)
+
     ! Calculate dissipative term --------------------------------------------------------
 
     call finddisp(dissip,              &
          thck,                         &
-         geomderv%stagthck,            &
-         geomderv%dusrfdew,            &
-         geomderv%dusrfdns,            &
+         stagthck,                     &
+         dusrfdew,                     &
+         dusrfdns,                     &
          temper%flwa,                  &
          params%ewn,                   &
          params%nsn,                   &
@@ -391,8 +394,8 @@ contains
                         dissip,                     &
                         inittemp,                   &
                         temper%bheatflx,            &
-                        geomderv%dusrfdew,          &
-                        geomderv%dusrfdns,          &
+                        dusrfdew,                   &
+                        dusrfdns,                   &
                         params%zCoord,              &
                         ew,                         &
                         ns,                         &
@@ -469,9 +472,9 @@ contains
          params%zCoord,                   &
          temp,                            &
          thck,                            &
-         geomderv%stagthck,               &
-         geomderv%dusrfdew,               &
-         geomderv%dusrfdns,               &
+         stagthck,                        &
+         dusrfdew,                        &
+         dusrfdns,                        &
          ubas,                            &
          vbas,                            &
          temper%bheatflx,                 &
@@ -484,40 +487,6 @@ contains
          params%sigma,                    &
          params%periodic_ew,              &
          f3)
-
-    ! Calculate basal water depth ------------------------------------------------
-
-    call calcbwat(whichbwat,                       &
-         temper%bmlt,                              &
-         temper%bwat,                              &
-         temper%stagbwat,                          & 
-         thck,                                     &
-         topg,                                     &
-         temp(params%upn,:,:),                     &
-         is_float(thkmask),                        &
-         params%thklim,                            &
-         dt,                                       &
-         params%ewn,                               &
-         params%nsn,                               &
-         params%dew,                               &
-         params%dns,                               &
-         params%periodic_ew,                       &
-         bwat_smooth,                              &
-         hydtim)
-
-    ! Transform basal temperature and pressure melting point onto velocity grid -
-
-    call stagvarb(temp(params%upn,1:params%ewn,1:params%nsn), &
-         temper%stagbtemp ,              &
-         params%ewn,                     &
-         params%nsn)
-       
-    call calcbpmp(thck,temper%bpmp)
-
-    call stagvarb(temper%bpmp,       &
-         temper%stagbpmp ,           &
-         params%ewn,                 &
-         params%nsn)
 
     ! Output some information ----------------------------------------------------
 #ifdef DEBUG
@@ -864,6 +833,8 @@ contains
 
   real(dp) function pmpt(thck)
 
+    use glide_bwat, only: calcpmptb
+
     !*FD Wrapper function for pressure-melting-point calculation
 
     real(dp),intent(in) :: thck
@@ -873,30 +844,6 @@ contains
     pmpt=tmp
 
   end function pmpt
-
-  !-----------------------------------------------------------------------------------
-
-  subroutine calcbpmp(thck,bpmp)
-
-    ! Calculate the pressure melting point at the base of the ice 
-
-    real(dp), dimension(:,:), intent(in)  :: thck
-    real(dp), dimension(:,:), intent(out) :: bpmp
-
-    integer :: ew,ns,ewn,nsn
-
-    ewn = size(thck,1)
-    nsn = size(thck,2)
-
-    bpmp = 0.0
-
-    do ns = 2, nsn-1
-       do ew = 2, ewn-1
-          call calcpmptb(bpmp(ew,ns),thck(ew,ns))
-       end do
-    end do
-
-  end subroutine calcbpmp
 
   !-----------------------------------------------------------------------------------
 
@@ -1005,296 +952,6 @@ contains
 
   !-------------------------------------------------------------------
 
-  subroutine calcbwat(which,bmlt,bwat,stagbwat,thck,topg,btem, &
-       floater,thklim,dt,ewn,nsn,dew,dns,periodic_ew,bwat_smooth,hydtim)
-
-    use glimmer_global, only : dp 
-    use glimmer_paramets, only : thk0, tim0, len0
-    use glide_utils, only: stagvarb
-    use physcon, only: rhoi, rhow, grav, scyr
-    implicit none
-
-    integer,                  intent(in)    :: which
-    real(dp), dimension(:,:), intent(in)    :: bmlt
-    real(dp), dimension(:,:), intent(inout) :: bwat
-    real(dp), dimension(:,:), intent(out)   :: stagbwat
-    real(dp), dimension(:,:), intent(in)    :: thck
-    real(dp), dimension(:,:), intent(in)    :: topg
-    real(dp), dimension(:,:), intent(in)    :: btem
-    logical,  dimension(:,:), intent(in)    :: floater
-    real(dp),                 intent(in)    :: thklim
-    real(dp),                 intent(in)    :: dt
-    integer,                  intent(in)    :: ewn
-    integer,                  intent(in)    :: nsn
-    real(dp),                 intent(in)    :: dew
-    real(dp),                 intent(in)    :: dns
-    integer,                  intent(in)    :: periodic_ew
-    real(dp),                 intent(in)    :: bwat_smooth
-    real(dp),                 intent(in)    :: hydtim
-
-    real(dp), dimension(2), parameter :: &
-         blim = (/ 0.00001 / thk0, 0.001 / thk0 /)
-
-    real(dp) :: dwphidew, dwphidns, dwphi, pmpt, bave
-
-    integer :: t_wat,ns,ew
-
-    real(dp),dimension(ewn,nsn) :: smth
-    real(dp),dimension(ewn,nsn) :: wphi
-    real(dp),dimension(ewn,nsn) :: bwatu
-    real(dp),dimension(ewn,nsn) :: bwatv
-    real(dp),dimension(ewn,nsn) :: fluxew
-    real(dp),dimension(ewn,nsn) :: fluxns
-    real(dp),dimension(ewn,nsn) :: bint
-
-    integer  :: nwat
-    real(dp) :: watvel
-    real(dp) :: dt_wat
-    real(dp) :: hydtim_local
-    real(dp) :: estimate
-    real(dp),dimension(8) :: tempwk_c
-
-    ! Initialisation
-
-
-    select case(which)
-    case(0)
-
-       hydtim_local = tim0  / (hydtim * scyr)
-       estimate     = 0.2d0 /  hydtim_local
-
-       call find_dt_wat(dt,estimate,dt_wat,nwat) 
-
-       tempwk_c = (/ &
-            dt_wat, &
-            1.0d0 - 0.5d0 * dt_wat * hydtim_local, &
-            1.0d0 + 0.5d0 * dt_wat * hydtim_local, &
-            0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0 /) 
-
-    case(1)
-
-       watvel = hydtim_local * tim0 / (scyr * len0)
-       estimate = (0.2d0 * watvel) / min(dew,dns)
-
-       call find_dt_wat(dt,estimate,dt_wat,nwat) 
-
-       tempwk_c = (/ &
-            rhow * grav, &
-            rhoi * grav, &
-            2.0d0  * dew, &
-            2.0d0  * dns, &
-            0.25d0 * dt_wat / dew, &
-            0.25d0 * dt_wat / dns, &
-            0.5d0  * dt_wat / dew, &
-            0.5d0  * dt_wat / dns /)
-    end select
-
-
-    select case (which)
-    case(0)
-
-       do t_wat = 1,nwat
-          do ns = 1,nsn
-             do ew = 1,ewn
-
-                if (thklim < thck(ew,ns) .and. .not. floater(ew,ns)) then
-                   bwat(ew,ns) = (tempwk_c(1) * bmlt(ew,ns) + tempwk_c(2) * bwat(ew,ns)) / &
-                        tempwk_c(3)
-                   if (blim(1) > bwat(ew,ns)) then
-                      bwat(ew,ns) = 0.0d0
-                   end if
-                else
-                   bwat(ew,ns) = 0.0d0
-                end if
-
-             end do
-          end do
-       end do
-
-       smth = 0.
-       do ns = 2,nsn-1
-          do ew = 2,ewn-1
-             call smooth_bwat(ew-1,ew,ew+1,ns-1,ns,ns+1)
-          end do
-       end do
-       ! apply periodic BC
-       if (periodic_ew.eq.1) then
-          do ns = 2,nsn-1
-             call smooth_bwat(ewn-1,1,2,ns-1,ns,ns+1)
-             call smooth_bwat(ewn-1,ewn,2,ns-1,ns,ns+1)
-          end do
-       end if
-
-       bwat(1:ewn,1:nsn) = smth(1:ewn,1:nsn)
-
-    case(1)
-       ! apply periodic BC
-       if (periodic_ew.eq.1) then
-          write(*,*) 'Warning, periodic BC are not implement for this case yet'
-       end if
-       ! ** add any melt_water
-
-       bwat = max(0.0d0,bwat + dt * bmlt)
-
-       wphi = 0.
-       bwatu = 0.
-       bwatv = 0.
-       fluxew = 0.
-       fluxns = 0.
-       bint = 0.
-
-
-       ! ** split time evolution into steps to avoid CFL problems
-
-       do t_wat = 1,nwat
-
-          ! ** find potential surface using paterson p112, eq 4
-          ! ** if no ice then set to sea level or land surface potential
-          ! ** if frozen then set high 
-
-          do ns = 1,nsn
-             do ew = 1,ewn
-                if (thklim < thck(ew,ns) .and. .not. floater(ew,ns)) then
-                   call calcpmptb(pmpt,thck(ew,ns))
-                   if (btem(ew,ns) == pmpt) then
-                      wphi(ew,ns) = tempwk_c(1) * (topg(ew,ns) + bwat(ew,ns)) + tempwk_c(2) * thck(ew,ns)
-                   else
-                      wphi(ew,ns) = tempwk_c(1) * (topg(ew,ns) + thck(ew,ns))
-                   end if
-                else 
-                   wphi(ew,ns) = max(tempwk_c(1) * topg(ew,ns),0.0d0)
-                end if
-             end do
-          end do
-
-          ! ** determine x,y components of water velocity assuming
-          ! ** contstant velocity magnitude and using potential
-          ! ** to determine direction
-
-          do ns = 2,nsn-1
-             do ew = 2,ewn-1
-                if (thck(ew,ns) > thklim) then
-
-                   dwphidew = (wphi(ew+1,ns) - wphi(ew-1,ns)) / tempwk_c(3)       
-                   dwphidns = (wphi(ew,ns+1) - wphi(ew,ns-1)) / tempwk_c(4)  
-
-                   dwphi = - watvel / sqrt(dwphidew**2 + dwphidns**2)
-
-                   bwatu(ew,ns) = dwphi * dwphidew  
-                   bwatv(ew,ns) = dwphi * dwphidns  
-
-                else
-                   bwatu(ew,ns) = 0.0d0
-                   bwatv(ew,ns) = 0.0d0
-                end if
-             end do
-          end do
-
-          ! ** use two-step law wendroff to solve dW/dt = -dF/dx - dF/dy
-
-          ! ** 1. find fluxes F=uW
-
-          fluxew = bwat * bwatu
-          fluxns = bwat * bwatv
-
-          ! ** 2. do 1st LW step on staggered grid for dt/2
-
-          do ns = 1,nsn-1
-             do ew = 1,ewn-1
-
-                bave = 0.25 * sum(bwat(ew:ew+1,ns:ns+1))
-
-                if (bave > 0.0d0) then
-
-                   bint(ew,ns) = bave - &
-                        tempwk_c(5) * (sum(fluxew(ew+1,ns:ns+1)) - sum(fluxew(ew,ns:ns+1))) - &
-                        tempwk_c(6) * (sum(fluxns(ew:ew+1,ns+1)) - sum(fluxns(ew:ew+1,ns)))
-
-                else
-                   bint(ew,ns) = 0.0d0
-                end if
-             end do
-          end do
-
-          ! ** 3. find fluxes F=uW on staggered grid griven new Ws
-
-          fluxew(1:ewn-1,1:nsn-1) = bint * 0.25 * &
-               (bwatu(1:ewn-1,1:nsn-1) + &
-               bwatu(2:ewn,1:nsn-1) + &
-               bwatu(1:ewn-1,2:nsn) + &
-               bwatu(2:ewn,2:nsn))
-          fluxns(1:ewn-1,1:nsn-1) = bint * 0.25 * &
-               (bwatv(1:ewn-1,1:nsn-1) + &
-               bwatv(2:ewn,1:nsn-1) + &
-               bwatv(1:ewn-1,2:nsn) + &
-               bwatv(2:ewn,2:nsn))
-
-          ! ** 4. finally do 2nd LW step to get back on to main grid
-
-          do ns = 2,nsn-1
-             do ew = 2,ewn-1
-                if (bwat(ew,ns) > 0.0d0) then
-
-                   bwat(ew,ns) = bwat(ew,ns) - &
-                        tempwk_c(7) * (sum(fluxew(ew,ns-1:ns)) - sum(fluxew(ew-1,ns-1:ns))) - &
-                        tempwk_c(8) * (sum(fluxns(ew-1:ew,ns)) - sum(fluxns(ew-1:ew,ns-1)))
-
-                else
-                   bwat(ew,ns) = 0.0d0
-                end if
-             end do
-          end do
-       end do
-
-       where (blim(1) > bwat) 
-          bwat = 0.0d0
-       end where
-
-    case default
-
-       bwat = 0.0d0
-
-    end select
-
-    ! How to call the flow router.
-    ! call advectflow(bwat,phi,bmlt,model%geometry%mask)
-
-    ! now also calculate basal water in velocity coord system
-    call stagvarb(bwat,stagbwat,ewn,nsn)
-
-  contains
-
-    subroutine smooth_bwat(ewm,ew,ewp,nsm,ns,nsp)
-      ! smoothing basal water distrib
-      implicit none
-      integer, intent(in) :: ewm,ew,ewp,nsm,ns,nsp
-      if (blim(2) < bwat(ew,ns)) then
-         smth(ew,ns) = bwat(ew,ns) + bwat_smooth * &
-              (bwat(ewm,ns) + bwat(ewp,ns) + bwat(ew,nsm) + bwat(ew,nsp) - 4.0d0 * bwat(ew,ns))
-      else 
-         smth(ew,ns) = bwat(ew,ns)
-      end if   
-    end subroutine smooth_bwat
-
-  end subroutine calcbwat
-  
-  !-------------------------------------------------------------------
-
-  subroutine find_dt_wat(dttem,estimate,dt_wat,nwat)
-    
-    implicit none
-    
-    real(dp), intent(out) :: dt_wat
-    integer, intent(out) :: nwat
-    real(dp), intent(in) :: dttem, estimate
-    
-    nwat = int(dttem/estimate) + 1
-    dt_wat = dttem / nwat
-
-  end subroutine find_dt_wat
-
-  !-------------------------------------------------------------------
-
   subroutine corrpmpt(temp,thck,bwat,sigma)
 
     use glimmer_global, only : dp
@@ -1345,25 +1002,6 @@ contains
     pmptemp = fact * thck * sigma
 
   end subroutine calcpmpt
-
-  !-------------------------------------------------------------------
-
-  subroutine calcpmptb(pmptemp,thck)
-
-    use glimmer_global, only : dp
-    use physcon, only : rhoi, grav, pmlt 
-    use glimmer_paramets, only : thk0
-
-    implicit none 
-
-    real(dp), intent(out) :: pmptemp
-    real(dp), intent(in) :: thck
-
-    real(dp), parameter :: fact = - grav * rhoi * pmlt * thk0
-
-    pmptemp = fact * thck 
-
-  end subroutine calcpmptb
 
   !-------------------------------------------------------------------
 
