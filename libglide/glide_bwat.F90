@@ -56,10 +56,12 @@ contains
        floater,thklim,dt,ewn,nsn,dew,dns,periodic_ew, &
        bwat_smooth,hydtim)
 
-    use glimmer_global, only : dp 
-    use glimmer_paramets, only : thk0, tim0, len0
-    use glide_utils, only: stagvarb
-    use physcon, only: rhoi, rhow, grav, scyr
+    use glimmer_global,   only: dp 
+    use glimmer_paramets, only: thk0, tim0, len0
+    use glide_utils,      only: stagvarb
+    use physcon,          only: rhoi, rhow, grav, scyr
+    use glimmer_pmpt,     only: calcpmptb
+
     implicit none
 
     integer,                  intent(in)    :: which
@@ -334,51 +336,6 @@ contains
     dt_wat = dttem / nwat
 
   end subroutine find_dt_wat
-
-  !-----------------------------------------------------------------------------------
-
-  subroutine calcbpmp(thck,bpmp)
-
-    use glimmer_global, only: dp
-
-    ! Calculate the pressure melting point at the base of the ice 
-
-    real(dp), dimension(:,:), intent(in)  :: thck
-    real(dp), dimension(:,:), intent(out) :: bpmp
-
-    integer :: ew,ns,ewn,nsn
-
-    ewn = size(thck,1)
-    nsn = size(thck,2)
-
-    bpmp = 0.0
-
-    do ns = 2, nsn-1
-       do ew = 2, ewn-1
-          call calcpmptb(bpmp(ew,ns),thck(ew,ns))
-       end do
-    end do
-
-  end subroutine calcbpmp
-
-  !-------------------------------------------------------------------
-
-  subroutine calcpmptb(pmptemp,thck)
-
-    use glimmer_global, only : dp
-    use physcon, only : rhoi, grav, pmlt 
-    use glimmer_paramets, only : thk0
-
-    implicit none 
-
-    real(dp), intent(out) :: pmptemp
-    real(dp), intent(in)  :: thck
-
-    real(dp), parameter :: fact = - grav * rhoi * pmlt * thk0
-
-    pmptemp = fact * thck 
-
-  end subroutine calcpmptb
 
 
 end module glide_bwat

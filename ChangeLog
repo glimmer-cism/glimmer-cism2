@@ -1,5 +1,13 @@
 2009-10-24 Ian Rutt
  * libglide/glide_temp.F90: First go at refactoring almost complete.
+ * libglide/glide_vertcoord.F90: Moved to libglimmer/glimmer_vertcoord.F90
+ * libglide/glide_utils.F90: amalgamated with libglimmer/glimmer_utils.F90
+ * libglimmer/glimmer_pmpt.F90: new module containg pressure melting point
+   functions. This is a mess at present.
+ * libglide/glide_tempFullSoln.F90: New module to hold full temperature
+   solution
+ * libglide/glide_mask.F90: refactored glide_set_mask, and added new
+   functions to calculate ice volume and area
  * Regtested against e2.a and e2.h
 
 2009-10-23 Ian Rutt

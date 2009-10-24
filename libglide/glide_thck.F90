@@ -154,7 +154,7 @@ contains
     use glimmer_global, only : dp
     use glide_velo
     use glide_setup
-    use glide_utils, only: stagvarb, geomders
+    use glimmer_utils, only: stagvarb, geomders
     implicit none
     ! subroutine arguments
     type(glide_global_type) :: model

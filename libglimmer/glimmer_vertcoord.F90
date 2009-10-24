@@ -1,6 +1,6 @@
 ! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! +                                                           +
-! +  glide_vertcoord.f90 - part of the Glimmer-CISM ice model + 
+! +  glimmer_vertcoord.f90 - part of the Glimmer-CISM ice model + 
 ! +                                                           +
 ! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! 
@@ -44,7 +44,7 @@
 #include "config.inc"
 #endif
 
-module glide_vertcoord
+module glimmer_vertcoord
 
   use glimmer_global, only: dp
 
@@ -118,4 +118,4 @@ contains
 
   end subroutine initVertCoord
 
-end module glide_vertcoord
+end module glimmer_vertcoord

@@ -68,7 +68,7 @@ module glide_types
   use glimmer_map_types, pi_dummy=>pi
   use glide_glenflow, only: glenflow_params
   use glide_deriv, only: timederiv_params
-  use glide_temp, only: type_tempFullSoln
+  use glide_tempFullSoln, only: type_tempFullSoln
 
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 

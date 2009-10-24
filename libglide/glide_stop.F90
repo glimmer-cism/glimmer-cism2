@@ -58,7 +58,7 @@ contains
     use glide_types
     use glide_io
     use glide_lithot_io
-    use glide_temp, only: get_niter
+    use glide_tempFullSoln, only: get_niter
     use profile
     implicit none
     type(glide_global_type) :: model        !*FD model instance

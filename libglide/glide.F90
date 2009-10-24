@@ -114,6 +114,7 @@ contains
     use isostasy
     use glimmer_map_init
     use glide_glenflow, only: calcflwa
+    use glide_tempFullSoln, only: init_tempFullSoln
     implicit none
     type(glide_global_type) :: model        !*FD model instance
 
@@ -206,7 +207,22 @@ contains
     end if
 
     ! calculate mask
-    call glide_set_mask(model)
+    call glide_set_mask( &
+         model%geometry%thkmask, &
+         model%geometry%thck,    &
+         model%geometry%topg,    &
+         model%climate%eus,      &
+         model%numerics%thklim)
+
+    model%geometry%iarea = calc_iarea(model%geometry%thkmask, &
+         model%geometry%thck, &
+         model%numerics%dew,  &
+         model%numerics%dns)
+
+    model%geometry%ivol = calc_ivol(model%geometry%thkmask, &
+         model%geometry%thck, &
+         model%numerics%dew,  &
+         model%numerics%dns)
 
     ! and calculate lower and upper ice surface
     call glide_calclsrf(model%geometry%thck, model%geometry%topg, model%climate%eus,model%geometry%lsrf)
@@ -226,11 +242,13 @@ contains
     use glide_velo
     use glide_setup
     use glide_temp
+    use glide_tempFullSoln, only: tstep_tempFullSoln
     use glide_mask
     use glide_glenflow, only: calcflwa
-    use glimmer_log, only: write_log, GM_FATAL
-    use glide_utils, only: stagvarb, geomders
-    use glide_bwat,  only: calcbwat, calcbpmp
+    use glimmer_log,    only: write_log, GM_FATAL
+    use glimmer_utils,  only: stagvarb, geomders
+    use glide_bwat,     only: calcbwat
+    use glimmer_pmpt,   only: calcbpmp
 
     implicit none
 
@@ -308,7 +326,7 @@ contains
        case(0)
           call calcTemp_asSurfTemp(model%temper%temp,model%climate%artm)
        case(1)
-          call calcTemp_FullSolution( &
+          call tstep_tempFullSoln(    &
                model%tempFullSoln,    &
                model%temper%temp,     &
                model%climate%artm,    &
@@ -465,7 +483,12 @@ contains
 #ifdef PROFILING
     call glide_prof_start(model,model%glide_prof%ice_mask2)
 #endif
-    call glide_set_mask(model)
+    call glide_set_mask( &
+         model%geometry%thkmask, &
+         model%geometry%thck,    &
+         model%geometry%topg,    &
+         model%climate%eus,      &
+         model%numerics%thklim)
 #ifdef PROFILING
     call glide_prof_stop(model,model%glide_prof%ice_mask2)
 #endif

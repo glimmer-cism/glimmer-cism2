@@ -44,11 +44,10 @@
 #include "config.inc"
 #endif
 
-#define MASK model%geometry%thkmask
-
 module glide_mask
   !*FD masking ice thicknesses
 
+  implicit none
 
   integer, parameter :: glide_mask_ocean          = -2
   integer, parameter :: glide_mask_land           = -1
@@ -64,75 +63,128 @@ module glide_mask
   integer, parameter :: glide_mask_marine_edge    = 256
 
 contains
-  subroutine glide_set_mask(model)
-    use glide_types
-    use glimmer_global, only : dp
-    use physcon, only : rhoi, rhoo
+
+  real(dp) function calc_ivol(mask,thck,dew,dns)
+
+    use glimmer_global, only: dp
+
     implicit none
-    type(glide_global_type) :: model        !*FD model instance
+    
+    integer, dimension(:,:),intent(in) :: mask
+    real(dp),dimension(:,:),intent(in) :: thck
+    real(dp),               intent(in) :: dew
+    real(dp),               intent(in) :: dns
+
+    real(dp),dimension(size(thck,1),size(thck,2)) :: count
+
+    where (has_ice(mask))
+       count = 1.
+    elsewhere
+       count = 0.
+    end where
+
+    calc_ivol = sum(count*thck)*dew*dns
+
+  end function calc_ivol
+
+ 
+  real(dp) function calc_iarea(mask,thck,dew,dns)
+
+    use glimmer_global, only: dp
+
+    implicit none
+    
+    integer, dimension(:,:),intent(in) :: mask
+    real(dp),dimension(:,:),intent(in) :: thck
+    real(dp),               intent(in) :: dew
+    real(dp),               intent(in) :: dns
+
+    real(dp),dimension(size(thck,1),size(thck,2)) :: count
+
+    where (has_ice(mask))
+       count = 1.
+    elsewhere
+       count = 0.
+    end where
+
+    calc_iarea = sum(count)*dew*dns
+
+  end function calc_iarea
+ 
+
+  subroutine glide_set_mask(mask,thck,topg,eus,thklim)
+
+    use glimmer_global, only : dp,sp
+    use physcon, only : rhoi, rhoo
+
+    implicit none
+
+    integer,  dimension(:,:), intent(out) :: mask
+    real(dp), dimension(:,:), intent(in)  :: thck
+    real(dp), dimension(:,:), intent(in)  :: topg
+    real(sp),                 intent(in)  :: eus
+    real(dp),                 intent(in)  :: thklim
 
     ! local variables
-    integer ew,ns
+    integer ew,ns,ewn,nsn
     real(dp), parameter :: con = - rhoi / rhoo
 
-    MASK = 0
-    model%geometry%iarea = 0.
-    model%geometry%ivol = 0.
-    do ns=1,model%general%nsn
-       do ew = 1,model%general%ewn
+    ewn = size(thck,1)
+    nsn = size(thck,2)
+
+    mask = 0
+
+    do ns=1,nsn
+       do ew = 1,ewn
           
-          if (model%geometry%thck(ew,ns) .eq. 0.) then                               ! no ice
-             if (model%geometry%topg(ew,ns) .lt. model%climate%eus) then             ! below SL
-                MASK(ew,ns) = glide_mask_ocean
-             else                                                                    ! above SL
-                MASK(ew,ns) = glide_mask_land
+          if (thck(ew,ns) .eq. 0.) then                 ! no ice
+             if (topg(ew,ns) .lt. eus) then             ! below SL
+                mask(ew,ns) = glide_mask_ocean
+             else                                       ! above SL
+                mask(ew,ns) = glide_mask_land
              end if
           else
-             model%geometry%iarea = model%geometry%iarea + 1.
-             model%geometry%ivol = model%geometry%ivol + model%geometry%thck(ew,ns)
-             if (model%geometry%topg(ew,ns) - model%climate%eus &                    ! ice
-                  < con * model%geometry%thck(ew,ns)) then                           ! floating ice
-                MASK(ew,ns) = glide_mask_shelf
-             else                                                                    ! grounded ice
-                MASK(ew,ns) = glide_mask_interior
+             if (topg(ew,ns) - eus &                    ! ice
+                  < con * thck(ew,ns)) then             ! floating ice
+                mask(ew,ns) = glide_mask_shelf
+             else                                       ! grounded ice
+                mask(ew,ns) = glide_mask_interior
              end if
-             if (model%geometry%thck(ew,ns) .le. model%numerics%thklim) then         ! ice below dynamic limit
-                MASK(ew,ns) = ior(MASK(ew,ns),glide_mask_thin_ice)
+             if (thck(ew,ns) .le. thklim) then          ! ice below dynamic limit
+                mask(ew,ns) = ior(mask(ew,ns),glide_mask_thin_ice)
              end if
           end if
 
        end do
     end do
-    model%geometry%iarea = model%geometry%iarea * model%numerics%dew * model%numerics%dns
-    model%geometry%ivol = model%geometry%ivol * model%numerics%dew * model%numerics%dns
 
     ! finding boundaries
-    do ns=2,model%general%nsn-1
-       do ew = 2,model%general%ewn-1
-          if (is_float(MASK(ew,ns))) then
+    do ns=2,nsn-1
+       do ew = 2,ewn-1
+          if (is_float(mask(ew,ns))) then
              ! shelf front
-             if (is_ocean(MASK(ew-1,ns)) .or. is_ocean(MASK(ew+1,ns)) .or. &
-                  is_ocean(MASK(ew,ns-1)) .or. is_ocean(MASK(ew,ns+1))) then
-                MASK(ew,ns) = ior(MASK(ew,ns),glide_mask_shelf_front)
+             if (is_ocean(mask(ew-1,ns)) .or. is_ocean(mask(ew+1,ns)) .or. &
+                  is_ocean(mask(ew,ns-1)) .or. is_ocean(mask(ew,ns+1))) then
+                mask(ew,ns) = ior(mask(ew,ns),glide_mask_shelf_front)
              end if
-          else if (is_ground(MASK(ew,ns))) then
+          else if (is_ground(mask(ew,ns))) then
              ! land margin
-             if (is_land(MASK(ew-1,ns)) .or. is_land(MASK(ew+1,ns)) .or. &
-                  is_land(MASK(ew,ns-1)) .or. is_land(MASK(ew,ns+1))) then
-                MASK(ew,ns) = ior(MASK(ew,ns),glide_mask_land_margin)
+             if (is_land(mask(ew-1,ns)) .or. is_land(mask(ew+1,ns)) .or. &
+                  is_land(mask(ew,ns-1)) .or. is_land(mask(ew,ns+1))) then
+                mask(ew,ns) = ior(mask(ew,ns),glide_mask_land_margin)
              end if
              ! grounding line
-             if (is_float(MASK(ew-1,ns)) .or. is_float(MASK(ew+1,ns)) .or. &
-                  is_float(MASK(ew,ns-1)) .or. is_float(MASK(ew,ns+1))) then
-                MASK(ew,ns) = ior(MASK(ew,ns),glide_mask_grounding_line)
+             if (is_float(mask(ew-1,ns)) .or. is_float(mask(ew+1,ns)) .or. &
+                  is_float(mask(ew,ns-1)) .or. is_float(mask(ew,ns+1))) then
+                mask(ew,ns) = ior(mask(ew,ns),glide_mask_grounding_line)
              end if
           end if
           ! Edge of marine ice, whether floating or not
-          if ((model%geometry%topg(ew,ns) .lt. model%climate%eus.and.&
-               model%geometry%thck(ew,ns)>0.0).and. &
-               (is_ocean(MASK(ew-1,ns)) .or. is_ocean(MASK(ew+1,ns)) .or. &
-               is_ocean(MASK(ew,ns-1)) .or. is_ocean(MASK(ew,ns+1)))) then
-             MASK(ew,ns) = ior(MASK(ew,ns),glide_mask_marine_edge)
+          if ((topg(ew,ns) .lt. eus.and.&
+               thck(ew,ns)>0.0).and. &
+               (is_ocean(mask(ew-1,ns)) .or. is_ocean(mask(ew+1,ns)) .or. &
+               is_ocean(mask(ew,ns-1)) .or. is_ocean(mask(ew,ns+1)))) then
+             mask(ew,ns) = ior(mask(ew,ns),glide_mask_marine_edge)
           end if
        end do
     end do
