@@ -2,7 +2,7 @@
  * libglide/glide_temp.F90: Pulled out basal hydrology into glide_bwat.F90
  * libglide/glide_temp.F90: Moved staggering and derivative calculations
    into subroutine. Removed geomderv from interface
- * Not yet regtested
+ * Regtested against e2.a and e2.h
 
 2009-10-22 Ian Rutt
  * libglide/glide_temp.F90: Created derived type for full temperature
