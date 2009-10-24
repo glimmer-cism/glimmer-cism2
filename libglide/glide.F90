@@ -310,7 +310,6 @@ contains
        case(1)
           call calcTemp_FullSolution( &
                model%tempFullSoln,    &
-               model%temper,          &
                model%temper%temp,     &
                model%climate%artm,    &
                model%geometry%thck,   &
@@ -323,6 +322,10 @@ contains
                model%velocity%vbas,   &
                model%velocity%wvel,   &
                model%velocity%wgrd,   &
+               model%temper%flwa,     &
+               model%temper%bheatflx, &
+               model%temper%bwat,     &
+               model%temper%bmlt,     &
                model%numerics%dttem)
 
           ! Calculate basal water depth ------------------------------------------------

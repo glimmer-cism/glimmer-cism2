@@ -211,8 +211,8 @@ contains
 
   !------------------------------------------------------------------------------------
 
-  subroutine calcTemp_FullSolution(params,temper,temp,artm,thck,usrf,thkmask, &
-       topg,uvel,vvel,ubas,vbas,wvel,wgrd,dt)
+  subroutine calcTemp_FullSolution(params,temp,artm,thck,usrf,thkmask, &
+       topg,uvel,vvel,ubas,vbas,wvel,wgrd,flwa,bheatflx,bwat,bmlt,dt)
 
     !*FD Calculates the ice temperature - full solution
 
@@ -231,7 +231,6 @@ contains
     !------------------------------------------------------------------------------------
 
     type(type_tempFullSoln),      intent(inout) :: params   !< temperature model parameters
-    type(glide_temper),           intent(inout) :: temper  !< Temperature stuff
     real(dp), dimension(:,0:,0:), intent(inout) :: temp    !< Ice temperature (upn,0:ewn+1,0:nsn+1)
     real(sp), dimension(:,:),     intent(in)    :: artm    !< Surface air temperature (ewn,nsn)
     real(dp), dimension(:,:),     intent(in)    :: thck    !< Ice thickness (ewn,nsn)
@@ -244,6 +243,10 @@ contains
     real(dp), dimension(:,:),     intent(in)    :: vbas    !< basal y-velocity (ewn-1,nsn-1)
     real(dp), dimension(:,:,:),   intent(in)    :: wvel    !< Vertical velocity (upn,ewn,nsn)
     real(dp), dimension(:,:,:),   intent(in)    :: wgrd    !< Vertical grid velocity (upn,ewn,nsn)
+    real(dp), dimension(:,:,:),   intent(in)    :: flwa    !< Glen's A (upn,ewn,nsn)
+    real(dp), dimension(:,:),     intent(in)    :: bheatflx !< Basal heat flux (ewn,nsn)
+    real(dp), dimension(:,:),     intent(in)    :: bwat    !< Basal water depth
+    real(dp), dimension(:,:),     intent(out)   :: bmlt    !< Basal melt rate
     real(dp),                     intent(in)    :: dt      !< Timestep (years)
 
     !------------------------------------------------------------------------------------
@@ -321,7 +324,7 @@ contains
          stagthck,                     &
          dusrfdew,                     &
          dusrfdns,                     &
-         temper%flwa,                  &
+         flwa,                         &
          params%ewn,                   &
          params%nsn,                   &
          c1,                           &
@@ -393,7 +396,7 @@ contains
                    call findvtri_init(initadvt,     &
                         dissip,                     &
                         inittemp,                   &
-                        temper%bheatflx,            &
+                        bheatflx,                   &
                         dusrfdew,                   &
                         dusrfdns,                   &
                         params%zCoord,              &
@@ -432,7 +435,7 @@ contains
 
                 call corrpmpt(temp(:,ew,ns),         &
                      thck(ew,ns),                    &
-                     temper%bwat(ew,ns),             &
+                     bwat(ew,ns),                    &
                      params%sigma)
 
                 tempresid = max(tempresid,maxval(abs(temp(:,ew,ns)-prevtemp(:))))
@@ -477,8 +480,8 @@ contains
          dusrfdns,                        &
          ubas,                            &
          vbas,                            &
-         temper%bheatflx,                 &
-         temper%bmlt,                     &
+         bheatflx,                        &
+         bmlt,                            &
          is_float(thkmask),               &
          params%upn,                      &
          params%nsn,                      &
@@ -1004,44 +1007,44 @@ contains
   end subroutine calcpmpt
 
   !-------------------------------------------------------------------
-
-  subroutine swchpnt(a,b,c,d,e)
-
-    implicit none 
-
-    integer, intent(inout) :: a, b, c 
-    integer, intent(in) :: d, e
-
-    if (a == d) then
-       a = e
-       b = d
-       c = -1
-    else
-       a = d
-       b = e
-       c = 1
-    end if
-
-  end subroutine swchpnt
+!!$
+!!$  subroutine swchpnt(a,b,c,d,e)
+!!$
+!!$    implicit none 
+!!$
+!!$    integer, intent(inout) :: a, b, c 
+!!$    integer, intent(in) :: d, e
+!!$
+!!$    if (a == d) then
+!!$       a = e
+!!$       b = d
+!!$       c = -1
+!!$    else
+!!$       a = d
+!!$       b = e
+!!$       c = 1
+!!$    end if
+!!$
+!!$  end subroutine swchpnt
 
   !-------------------------------------------------------------------
-
-  subroutine swapbndt(bc,a,b,c,d)
-
-    use glimmer_global, only : dp
-
-    implicit none
-
-    real(dp), intent(out), dimension(:,:) :: a, c
-    real(dp), intent(in), dimension(:,:) :: b, d
-    integer, intent(in) :: bc
-
-    if (bc == 0) then
-       a = b
-       c = d
-    end if
-
-  end subroutine swapbndt
+!!$
+!!$  subroutine swapbndt(bc,a,b,c,d)
+!!$
+!!$    use glimmer_global, only : dp
+!!$
+!!$    implicit none
+!!$
+!!$    real(dp), intent(out), dimension(:,:) :: a, c
+!!$    real(dp), intent(in), dimension(:,:) :: b, d
+!!$    integer, intent(in) :: bc
+!!$
+!!$    if (bc == 0) then
+!!$       a = b
+!!$       c = d
+!!$    end if
+!!$
+!!$  end subroutine swapbndt
 
   !-------------------------------------------------------------------
 

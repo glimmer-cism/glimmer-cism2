@@ -1,3 +1,7 @@
+2009-10-24 Ian Rutt
+ * libglide/glide_temp.F90: First go at refactoring almost complete.
+ * Regtested against e2.a and e2.h
+
 2009-10-23 Ian Rutt
  * libglide/glide_temp.F90: Pulled out basal hydrology into glide_bwat.F90
  * libglide/glide_temp.F90: Moved staggering and derivative calculations
