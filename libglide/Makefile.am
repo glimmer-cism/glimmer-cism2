@@ -12,7 +12,7 @@ BUILT_SOURCES = glide_io.F90  glide_lithot_io.F90
 CLEANFILES = $(BUILT_SOURCES) f90_dep.mak
 
 libglide_la_SOURCES = glide.F90 glide_setup.F90 glide_types.F90 glide_temp.F90 \
-                      glide_thck.F90 glide_velo.F90 glide_mask.F90 \
+                      glide_thck.F90 glide_velo.F90 \
                       glide_stop.F90 glide_io.F90 glide_lithot_io.F90 glide_nc_custom.F90 \
                       isostasy.F90 isostasy_el.F90 isostasy_setup.F90 \
                       isostasy_types.F90 glide_lithot.F90 glide_lithot3d.F90 \

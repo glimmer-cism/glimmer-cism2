@@ -9,6 +9,8 @@
  * libglide/glide_mask.F90: refactored glide_set_mask, and added new
    functions to calculate ice volume and area
  * Regtested against e2.a and e2.h
+ * libglide/glide_mask.F90: moved to libglimmer/glimmer_mask.F90, with
+   contents renamed accordingly (i.e. glide -> glimmer in all cases).
 
 2009-10-23 Ian Rutt
  * libglide/glide_temp.F90: Pulled out basal hydrology into glide_bwat.F90

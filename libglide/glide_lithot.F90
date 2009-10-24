@@ -111,7 +111,7 @@ contains
   subroutine spinup_lithot(model)
     use glide_types
     use glimmer_log
-    use glide_mask
+    use glimmer_mask
     implicit none
     type(glide_global_type),intent(inout) :: model       !*FD model instance
 

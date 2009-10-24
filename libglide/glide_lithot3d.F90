@@ -153,7 +153,7 @@ contains
 
   subroutine calc_lithot3d(model)
     use glide_types
-    use glide_mask
+    use glimmer_mask
     use glide_stop
     use glimmer_log
     implicit none

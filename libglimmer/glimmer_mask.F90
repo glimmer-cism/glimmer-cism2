@@ -1,6 +1,6 @@
 ! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! +                                                           +
-! +  glide_mask.f90 - part of the GLIMMER ice model           + 
+! +  glimmer_mask.f90 - part of the GLIMMER ice model         + 
 ! +                                                           +
 ! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! 
@@ -44,23 +44,23 @@
 #include "config.inc"
 #endif
 
-module glide_mask
+module glimmer_mask
   !*FD masking ice thicknesses
 
   implicit none
 
-  integer, parameter :: glide_mask_ocean          = -2
-  integer, parameter :: glide_mask_land           = -1
-  integer, parameter :: glide_mask_boundary       = 0
-  integer, parameter :: glide_mask_thin_ice       = 1
-  integer, parameter :: glide_mask_interior       = 2
-  integer, parameter :: glide_mask_shelf          = 4
-  integer, parameter :: glide_mask_stream         = 8
-  integer, parameter :: glide_mask_grounding_line = 16
-  integer, parameter :: glide_mask_stream_margin  = 32
-  integer, parameter :: glide_mask_land_margin    = 64
-  integer, parameter :: glide_mask_shelf_front    = 128
-  integer, parameter :: glide_mask_marine_edge    = 256
+  integer, parameter :: glimmer_mask_ocean          = -2
+  integer, parameter :: glimmer_mask_land           = -1
+  integer, parameter :: glimmer_mask_boundary       = 0
+  integer, parameter :: glimmer_mask_thin_ice       = 1
+  integer, parameter :: glimmer_mask_interior       = 2
+  integer, parameter :: glimmer_mask_shelf          = 4
+  integer, parameter :: glimmer_mask_stream         = 8
+  integer, parameter :: glimmer_mask_grounding_line = 16
+  integer, parameter :: glimmer_mask_stream_margin  = 32
+  integer, parameter :: glimmer_mask_land_margin    = 64
+  integer, parameter :: glimmer_mask_shelf_front    = 128
+  integer, parameter :: glimmer_mask_marine_edge    = 256
 
 contains
 
@@ -112,7 +112,7 @@ contains
   end function calc_iarea
  
 
-  subroutine glide_set_mask(mask,thck,topg,eus,thklim)
+  subroutine glimmer_set_mask(mask,thck,topg,eus,thklim)
 
     use glimmer_global, only : dp,sp
     use physcon, only : rhoi, rhoo
@@ -139,19 +139,19 @@ contains
           
           if (thck(ew,ns) .eq. 0.) then                 ! no ice
              if (topg(ew,ns) .lt. eus) then             ! below SL
-                mask(ew,ns) = glide_mask_ocean
+                mask(ew,ns) = glimmer_mask_ocean
              else                                       ! above SL
-                mask(ew,ns) = glide_mask_land
+                mask(ew,ns) = glimmer_mask_land
              end if
           else
              if (topg(ew,ns) - eus &                    ! ice
                   < con * thck(ew,ns)) then             ! floating ice
-                mask(ew,ns) = glide_mask_shelf
+                mask(ew,ns) = glimmer_mask_shelf
              else                                       ! grounded ice
-                mask(ew,ns) = glide_mask_interior
+                mask(ew,ns) = glimmer_mask_interior
              end if
              if (thck(ew,ns) .le. thklim) then          ! ice below dynamic limit
-                mask(ew,ns) = ior(mask(ew,ns),glide_mask_thin_ice)
+                mask(ew,ns) = ior(mask(ew,ns),glimmer_mask_thin_ice)
              end if
           end if
 
@@ -165,18 +165,18 @@ contains
              ! shelf front
              if (is_ocean(mask(ew-1,ns)) .or. is_ocean(mask(ew+1,ns)) .or. &
                   is_ocean(mask(ew,ns-1)) .or. is_ocean(mask(ew,ns+1))) then
-                mask(ew,ns) = ior(mask(ew,ns),glide_mask_shelf_front)
+                mask(ew,ns) = ior(mask(ew,ns),glimmer_mask_shelf_front)
              end if
           else if (is_ground(mask(ew,ns))) then
              ! land margin
              if (is_land(mask(ew-1,ns)) .or. is_land(mask(ew+1,ns)) .or. &
                   is_land(mask(ew,ns-1)) .or. is_land(mask(ew,ns+1))) then
-                mask(ew,ns) = ior(mask(ew,ns),glide_mask_land_margin)
+                mask(ew,ns) = ior(mask(ew,ns),glimmer_mask_land_margin)
              end if
              ! grounding line
              if (is_float(mask(ew-1,ns)) .or. is_float(mask(ew+1,ns)) .or. &
                   is_float(mask(ew,ns-1)) .or. is_float(mask(ew,ns+1))) then
-                mask(ew,ns) = ior(mask(ew,ns),glide_mask_grounding_line)
+                mask(ew,ns) = ior(mask(ew,ns),glimmer_mask_grounding_line)
              end if
           end if
           ! Edge of marine ice, whether floating or not
@@ -184,18 +184,18 @@ contains
                thck(ew,ns)>0.0).and. &
                (is_ocean(mask(ew-1,ns)) .or. is_ocean(mask(ew+1,ns)) .or. &
                is_ocean(mask(ew,ns-1)) .or. is_ocean(mask(ew,ns+1)))) then
-             mask(ew,ns) = ior(mask(ew,ns),glide_mask_marine_edge)
+             mask(ew,ns) = ior(mask(ew,ns),glimmer_mask_marine_edge)
           end if
        end do
     end do
-  end subroutine glide_set_mask
+  end subroutine glimmer_set_mask
 
   logical elemental function is_ocean(mask)
     !*FD returns .true. if node is ocean
     implicit none
     integer, intent(in) :: mask 
 
-    is_ocean = mask.eq.glide_mask_ocean
+    is_ocean = mask.eq.glimmer_mask_ocean
   end function is_ocean
 
   logical elemental function is_land(mask)
@@ -203,7 +203,7 @@ contains
     implicit none
     integer, intent(in) :: mask 
 
-    is_land = mask.eq.glide_mask_land
+    is_land = mask.eq.glimmer_mask_land
   end function is_land
 
   logical elemental function has_ice(mask)
@@ -219,7 +219,7 @@ contains
     implicit none
     integer, intent(in) :: mask
 
-    is_thin = (iand(mask,glide_mask_thin_ice) .gt. 0 .and. mask.gt.0)
+    is_thin = (iand(mask,glimmer_mask_thin_ice) .gt. 0 .and. mask.gt.0)
   end function is_thin
 
   logical elemental function is_float(mask)
@@ -227,7 +227,7 @@ contains
     implicit none
     integer, intent(in) :: mask
 
-    is_float = (iand(mask,glide_mask_shelf) .gt. 0 .and. mask.gt.0)
+    is_float = (iand(mask,glimmer_mask_shelf) .gt. 0 .and. mask.gt.0)
   end function is_float
 
   logical elemental function is_ground(mask)
@@ -235,7 +235,7 @@ contains
     implicit none
     integer, intent(in) :: mask
 
-    is_ground = (iand(mask,glide_mask_interior) .gt. 0 .and. mask.gt.0)
+    is_ground = (iand(mask,glimmer_mask_interior) .gt. 0 .and. mask.gt.0)
   end function is_ground
 
   logical elemental function is_calving(mask)
@@ -243,7 +243,7 @@ contains
     implicit none
     integer, intent(in) :: mask
 
-    is_calving = (iand(mask,glide_mask_shelf_front) .gt. 0 .and. mask.gt.0)
+    is_calving = (iand(mask,glimmer_mask_shelf_front) .gt. 0 .and. mask.gt.0)
   end function is_calving
 
   logical elemental function is_marine_ice_edge(mask)
@@ -252,7 +252,7 @@ contains
     implicit none
     integer, intent(in) :: mask
 
-    is_marine_ice_edge = (iand(mask,glide_mask_marine_edge) .gt. 0 .and. mask.gt.0)
+    is_marine_ice_edge = (iand(mask,glimmer_mask_marine_edge) .gt. 0 .and. mask.gt.0)
   end function is_marine_ice_edge
 
-end module glide_mask
+end module glimmer_mask

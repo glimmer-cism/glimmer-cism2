@@ -108,9 +108,8 @@ contains
     use glide_thck
     use glide_temp
     use glimmer_log
-    use glide_mask
+    use glimmer_mask
     use glimmer_scales
-    use glide_mask
     use isostasy
     use glimmer_map_init
     use glide_glenflow, only: calcflwa
@@ -207,7 +206,7 @@ contains
     end if
 
     ! calculate mask
-    call glide_set_mask( &
+    call glimmer_set_mask( &
          model%geometry%thkmask, &
          model%geometry%thck,    &
          model%geometry%topg,    &
@@ -243,7 +242,7 @@ contains
     use glide_setup
     use glide_temp
     use glide_tempFullSoln, only: tstep_tempFullSoln
-    use glide_mask
+    use glimmer_mask
     use glide_glenflow, only: calcflwa
     use glimmer_log,    only: write_log, GM_FATAL
     use glimmer_utils,  only: stagvarb, geomders
@@ -427,7 +426,7 @@ contains
     use glide_velo
     use glide_setup
     use glide_temp
-    use glide_mask
+    use glimmer_mask
     use isostasy
     implicit none
 
@@ -483,7 +482,7 @@ contains
 #ifdef PROFILING
     call glide_prof_start(model,model%glide_prof%ice_mask2)
 #endif
-    call glide_set_mask( &
+    call glimmer_set_mask( &
          model%geometry%thkmask, &
          model%geometry%thck,    &
          model%geometry%topg,    &

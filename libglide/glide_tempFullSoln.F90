@@ -154,7 +154,7 @@ contains
     use glimmer_global,   only: dp,sp
     use glimmer_paramets, only: thk0, acc0, tim0, len0, vis0, scyr
     use glimmer_pmpt,     only: corrpmpt
-    use glide_mask,       only: is_float, is_thin
+    use glimmer_mask,     only: is_float, is_thin
     use physcon,          only: rhoi, shci, coni, grav, gn, lhci, rhow
 
     implicit none

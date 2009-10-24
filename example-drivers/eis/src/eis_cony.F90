@@ -134,7 +134,7 @@ contains
   subroutine eis_continentality(cony,model,time)
     !*FD calculate continentality field
     use glide_types
-    use glide_mask
+    use glimmer_mask
     use glimmer_global, only : rk
     implicit none
     type(eis_cony_type)       :: cony  !*FD cony data

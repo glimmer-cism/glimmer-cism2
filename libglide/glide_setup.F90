@@ -311,7 +311,7 @@ contains
 
     use glimmer_global, only : dp, sp
     use physcon, only : rhoi, rhoo
-    use glide_mask
+    use glimmer_mask
     implicit none
 
     !---------------------------------------------------------------------
@@ -364,7 +364,7 @@ contains
              if (is_calving(mask(ew,ns))) then
                 ablation_field(ew,ns)=(1.0-calving_fraction)*thck(ew,ns)
                 thck(ew,ns) =  calving_fraction*thck(ew,ns)
-                !mask(ew,ns) = glide_mask_ocean
+                !mask(ew,ns) = glimmer_mask_ocean
              end if
           end do
        end do

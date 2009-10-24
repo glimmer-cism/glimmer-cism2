@@ -235,7 +235,7 @@ module glide_types
     !*FD top right, going along the rows.
 
     integer, dimension(:,:),pointer :: thkmask => null()
-    !*FD see glide_mask.f90 for possible values
+    !*FD see glimmer_mask.f90 for possible values
 
     integer :: totpts = 0
     !*FD The total number of points with non-zero thickness
