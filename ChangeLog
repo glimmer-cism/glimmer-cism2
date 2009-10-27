@@ -1,4 +1,8 @@
 2009-10-27 Ian Rutt
+ * Replaced calls to geomderv with call to new glimmer_deriv module
+ * Regtested against e2.a
+
+2009-10-27 Ian Rutt
  * Merged trunk r1329:1357 with ChangeLog changes below:
  * Regtested against e2.a
 

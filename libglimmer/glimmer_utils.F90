@@ -330,46 +330,6 @@ contains
 
   end subroutine stagvarb
 
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-  !> Calculates horizontal derivatives of a 2D field, on masked points only.
-  subroutine geomders(ipvr,stagthck,opvrew,opvrns,dew,dns)
-
-    use glimmer_global, only : dp
-
-    implicit none 
-
-    real(dp), dimension(:,:), intent(in)  :: ipvr     !< Field to be differentiated
-    real(dp), dimension(:,:), intent(in)  :: stagthck !< Thickness on velocity grid, for masking
-    real(dp), dimension(:,:), intent(out) :: opvrew   !< derivative w.r.t. x
-    real(dp), dimension(:,:), intent(out) :: opvrns   !< derivative w.r.t. y
-    real(dp),                 intent(in)  :: dew      !< x node spacing
-    real(dp),                 intent(in)  :: dns      !< y node spacing
-
-    real(dp) :: dew2, dns2 
-    integer :: ew,ns,ewn,nsn
-
-    ! Obviously we don't need to do this every time,
-    ! but will do so for the moment.
-    dew2 = 1.d0/(2.0d0 * dew)
-    dns2 = 1.d0/(2.0d0 * dns)
-    ewn=size(ipvr,1)
-    nsn=size(ipvr,2)
-
-    do ns=1,nsn-1
-       do ew = 1,ewn-1
-          if (stagthck(ew,ns) /= 0.0d0) then
-             opvrew(ew,ns) = (ipvr(ew+1,ns+1)+ipvr(ew+1,ns)-ipvr(ew,ns)-ipvr(ew,ns+1)) * dew2
-             opvrns(ew,ns) = (ipvr(ew+1,ns+1)+ipvr(ew,ns+1)-ipvr(ew,ns)-ipvr(ew+1,ns)) * dns2
-          else
-             opvrew(ew,ns) = 0.
-             opvrns(ew,ns) = 0.
-          end if
-       end do
-    end do
-    
-  end subroutine geomders
-
   !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   !> Tridiagonal solver. All input/output arrays should have the 

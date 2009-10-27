@@ -150,7 +150,8 @@ contains
   subroutine tstep_tempFullSoln(params,temp,artm,thck,usrf,thkmask, &
        topg,uvel,vvel,ubas,vbas,wvel,wgrd,flwa,bheatflx,bwat,bmlt,dt)
 
-    use glimmer_utils,    only: hsum4,tridiag,stagvarb, geomders
+    use glimmer_utils,    only: hsum4,tridiag,stagvarb
+    use glimmer_deriv,    only: df_field_2d_staggered
     use glimmer_global,   only: dp,sp
     use glimmer_paramets, only: thk0, acc0, tim0, len0, vis0, scyr
     use glimmer_pmpt,     only: corrpmpt
@@ -248,7 +249,7 @@ contains
     ! Calculate staggered variables and spatial derivatives -----------------------------
 
     call stagvarb(thck,stagthck,params%ewn,params%nsn)
-    call geomders(usrf,stagthck,dusrfdew,dusrfdns,params%dew,params%dns)
+    call df_field_2d_staggered(usrf,params%dew,params%dns,dusrfdew,dusrfdns,.false.,.false.)
 
     ! Calculate dissipative term --------------------------------------------------------
 
