@@ -16,6 +16,7 @@ libglimmer_la_SOURCES = glimmer_vers.F90 glimmer_commandline.F90 \
                        profile.F90  glimmer_searchcircle.F90 \
                        glimmer_coordinates.F90 glimmer_mask.F90 \
                        glimmer_integrate.F90 glimmer_vertcoord.F90 \
+                       glimmer_deriv.F90 \
                        glimmer_map_CFproj.F90 glimmer_map_proj4.F90 \
                        glimmer_map_types.F90 glimmer_map_init.F90 \
                        glimmer_map_trans.F90 glimmer_scales.F90 glimmer_pmpt.F90

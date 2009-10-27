@@ -1,4 +1,39 @@
 2009-10-27 Ian Rutt
+ * Merged trunk r1329:1357 with ChangeLog changes below:
+ * Regtested against e2.a
+
+----------------------------------------------------------------------
+2009-10-16 Magnus Hagdorn
+ * example-drivers/eis/src/eis_ela.F90: use parameter for internal message
+   buffer size
+ * example-drivers/eis/src/eis_slc.F90: ditto
+ * example-drivers/eis/src/eis_temp.F90: ditto
+ * libglide/glimmer_ncio.F90: ditto
+
+2009-10-16 Magnus Hagdorn
+ * libglide/glide.F90: use derivative module
+ * libglide/glide_thck.F90: ditto, remove old code
+
+2009-10-16 Magnus Hagdorn
+ * libglimmer/glimmer_deriv.F90: slight clean up, reformat comments to 
+   doxygen
+ * libglimmer/unittest_glimmer_deriv.F90: updated copyright notice
+ * libglimmer/xls.F90: ditto
+
+2009-10-16 Magnus Hagdorn
+ * libglimmer/unittest_glimmer_deriv.F90: fix indentation
+ * libglimmer/glimmer_deriv.F90: ditto
+ * libglimmer/xls.F90: ditto
+
+2009-10-16 Magnus Hagdorn
+ * libglimmer/unittest_glimmer_deriv.F90: copied from lanl branch, renamed 
+   name space
+ * libglimmer/glimmer_deriv.F90: ditto
+ * libglimmer/xls.F90: copied from lanl
+ * libglimmer/Makefile.am: add glimmer_deriv.F90 to libglimmer
+----------------------------------------------------------------------
+
+2009-10-27 Ian Rutt
  * libglide/glide_thckADI.F90: New module for ADI SIA thickness solver. No
 	substantial refactoring yet.
  * libglide/glide_setup.F90: Removed redundant code from glide_maskthck. 

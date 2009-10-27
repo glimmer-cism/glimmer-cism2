@@ -245,9 +245,10 @@ contains
     use glimmer_mask
     use glide_glenflow, only: calcflwa
     use glimmer_log,    only: write_log, GM_FATAL
-    use glimmer_utils,  only: stagvarb, geomders
+    use glimmer_utils,  only: stagvarb
     use glide_bwat,     only: calcbwat
     use glimmer_pmpt,   only: calcbpmp
+    use glimmer_deriv, only : df_field_2d_staggered
 
     implicit none
 
@@ -269,21 +270,18 @@ contains
          model%general%  ewn, &
          model%general%  nsn)
 
-    call geomders( &
-         model%geometry% usrf, &
-         model%geomderv% stagthck,&
-         model%geomderv% dusrfdew, &
-         model%geomderv% dusrfdns, &
-         model%numerics% dew, &
-         model%numerics% dns)
+    call df_field_2d_staggered(model%geometry%usrf, &
+         model%numerics%dew, model%numerics%dns, &
+         model%geomderv%dusrfdew, & 
+         model%geomderv%dusrfdns, &
+         .false., .false.)
 
-    call geomders( &
-         model%geometry% thck, &
-         model%geomderv% stagthck,&
-         model%geomderv% dthckdew, &
-         model%geomderv% dthckdns, &
-         model%numerics% dew, &
-         model%numerics% dns)
+    call df_field_2d_staggered(model%geometry%thck, &
+         model%numerics%dew, model%numerics%dns, &
+         model%geomderv%dthckdew, & 
+         model%geomderv%dthckdns, &
+         .false., .false.)
+
 #ifdef PROFILING
     call glide_prof_stop(model,model%glide_prof%geomderv)
 #endif
