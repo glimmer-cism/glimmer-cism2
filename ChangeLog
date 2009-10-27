@@ -1,3 +1,9 @@
+2009-10-27 Ian Rutt
+ * libglide/glide_thckADI.F90: New module for ADI SIA thickness solver. No
+	substantial refactoring yet.
+ * libglide/glide_setup.F90: Removed redundant code from glide_maskthck. 
+ * Regtested against e2.a
+
 2009-10-24 Ian Rutt
  * libglide/glide_temp.F90: First go at refactoring almost complete.
  * libglide/glide_vertcoord.F90: Moved to libglimmer/glimmer_vertcoord.F90

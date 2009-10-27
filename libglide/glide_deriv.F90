@@ -73,8 +73,7 @@ contains
 
   subroutine timeders(params,ipvr,opvr,mask,time,which)
 
-    !*FD Calculates the time-derivative of a field. This subroutine is used by 
-    !*FD the temperature solver only.
+    !*FD Calculates the time-derivative of a field. 
 
     use glimmer_global, only : dp, sp
     use glimmer_paramets, only : conv

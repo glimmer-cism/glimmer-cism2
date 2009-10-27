@@ -160,9 +160,7 @@ contains
 
 !-------------------------------------------------------------------------
 
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-  subroutine glide_maskthck(whichthck,crita,critb,dom,pointno,totpts,empty)
+  subroutine glide_maskthck(crita,critb,pointno,totpts,empty)
     
     !*FD Calculates the contents of the mask array.
 
@@ -174,11 +172,8 @@ contains
     ! Subroutine arguments
     !-------------------------------------------------------------------------
 
-    integer,                intent(in)  :: whichthck  !*FD Option determining
-                                                      !*FD which method to use.
     real(dp),dimension(:,:),intent(in)  :: crita      !*FD Ice thickness
     real(sp),dimension(:,:),intent(in)  :: critb      !*FD Mass balance
-    integer, dimension(:),  intent(out) :: dom        
     integer, dimension(:,:),intent(out) :: pointno    !*FD Output mask
     integer,                intent(out) :: totpts     !*FD Total number of points
     logical,                intent(out) :: empty      !*FD Set if no mask points set.
@@ -187,8 +182,6 @@ contains
     ! Internal variables
     !-------------------------------------------------------------------------
 
-    integer,dimension(size(crita,2),2) :: band
-    logical,dimension(size(crita,2))   :: full
     integer :: covtot 
     integer :: ew,ns,ewn,nsn
 
@@ -201,81 +194,43 @@ contains
 
     !-------------------------------------------------------------------------
 
+    empty = .true.
+
     do ns = 1,nsn
-
-      full(ns) = .false.
-
       do ew = 1,ewn
         if ( thckcrit(crita(max(1,ew-1):min(ewn,ew+1),max(1,ns-1):min(nsn,ns+1)),critb(ew,ns)) ) then
 
           covtot = covtot + 1
           pointno(ew,ns) = covtot 
+          if (empty) empty  = .false.
 
-          if ( .not. full(ns) ) then
-            band(ns,1) = ew
-            full(ns)   = .true.
-          else
-            band(ns,2) = ew
-          end if
-               
         end if
       end do
     end do
   
     totpts = covtot
-                                             
-    dom(1:2) = (/ewn,1/); empty = .true.
-
-    do ns = 1,nsn
-           
-      if (full(ns)) then
-
-        if (empty) then
-          empty  = .false.
-          dom(3) = ns
-        end if
-        dom(4) = ns
-        dom(1) = min0(dom(1),band(ns,1))
-        dom(2) = max0(dom(2),band(ns,2))
-      end if
-    end do
-
-  contains
-
-    logical function thckcrit(ca,cb)
-
-      implicit none
-
-      real(dp),dimension(:,:),intent(in) :: ca 
-      real(sp),               intent(in) :: cb
-
-      select case (whichthck)
-      case(5)
-
-        ! whichthck=5 is not a 'known case'
-
-        if ( ca(2,2) > 0.0d0 .or. cb > 0.0) then
-          thckcrit = .true.
-        else
-          thckcrit = .false.
-        end if
-
-      case default
-
-        ! If the thickness in the region under consideration
-        ! or the mass balance is positive, thckcrit is .true.
-
-        if ( any((ca(:,:) > 0.0d0)) .or. cb > 0.0 ) then
-          thckcrit = .true.
-        else
-          thckcrit = .false.
-        end if
-
-      end select
-
-    end function thckcrit
-
+ 
   end subroutine glide_maskthck
+  
+  logical function thckcrit(ca,cb)
+
+    use glimmer_global, only: sp,dp
+
+    implicit none
+
+    real(dp),dimension(:,:),intent(in) :: ca 
+    real(sp),               intent(in) :: cb
+
+    ! If the thickness in the region under consideration
+    ! or the mass balance is positive, thckcrit is .true.
+
+    if ( any((ca(:,:) > 0.0d0)) .or. cb > 0.0 ) then
+       thckcrit = .true.
+    else
+       thckcrit = .false.
+    end if
+
+  end function thckcrit
 
   subroutine glide_calclsrf(thck,topg,eus,lsrf)
 

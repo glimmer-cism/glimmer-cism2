@@ -240,7 +240,6 @@ module glide_types
     integer :: totpts = 0
     !*FD The total number of points with non-zero thickness
 
-    integer, dimension(4) :: dom   = 0      !*FD I have no idea what this is for.
     logical               :: empty = .true. !*FD I have no idea what this is for.
 
     real(dp) :: ivol, iarea !*FD ice volume and ice area

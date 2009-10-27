@@ -291,10 +291,9 @@ contains
 #ifdef PROFILING
     call glide_prof_start(model,model%glide_prof%ice_mask1)
 #endif
-    call glide_maskthck(0, &                                    !magi a hack, someone explain what whichthck=5 does
+    call glide_maskthck( &
          model%geometry% thck,      &
          model%climate%  acab,      &
-         model%geometry% dom,       &
          model%geometry% mask,      &
          model%geometry% totpts,    &
          model%geometry% empty)
@@ -427,6 +426,7 @@ contains
     use glide_setup
     use glide_temp
     use glimmer_mask
+    use glide_thckADI, only: stagleapthck
     use isostasy
     implicit none
 
