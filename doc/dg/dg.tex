@@ -476,6 +476,14 @@ a full example is provided in \cite{Metcalf1999}.
 GLIMMER makes several uses of linked lists and pointer techniques, most
 notably in the handling of configuration and output files.
 %
+
+\subsection{Memory Management}
+The memory allocation/deallocation routines support an optional parameter which can be used if an error occured. Checking error conditions is good practise but tedious. Therefore, libglimmer provides preprocessor macros and special logging routines which can be used to check error conditions arising from handling memory.
+\definecolor{listinggray}{gray}{0.9}
+\lstset{numbers=left,numberstyle=\tiny,language=Fortran}
+\lstset{backgroundcolor=\color{listinggray},rulecolor=\color{blue}}
+\lstinputlisting{\dir/memory.f90}
+Similar macros for 3D and 4D arrays are defined, extending the list of macros is straight forward.
 \section{GLIMMER structure and design}
 %
 \subsection{Overview}

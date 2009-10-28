@@ -71,7 +71,7 @@
 !! - GM_FATAL
 module glimmer_log
 
-  use glimmer_global, only : fname_length,dirsep
+  use glimmer_global, only : fname_length,msg_length,dirsep
 
   integer,parameter :: GM_DIAGNOSTIC = 1 !< Numerical identifier for diagnostic messages.
   integer,parameter :: GM_TIMESTEP   = 2 !< Numerical identifier for timestep messages.
@@ -237,5 +237,42 @@ contains
 
     glimmer_get_logunit = glimmer_unit
   end function glimmer_get_logunit
+
+  !> Handles errors thrown when allocating arrays
+  subroutine glimmer_allocErr(dims,name,error,file,line)
+    implicit none
+    character(len=*), intent(in) :: dims !< dimensions
+    character(len=*), intent(in) :: name !< name of array
+    integer, intent(in) :: error         !< error number
+    character(len=*), optional, intent(in) :: file !< name of file where error occured
+    integer, optional, intent(in) :: line !< source code line where error occured
+
+    character(len=msg_length) :: msg
+
+    if (error.ne.0) then
+       write(msg,'(a,x,i0)') 'Allocation error :',error
+       call write_log(msg,GM_ERROR)
+       call write_log('Unable to allocate array "'//trim(name)//'" to size '//trim(dims), &
+            GM_FATAL, file,line)
+    end if
+  end subroutine glimmer_allocErr
+
+  !> Handles errors thrown when deallocating arrays
+  subroutine glimmer_deallocErr(name,error,file,line)
+    implicit none
+    character(len=*), intent(in) :: name !< name of array
+    integer, intent(in) :: error         !< error number
+    character(len=*), optional, intent(in) :: file !< name of file where error occured
+    integer, optional, intent(in) :: line !< source code line where error occured
+
+    character(len=msg_length) :: msg
+
+    if (error.ne.0) then
+       write(msg,'(a,x,i0)') 'Deallocation error :',error
+       call write_log(msg,GM_ERROR)
+       call write_log('Unable to deallocate array "'//trim(name)//'"', &
+            GM_FATAL, file,line)
+    end if
+  end subroutine glimmer_deallocErr
   
 end module glimmer_log

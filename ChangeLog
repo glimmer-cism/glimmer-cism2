@@ -1,4 +1,18 @@
 2009-10-28 Magnus Hagdorn
+ * doc/common/packages.tex: add new package
+ * doc/dg/Makefile.am: distribute new file
+ * doc/dg/dg.tex: document memory handling scheme
+ * doc/dg/memory.f90: example program demonstrating memory handling macros
+ * libglimmer/Makefile.am: add new file
+ * libglimmer/glimmer_global.F90: define new kind integer for size/len
+ * libglimmer/glimmer_log.F90: add subroutines for reporting (de)allocation
+   errors
+ * libglimmer/glimmer_memory.inc: new set of preprocessor macros for managing
+   memory
+ * libglimmer/glimmer_vertcoord.F90: add procedures for creating/destroying
+   vertCoord_type, use new memory management macros
+
+2009-10-28 Magnus Hagdorn
  * libglide/glide_temp.F90: use standard intrinsic for min rather than dmin1
  * libglide/glide_tempFullSoln.F90: renamed vertCoord_type, moved sigma into
    vertCoord_type and removed sigma and upn from temperature type

@@ -71,6 +71,8 @@ module glimmer_global
 
 #endif
 
+  real, private, dimension(2) :: dummyarray !< dummy array used for figuring out integer kind used for size
+  integer, parameter :: sizek = kind(size(dummyarray)) !< integer kind used for size, len, etc.  
 
   integer,parameter :: fname_length=200 !< Specifies the length of character string variables used to hold filenames.
   integer,parameter :: msg_length=500  !< lenght of message buffers

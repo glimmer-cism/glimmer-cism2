@@ -44,13 +44,15 @@
 #include "config.inc"
 #endif
 
+#include "glimmer_memory.inc"
+
 !> module for handling vertical sigma coordinate system
 !!
 !! \author Ian Rutt
 !! \date September 2009
 module glimmer_vertcoord
 
-  use glimmer_global, only: dp
+  use glimmer_global, only: dp,sizek
 
   implicit none
 
@@ -67,7 +69,41 @@ module glimmer_vertcoord
 
 contains
 
-  !> initialise vertical coordinate type from list of sigma levels
+  !> allocate memory for vertCoord_type
+  subroutine vertCoord_allocate(params,upn)
+    use glimmer_log, only : glimmer_allocErr
+    implicit none
+    type(vertCoord_type)             :: params !< the vertical coordinate type
+    integer(kind=sizek), intent(in)  :: upn    !< the number of sigma levels
+
+    ! local variables
+    integer merr
+
+    params%upn = upn
+    GLIMMER_ALLOC1D(params%sigma,params%upn)
+    GLIMMER_ALLOC1D(params%dupa,params%upn)
+    GLIMMER_ALLOC1D(params%dupb,params%upn)
+    GLIMMER_ALLOC1D(params%dupc,params%upn)
+    GLIMMER_ALLOC2D(params%dups,params%upn,3)
+  end subroutine vertCoord_allocate
+
+  !> deallocate memory of vertCoord_type
+  subroutine vertCoord_destroy(params)
+    use glimmer_log, only : glimmer_deallocErr
+    implicit none
+    type(vertCoord_type) :: params
+    
+    ! local variables
+    integer merr
+
+    GLIMMER_DEALLOC(params%sigma)
+    GLIMMER_DEALLOC(params%dupa)
+    GLIMMER_DEALLOC(params%dupb)
+    GLIMMER_DEALLOC(params%dupc)
+    GLIMMER_DEALLOC(params%dups)
+  end subroutine vertCoord_destroy
+
+  !> initialise vertical coordinate type from array of sigma levels
   subroutine initVertCoord(params,sigma)
 
     implicit none
@@ -77,22 +113,7 @@ contains
 
     integer :: up
 
-    ! Find size of arrays
-    params%upn = size(sigma)
-
-    ! Deallocate arrays
-    if (associated(params%sigma)) deallocate(params%sigma)
-    if (associated(params%dupa))  deallocate(params%dupa)
-    if (associated(params%dupb))  deallocate(params%dupb)
-    if (associated(params%dupc))  deallocate(params%dupc)
-    if (associated(params%dups))  deallocate(params%dups)
-
-    ! Allocate arrays
-    allocate(params%sigma(params%upn))
-    allocate(params%dupa(params%upn))
-    allocate(params%dupb(params%upn))
-    allocate(params%dupc(params%upn))
-    allocate(params%dups(params%upn,3))
+    call vertCoord_allocate(params,size(sigma))
 
     params%sigma(:) = sigma(:)
 
