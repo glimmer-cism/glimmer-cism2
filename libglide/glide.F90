@@ -286,18 +286,6 @@ contains
     call glide_prof_stop(model,model%glide_prof%geomderv)
 #endif
 
-#ifdef PROFILING
-    call glide_prof_start(model,model%glide_prof%ice_mask1)
-#endif
-    call glide_maskthck( &
-         model%geometry% thck,      &
-         model%climate%  acab,      &
-         model%geometry% mask,      &
-         model%geometry% totpts,    &
-         model%geometry% empty)
-#ifdef PROFILING
-    call glide_prof_stop(model,model%glide_prof%ice_mask1)
-#endif
 
     ! ------------------------------------------------------------------------ 
     ! calculate geothermal heat flux

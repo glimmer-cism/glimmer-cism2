@@ -71,7 +71,7 @@ contains
 
   !-----------------------------------------------------------------------------
 
-  subroutine timeders(params,ipvr,opvr,mask,time,which)
+  subroutine timeders(params,ipvr,opvr,time,which)
 
     !*FD Calculates the time-derivative of a field. 
 
@@ -84,7 +84,6 @@ contains
     real(dp), intent(out), dimension(:,:) :: opvr  !*FD Input field
     real(dp), intent(in),  dimension(:,:) :: ipvr  !*FD Output (derivative) field
     real(sp), intent(in)                  :: time  !*FD current time
-    integer,  intent(in),  dimension(:,:) :: mask  !*FD mask for calculation
     integer,  intent(in)                  :: which !*FD selector for stored field
 
     real(sp) :: factor
@@ -94,11 +93,7 @@ contains
        opvr = 0.0d0
     else
        factor = 1./factor
-       where (mask /= 0)
-          opvr = conv * (ipvr - params%olds(:,:,which)) * factor
-       elsewhere
-          opvr = 0.0d0
-       end where
+       opvr = conv * (ipvr - params%olds(:,:,which)) * factor
     end if
 
     params%olds(:,:,which) = ipvr

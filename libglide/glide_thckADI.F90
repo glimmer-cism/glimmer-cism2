@@ -69,7 +69,7 @@ contains
     ! local variables
     integer ew,ns, n
 
-    if (model%geometry%empty) then
+    if (all(model%geometry%thck==0.0)) then
 
        model%geometry%thck = dmax1(0.0d0,model%geometry%thck + model%climate%acab * model%pcgdwk%fc2(2))
 #ifdef DEBUG       

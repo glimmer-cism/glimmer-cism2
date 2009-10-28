@@ -285,14 +285,12 @@ contains
     call timeders(model%timederivs,   &
          model%geometry%thck,     &
          model%geomderv%dthckdtm, &
-         model%geometry%mask,     &
          model%numerics%time,     &
          1)
 
     call timeders(model%timederivs,   &
          model%geometry%usrf,     &
          model%geomderv%dusrfdtm, &
-         model%geometry%mask,     &
          model%numerics%time,     &
          2)
 

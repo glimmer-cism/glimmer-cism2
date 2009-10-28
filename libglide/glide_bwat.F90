@@ -58,7 +58,7 @@ contains
 
     use glimmer_global,   only: dp 
     use glimmer_paramets, only: thk0, tim0, len0
-    use glide_utils,      only: stagvarb
+    use glimmer_utils,    only: stagvarb
     use physcon,          only: rhoi, rhow, grav, scyr
     use glimmer_pmpt,     only: calcpmptb
 

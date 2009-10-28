@@ -1,3 +1,13 @@
+2009-10-28 Ian Rutt
+ * libglide/glide_deriv.F90: Removed redundant mask argument from timederv
+   call
+ * libglide/glide_thckADI.F90: Passing geometsy%empty is unnecessary: used
+   thickness instead
+ * libglide/glide_thck.F90: Moved call to glide_maskthck inside thickness
+   solution, and moved glide_maskthck into glide_thck mmodule
+ * libglide/glide_bwat.F90: Fixed incorrect reference to glide_utils
+ * Regtested against e2.a
+
 2009-10-27 Ian Rutt
  * Replaced calls to geomderv with call to new glimmer_deriv module
  * Regtested against e2.a

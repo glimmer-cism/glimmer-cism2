@@ -100,6 +100,19 @@ contains
     type(glide_global_type) :: model
     logical, intent(in) :: newtemps                     !*FD true when we should recalculate Glen's A
 
+#ifdef PROFILING
+    call glide_prof_start(model,model%glide_prof%ice_mask1)
+#endif
+    call glide_maskthck( &
+         model%geometry% thck,      &
+         model%climate%  acab,      &
+         model%geometry% mask,      &
+         model%geometry% totpts,    &
+         model%geometry% empty)
+#ifdef PROFILING
+    call glide_prof_stop(model,model%glide_prof%ice_mask1)
+#endif
+
     if (model%geometry%empty) then
 
        model%geometry%thck = dmax1(0.0d0,model%geometry%thck + model%climate%acab * model%pcgdwk%fc2(2))
@@ -169,6 +182,18 @@ contains
     integer p
     logical first_p
 
+#ifdef PROFILING
+    call glide_prof_start(model,model%glide_prof%ice_mask1)
+#endif
+    call glide_maskthck( &
+         model%geometry% thck,      &
+         model%climate%  acab,      &
+         model%geometry% mask,      &
+         model%geometry% totpts,    &
+         model%geometry% empty)
+#ifdef PROFILING
+    call glide_prof_stop(model,model%glide_prof%ice_mask1)
+#endif
 
     if (model%geometry%empty) then
 
@@ -618,6 +643,80 @@ contains
     end if
 
   end subroutine swapbndh
+
+!-------------------------------------------------------------------------
+
+  subroutine glide_maskthck(crita,critb,pointno,totpts,empty)
+    
+    !*FD Calculates the contents of the mask array.
+
+    use glimmer_global, only : dp, sp 
+
+    implicit none
+
+    !-------------------------------------------------------------------------
+    ! Subroutine arguments
+    !-------------------------------------------------------------------------
+
+    real(dp),dimension(:,:),intent(in)  :: crita      !*FD Ice thickness
+    real(sp),dimension(:,:),intent(in)  :: critb      !*FD Mass balance
+    integer, dimension(:,:),intent(out) :: pointno    !*FD Output mask
+    integer,                intent(out) :: totpts     !*FD Total number of points
+    logical,                intent(out) :: empty      !*FD Set if no mask points set.
+
+    !-------------------------------------------------------------------------
+    ! Internal variables
+    !-------------------------------------------------------------------------
+
+    integer :: covtot 
+    integer :: ew,ns,ewn,nsn
+
+    !-------------------------------------------------------------------------
+
+    ewn=size(crita,1) ; nsn=size(crita,2)
+
+    pointno = 0
+    covtot  = 0 
+
+    !-------------------------------------------------------------------------
+
+    empty = .true.
+
+    do ns = 1,nsn
+      do ew = 1,ewn
+        if ( thckcrit(crita(max(1,ew-1):min(ewn,ew+1),max(1,ns-1):min(nsn,ns+1)),critb(ew,ns)) ) then
+
+          covtot = covtot + 1
+          pointno(ew,ns) = covtot 
+          if (empty) empty  = .false.
+
+        end if
+      end do
+    end do
+  
+    totpts = covtot
+ 
+  end subroutine glide_maskthck
+  
+  logical function thckcrit(ca,cb)
+
+    use glimmer_global, only: sp,dp
+
+    implicit none
+
+    real(dp),dimension(:,:),intent(in) :: ca 
+    real(sp),               intent(in) :: cb
+
+    ! If the thickness in the region under consideration
+    ! or the mass balance is positive, thckcrit is .true.
+
+    if ( any((ca(:,:) > 0.0d0)) .or. cb > 0.0 ) then
+       thckcrit = .true.
+    else
+       thckcrit = .false.
+    end if
+
+  end function thckcrit
 
 
 end module glide_thck
