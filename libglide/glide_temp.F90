@@ -75,7 +75,7 @@ contains
 
     do ns = 1,nsn
        do ew = 1,ewn
-          temp(:,ew,ns) = dmin1(0.0d0,dble(artm(ew,ns)))
+          temp(:,ew,ns) = min(0.0d0,artm(ew,ns))
        end do
     end do
 

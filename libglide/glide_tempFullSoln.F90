@@ -72,7 +72,7 @@
 
 module glide_tempFullSoln
 
-  use glimmer_vertcoord, only: vertCoord
+  use glimmer_vertcoord, only: vertCoord_type
   use glimmer_global,    only: dp
 
   implicit none
@@ -84,11 +84,9 @@ module glide_tempFullSoln
      private
      integer                           :: ewn         !< Number of points in x
      integer                           :: nsn         !< Number of points in y
-     integer                           :: upn         !< Number of points in sigma
      real(dp)                          :: dew         !< Spacing in x
      real(dp)                          :: dns         !< Spacing in y
-     real(dp),dimension(:),allocatable :: sigma       !< Sigma levels
-     type(vertCoord)                   :: zCoord      !< Vertical coordinate information
+     type(vertCoord_type)              :: zCoord      !< Vertical coordinate information
      real(dp)                          :: thklim      !< Thickness threshold for calculation
      integer                           :: periodic_ew !< Set to indicate periodic BCs
      integer                           :: niter = 0   !< Maximum number of iterations
@@ -123,16 +121,10 @@ contains
 
     params%ewn = ewn
     params%nsn = nsn
-    params%upn = size(sigma)
     params%dew = dew
     params%dns = dns
 
-    if (allocated(params%sigma)) deallocate(params%sigma)
-    allocate(params%sigma(params%upn))
-
-    params%sigma = sigma
-
-    call initVertCoord(params%zCoord,params%sigma)
+    call initVertCoord(params%zCoord,sigma)
 
     params%thklim = thklim
 
@@ -187,8 +179,8 @@ contains
     ! Internal variables
     !------------------------------------------------------------------------------------
 
-    real(dp),dimension(params%upn) :: subd, diag, supd, rhsd
-    real(dp),dimension(params%upn) :: prevtemp, iteradvt, diagadvt
+    real(dp),dimension(params%zCoord%upn) :: subd, diag, supd, rhsd
+    real(dp),dimension(params%zCoord%upn) :: prevtemp, iteradvt, diagadvt
     real(dp) :: tempresid
 
     integer :: iter
@@ -199,19 +191,19 @@ contains
     integer, parameter :: ewbc = 1, nsbc = 1 
     real(dp),parameter :: wmax = 5.0d0 * tim0 / (scyr * thk0)
 
-    real(dp), dimension(params%upn) :: weff
+    real(dp), dimension(params%zCoord%upn) :: weff
 
     real(dp) :: advconst1,advconst2
     real(dp) :: cons1,cons2,cons3,cons4
-    real(dp),dimension(params%upn) :: c1
+    real(dp),dimension(params%zCoord%upn) :: c1
     real(dp) :: f3
     real(dp) :: slidef1, slidef2
 
-    real(dp),dimension(params%upn,size(thck,1),size(thck,2)) :: initadvt
-    real(dp),dimension(params%upn,size(thck,1),size(thck,2)) :: inittemp
-    real(dp),dimension(params%upn,size(thck,1),size(thck,2)) :: dissip
-    real(dp),dimension(params%upn,size(thck,1),size(thck,2)) :: hadv_u
-    real(dp),dimension(params%upn,size(thck,1),size(thck,2)) :: hadv_v
+    real(dp),dimension(params%zCoord%upn,size(thck,1),size(thck,2)) :: initadvt
+    real(dp),dimension(params%zCoord%upn,size(thck,1),size(thck,2)) :: inittemp
+    real(dp),dimension(params%zCoord%upn,size(thck,1),size(thck,2)) :: dissip
+    real(dp),dimension(params%zCoord%upn,size(thck,1),size(thck,2)) :: hadv_u
+    real(dp),dimension(params%zCoord%upn,size(thck,1),size(thck,2)) :: hadv_v
     real(dp),dimension(size(thck,1)-1,size(thck,2)-1) :: stagthck
     real(dp),dimension(size(thck,1)-1,size(thck,2)-1) :: dusrfdew
     real(dp),dimension(size(thck,1)-1,size(thck,2)-1) :: dusrfdns
@@ -228,7 +220,7 @@ contains
     cons3 = VERT_DIFF * 2.0d0 * tim0 * dt / (thk0 * rhoi * shci)
     cons4 = VERT_ADV  * tim0 * acc0 * dt / coni
 
-    c1 = STRAIN_HEAT * (params%sigma * rhoi * grav * thk0**2 / len0)**(gn+1) * &
+    c1 = STRAIN_HEAT * (params%zCoord%sigma * rhoi * grav * thk0**2 / len0)**(gn+1) * &
          2.0d0 * vis0 * dt * tim0 / (16.0d0 * rhoi * shci)
 
     f3 = tim0 * thk0 * rhoi * shci /  (thk0 * tim0 * dt * lhci * rhoi)
@@ -283,7 +275,7 @@ contains
          hadv_v,                        &
          params%ewn,                    &
          params%nsn,                    &
-         params%upn)
+         params%zCoord%upn)
 
     ! Iterative temperature solution ----------------------------------------------------
 
@@ -312,7 +304,7 @@ contains
                      temp(:,ew,ns-2:ns+2),                   &
                      hadv_u(:,ew,ns),                        &
                      hadv_v(:,ew,ns),                        &
-                     params%upn)
+                     params%zCoord%upn)
 
                 call findvtri(params%zCoord,     &
                      thck(ew,ns),                &
@@ -322,7 +314,6 @@ contains
                      diagadvt,                   &
                      weff,                       &
                      is_float(thkmask(ew,ns)),   &
-                     params%upn,                 &
                      cons1,                      &
                      cons2)
 
@@ -345,32 +336,31 @@ contains
                         temp(:,ew,ns),              &
                         thck(ew,ns),                &
                         is_float(thkmask(ew,ns)),   &
-                        params%upn,                 &
                         cons3,                      &
                         cons4,                      &
                         slidef1,                    &
                         slidef2)
                 end if
 
-                call findvtri_rhs(inittemp(:,ew,ns),              &
-                     artm(ew,ns),                                 &
-                     iteradvt,                                    &
-                     rhsd,                                        &
-                     is_float(thkmask(ew,ns)),                    &
-                     params%upn)
+                call findvtri_rhs(params%zCoord,    &
+                     inittemp(:,ew,ns),             &
+                     artm(ew,ns),                   &
+                     iteradvt,                      &
+                     rhsd,                          &
+                     is_float(thkmask(ew,ns)))
 
                 prevtemp = temp(:,ew,ns)
 
-                call tridiag(subd(1:params%upn),            &
-                     diag(1:params%upn),                    &
-                     supd(1:params%upn),                    &
-                     temp(1:params%upn,ew,ns),              &
-                     rhsd(1:params%upn))
+                call tridiag(subd(1:params%zCoord%upn),            &
+                     diag(1:params%zCoord%upn),                    &
+                     supd(1:params%zCoord%upn),                    &
+                     temp(1:params%zCoord%upn,ew,ns),              &
+                     rhsd(1:params%zCoord%upn))
 
                 call corrpmpt(temp(:,ew,ns),         &
                      thck(ew,ns),                    &
                      bwat(ew,ns),                    &
-                     params%sigma)
+                     params%zCoord%sigma)
 
                 tempresid = max(tempresid,maxval(abs(temp(:,ew,ns)-prevtemp(:))))
              endif
@@ -417,18 +407,16 @@ contains
          bheatflx,                        &
          bmlt,                            &
          is_float(thkmask),               &
-         params%upn,                      &
          params%nsn,                      &
          params%ewn,                      &
          params%thklim,                   &
-         params%sigma,                    &
          params%periodic_ew,              &
          f3)
 
     ! Output some information ----------------------------------------
 #ifdef DEBUG
     print *, "* temp ",  iter, params%niter, &
-         real(temp(params%upn,params%ewn/2+1,params%nsn/2+1))
+         real(temp(params%zCoord%upn,params%ewn/2+1,params%nsn/2+1))
 #endif
 
   end subroutine tstep_tempFullSoln
@@ -569,14 +557,14 @@ contains
 
   !-------------------------------------------------------------------------
 
-  subroutine findvtri(zCoord,thck,subd,diag,supd,diagadvt,weff,float,upn,cons1,cons2)
+  subroutine findvtri(zCoord,thck,subd,diag,supd,diagadvt,weff,float,cons1,cons2)
 
-    use glimmer_vertcoord, only: vertCoord
+    use glimmer_vertcoord, only: vertCoord_type
     use glimmer_global,    only: dp
 
     implicit none
 
-    type(vertCoord),        intent(in)  :: zCoord
+    type(vertCoord_type),   intent(in)  :: zCoord
     real(dp),               intent(in)  :: thck
     real(dp), dimension(:), intent(in)  :: weff
     real(dp), dimension(:), intent(in)  :: diagadvt
@@ -584,7 +572,6 @@ contains
     real(dp), dimension(:), intent(out) :: diag
     real(dp), dimension(:), intent(out) :: supd
     logical,                intent(in)  :: float
-    integer,                intent(in)  :: upn
     real(dp),               intent(in)  :: cons1
     real(dp),               intent(in)  :: cons2
 
@@ -593,11 +580,11 @@ contains
     diff_factor = VERT_DIFF * cons1 / thck**2
     adv_factor  = VERT_ADV  * cons2 / thck
     
-    subd(2:upn-1) =   adv_factor  * weff(2:upn-1) * zCoord%dups(2:upn-1,3)
-    supd(2:upn-1) = - subd(2:upn-1) - diff_factor * zCoord%dups(2:upn-1,2)
-    subd(2:upn-1) =   subd(2:upn-1) - diff_factor * zCoord%dups(2:upn-1,1)
+    subd(2:zCoord%upn-1) =   adv_factor  * weff(2:zCoord%upn-1) * zCoord%dups(2:zCoord%upn-1,3)
+    supd(2:zCoord%upn-1) = - subd(2:zCoord%upn-1) - diff_factor * zCoord%dups(2:zCoord%upn-1,2)
+    subd(2:zCoord%upn-1) =   subd(2:zCoord%upn-1) - diff_factor * zCoord%dups(2:zCoord%upn-1,1)
 
-    diag(2:upn-1) = 1.0d0 - subd(2:upn-1) - supd(2:upn-1) + diagadvt(2:upn-1)
+    diag(2:zCoord%upn-1) = 1.0d0 - subd(2:zCoord%upn-1) - supd(2:zCoord%upn-1) + diagadvt(2:zCoord%upn-1)
 
     ! Upper surface: hold temperature constant
 
@@ -610,13 +597,13 @@ contains
     ! for floating ice, temperature held constant
 
     if (float) then
-       supd(upn) = 0.0d0
-       subd(upn) = 0.0d0
-       diag(upn) = 1.0d0
+       supd(zCoord%upn) = 0.0d0
+       subd(zCoord%upn) = 0.0d0
+       diag(zCoord%upn) = 1.0d0
     else 
-       supd(upn) = 0.0d0 
-       subd(upn) = -0.5*diff_factor/(zCoord%dupn**2)
-       diag(upn) = 1.0d0 - subd(upn) + diagadvt(upn)
+       supd(zCoord%upn) = 0.0d0 
+       subd(zCoord%upn) = -0.5*diff_factor/(zCoord%dupn**2)
+       diag(zCoord%upn) = 1.0d0 - subd(zCoord%upn) + diagadvt(zCoord%upn)
     end if
 
   end subroutine findvtri
@@ -624,7 +611,7 @@ contains
   !-------------------------------------------------------------------------
 
   subroutine findvtri_init(initadvt,dissip,inittemp,bheatflx,dusrfdew,dusrfdns, &
-       zCoord,ew,ns,subd,diag,supd,weff,ubas,vbas,temp,thck,float,upn, &
+       zCoord,ew,ns,subd,diag,supd,weff,ubas,vbas,temp,thck,float, &
        cons3,cons4,slidef1,slidef2)
 
     !*FD called during first iteration to set inittemp
@@ -640,7 +627,7 @@ contains
     real(dp),dimension(:,:),  intent(in)  :: bheatflx
     real(dp),dimension(:,:),  intent(in)  :: dusrfdew
     real(dp),dimension(:,:),  intent(in)  :: dusrfdns
-    type(vertCoord),          intent(in)  :: zCoord
+    type(vertCoord_type),     intent(in)  :: zCoord
     integer,                  intent(in)  :: ew
     integer,                  intent(in)  :: ns
     real(dp),dimension(:),    intent(in)  :: temp
@@ -652,7 +639,6 @@ contains
     real(dp),dimension(:,:),  intent(in)  :: vbas
     real(dp),                 intent(in)  :: thck
     logical,                  intent(in)  :: float    
-    integer,                  intent(in)  :: upn
     real(dp),                 intent(in)  :: cons3
     real(dp),                 intent(in)  :: cons4
     real(dp),                 intent(in)  :: slidef1
@@ -664,15 +650,15 @@ contains
     integer  :: slide_count
 
     ! Main body points
-    inittemp(2:upn-1,ew,ns) = temp(2:upn-1) * (2.0d0 - diag(2:upn-1)) &
-         - temp(1:upn-2) * subd(2:upn-1)         &
-         - temp(3:upn)   * supd(2:upn-1)         & 
-         - initadvt(2:upn-1,ew,ns)               &
-         + dissip(2:upn-1,ew,ns)
+    inittemp(2:zCoord%upn-1,ew,ns) = temp(2:zCoord%upn-1) * (2.0d0 - diag(2:zCoord%upn-1)) &
+         - temp(1:zCoord%upn-2) * subd(2:zCoord%upn-1)         &
+         - temp(3:zCoord%upn)   * supd(2:zCoord%upn-1)         & 
+         - initadvt(2:zCoord%upn-1,ew,ns)               &
+         + dissip(2:zCoord%upn-1,ew,ns)
     
     ! Basal boundary points
     if (float) then
-       inittemp(upn,ew,ns) = pmpt(thck)
+       inittemp(zCoord%upn,ew,ns) = pmpt(thck)
     else 
        ! sliding contribution to basal heat flux
        slterm = 0.
@@ -693,14 +679,14 @@ contains
           slterm = 0.
        end if
 
-       inittemp(upn,ew,ns) = temp(upn) * (2.0d0 - diag(upn)) &
-            - temp(upn-1) * subd(upn)                        &
+       inittemp(zCoord%upn,ew,ns) = temp(zCoord%upn) * (2.0d0 - diag(zCoord%upn)) &
+            - temp(zCoord%upn-1) * subd(zCoord%upn)                        &
             - 0.5 * cons3 * bheatflx(ew,ns) / (thck * zCoord%dupn) &  ! geothermal heat flux (diff)
             - slidef1 * slterm / zCoord%dupn                 &        ! sliding heat flux    (diff)
-            - cons4 * bheatflx(ew,ns) * weff(upn)            &        ! geothermal heat flux (adv)
-            - slidef2 * thck * slterm * weff(upn)            &        ! sliding heat flux    (adv)
-            - initadvt(upn,ew,ns)                            &
-            + dissip(upn,ew,ns)
+            - cons4 * bheatflx(ew,ns) * weff(zCoord%upn)            &        ! geothermal heat flux (adv)
+            - slidef2 * thck * slterm * weff(zCoord%upn)            &        ! sliding heat flux    (adv)
+            - initadvt(zCoord%upn,ew,ns)                            &
+            + dissip(zCoord%upn,ew,ns)
 
     end if
 
@@ -708,7 +694,7 @@ contains
 
   !-------------------------------------------------------------------------
 
-  subroutine findvtri_rhs(inittemp,artm,iteradvt,rhsd,float,upn)
+  subroutine findvtri_rhs(zCoord,inittemp,artm,iteradvt,rhsd,float)
 
     !*FD RHS of temperature tri-diag system for a single column
 
@@ -716,24 +702,24 @@ contains
 
     implicit none
 
+    type(vertCoord_type), intent(in)  :: zCoord
     real(dp),dimension(:),intent(in)  :: inittemp
     real(sp),             intent(in)  :: artm 
     real(dp),dimension(:),intent(in)  :: iteradvt
     real(dp),dimension(:),intent(out) :: rhsd
     logical,              intent(in)  :: float
-    integer,              intent(in)  :: upn
 
     ! upper boundary condition
 
     rhsd(1) = artm
 
     if (float) then
-       rhsd(upn) = inittemp(upn)    
+       rhsd(zCoord%upn) = inittemp(zCoord%upn)    
     else
-       rhsd(upn) = inittemp(upn) - iteradvt(upn)
+       rhsd(zCoord%upn) = inittemp(zCoord%upn) - iteradvt(zCoord%upn)
     end if
 
-    rhsd(2:upn-1) = inittemp(2:upn-1) - iteradvt(2:upn-1)
+    rhsd(2:zCoord%upn-1) = inittemp(2:zCoord%upn-1) - iteradvt(2:zCoord%upn-1)
 
   end subroutine findvtri_rhs
 
@@ -785,7 +771,7 @@ contains
   !-----------------------------------------------------------------------------------
 
   subroutine calcbmlt(dissip,zCoord,temp,thck,stagthck,dusrfdew,dusrfdns,ubas,vbas,bheatflx, &
-       bmlt,floater,upn,nsn,ewn,thklim,sigma,periodic_ew,f3)
+       bmlt,floater,nsn,ewn,thklim,periodic_ew,f3)
 
     use glimmer_global,   only: dp
     use glimmer_paramets, only: thk0, tim0, vel0, len0
@@ -795,7 +781,7 @@ contains
     implicit none 
 
     real(dp), dimension(:,:,:),   intent(in)  :: dissip
-    type(vertCoord),              intent(in)  :: zCoord
+    type(vertCoord_type),         intent(in)  :: zCoord
     real(dp), dimension(:,0:,0:), intent(in)  :: temp
     real(dp), dimension(:,:),     intent(in)  :: thck
     real(dp), dimension(:,:),     intent(in)  :: stagthck
@@ -806,16 +792,14 @@ contains
     real(dp), dimension(:,:),     intent(in)  :: bheatflx
     real(dp), dimension(:,:),     intent(out) :: bmlt
     logical,  dimension(:,:),     intent(in)  :: floater
-    integer,                      intent(in)  :: upn
     integer,                      intent(in)  :: nsn
     integer,                      intent(in)  :: ewn
     real(dp),                     intent(in)  :: thklim
-    real(dp), dimension(:),       intent(in)  :: sigma
     integer,                      intent(in)  :: periodic_ew
     real(dp),                     intent(in)  :: f3
     
 
-    real(dp), dimension(upn) :: pmptemp
+    real(dp), dimension(zCoord%upn) :: pmptemp
     real(dp) :: slterm, newmlt
 
     integer :: ewp, nsp,up,ew,ns
@@ -828,9 +812,9 @@ contains
        do ew = 2, ewn-1
           if (thck(ew,ns) > thklim .and. .not. floater(ew,ns)) then
 
-             call calcpmpt(pmptemp,thck(ew,ns),sigma)
+             call calcpmpt(pmptemp,thck(ew,ns),zCoord%sigma)
 
-             if (abs(temp(upn,ew,ns)-pmptemp(upn)) .lt. 0.001) then
+             if (abs(temp(zCoord%upn,ew,ns)-pmptemp(zCoord%upn)) .lt. 0.001) then
 
                 slterm = 0.0d0
 
@@ -843,9 +827,9 @@ contains
 
                 bmlt(ew,ns) = 0.0d0
                 newmlt = f4 * slterm - f2 * bheatflx(ew,ns) &
-                     + f3 * zCoord%dupc(upn) * thck(ew,ns) * dissip(upn,ew,ns)
+                     + f3 * zCoord%dupc(zCoord%upn) * thck(ew,ns) * dissip(zCoord%upn,ew,ns)
 
-                up = upn - 1
+                up = zCoord%upn - 1
 
                 do while (abs(temp(up,ew,ns)-pmptemp(up)) .lt. 0.001 .and. up .ge. 3)
                    bmlt(ew,ns) = bmlt(ew,ns) + newmlt
@@ -855,7 +839,7 @@ contains
 
                 up = up + 1
 
-                if (up == upn) then
+                if (up == zCoord%upn) then
                    bmlt(ew,ns) = newmlt - &
                         f1 * ( (temp(up-2,ew,ns) - pmptemp(up-2)) * zCoord%dupa(up) &
                         + (temp(up-1,ew,ns) - pmptemp(up-1)) * zCoord%dupb(up) ) / thck(ew,ns) 

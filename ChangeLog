@@ -1,3 +1,10 @@
+2009-10-28 Magnus Hagdorn
+ * libglide/glide_temp.F90: use standard intrinsic for min rather than dmin1
+ * libglide/glide_tempFullSoln.F90: renamed vertCoord_type, moved sigma into
+   vertCoord_type and removed sigma and upn from temperature type
+ * libglimmer/glimmer_vertcoord.F90: added doxygen strings, added sigma to
+   vertCoord_type
+
 2009-10-28 Ian Rutt
  * libglide/glide_deriv.F90: Removed redundant mask argument from timederv
    call

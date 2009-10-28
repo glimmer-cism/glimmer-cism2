@@ -44,29 +44,36 @@
 #include "config.inc"
 #endif
 
+!> module for handling vertical sigma coordinate system
+!!
+!! \author Ian Rutt
+!! \date September 2009
 module glimmer_vertcoord
 
   use glimmer_global, only: dp
 
   implicit none
 
-  type vertCoord
-     integer                           :: upn  =  0
-     real(dp),dimension(:),    pointer :: dupa => null()
-     real(dp),dimension(:),    pointer :: dupb => null()
-     real(dp),dimension(:),    pointer :: dupc => null()
-     real(dp),dimension(:,:),  pointer :: dups => null()
-     real(dp)                          :: dupn =  0.0
-  end type vertCoord
+  !> derived type describing sigma coordinate system
+  type vertCoord_type
+     integer                           :: upn  =  0       !< the number of sigma levels
+     real(dp),dimension(:),    pointer :: sigma => null() !< the sigma levels
+     real(dp),dimension(:),    pointer :: dupa => null()  !< factors used for FD computations on non-regular grid
+     real(dp),dimension(:),    pointer :: dupb => null()  !< factors used for FD computations on non-regular grid
+     real(dp),dimension(:),    pointer :: dupc => null()  !< factors used for FD computations on non-regular grid
+     real(dp),dimension(:,:),  pointer :: dups => null()  !< factors used for FD computations on non-regular grid
+     real(dp)                          :: dupn =  0.0     !< thickness of bottom sigma level
+  end type vertCoord_type
 
 contains
 
+  !> initialise vertical coordinate type from list of sigma levels
   subroutine initVertCoord(params,sigma)
 
     implicit none
 
-    type(vertCoord),      intent(out) :: params
-    real(dp),dimension(:),intent(in)  :: sigma
+    type(vertCoord_type),      intent(out) :: params !< the vertical coordinate type
+    real(dp),dimension(:),intent(in)  :: sigma       !< array containing vertical sigma levels
 
     integer :: up
 
@@ -74,16 +81,20 @@ contains
     params%upn = size(sigma)
 
     ! Deallocate arrays
-    if (associated(params%dupa)) deallocate(params%dupa)
-    if (associated(params%dupb)) deallocate(params%dupb)
-    if (associated(params%dupc)) deallocate(params%dupc)
-    if (associated(params%dups)) deallocate(params%dups)
+    if (associated(params%sigma)) deallocate(params%sigma)
+    if (associated(params%dupa))  deallocate(params%dupa)
+    if (associated(params%dupb))  deallocate(params%dupb)
+    if (associated(params%dupc))  deallocate(params%dupc)
+    if (associated(params%dups))  deallocate(params%dups)
 
     ! Allocate arrays
+    allocate(params%sigma(params%upn))
     allocate(params%dupa(params%upn))
     allocate(params%dupb(params%upn))
     allocate(params%dupc(params%upn))
     allocate(params%dups(params%upn,3))
+
+    params%sigma(:) = sigma(:)
 
     params%dupa = (/ &
          0.0d0,      &
