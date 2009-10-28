@@ -67,6 +67,13 @@ module glimmer_vertcoord
      real(dp)                          :: dupn =  0.0     !< thickness of bottom sigma level
   end type vertCoord_type
 
+  !> generic interface for initialising a vertical coordsystem
+  interface initVertCoord
+     module procedure initVertCoord_upn, initVertCoord_file, initVertCoord_array
+  end interface
+
+  private :: initFDFactors
+  
 contains
 
   !> allocate memory for vertCoord_type
@@ -103,13 +110,102 @@ contains
     GLIMMER_DEALLOC(params%dups)
   end subroutine vertCoord_destroy
 
-  !> initialise vertical coordinate type from array of sigma levels
-  subroutine initVertCoord(params,sigma)
+  !> print to verticalCoord_type to log
+  subroutine vertCoord_print(params)
+    use glimmer_log, only : write_log,msg_length
+    implicit none
+    
+    type(vertCoord_type) :: params !< the vertical coordinate type    
 
+    integer :: i
+    character(len=msg_length) :: msg
+
+    call write_log('Sigma levels:')
+    call write_log('-------------')
+    msg = ''
+    do i=1,params%upn
+       write(msg,'(a,x,f5.2)') trim(msg),params%sigma(i)
+    end do
+    call write_log(trim(msg))
+    call write_log('')
+  end subroutine vertCoord_print
+
+  !> compute sigma levels and initialise vertCoord_type
+  subroutine initVertCoord_upn(params,upn)
     implicit none
 
-    type(vertCoord_type),      intent(out) :: params !< the vertical coordinate type
-    real(dp),dimension(:),intent(in)  :: sigma       !< array containing vertical sigma levels
+    type(vertCoord_type) :: params !< the vertical coordinate type
+    integer, intent(in)  :: upn    !< the number of sigma coordinates
+
+    integer :: up
+
+    call vertCoord_allocate(params, upn)
+
+    do up=1,upn
+       params%sigma(up) = calc_sigma(real(up-1,kind=dp)/real(upn-1,kind=dp),2.d0)
+    end do
+
+    call initFDFactors(params)
+
+  contains
+    !> compute sigma level
+    function calc_sigma(x,n)
+      implicit none
+      real(kind=dp), intent(in) :: x
+      real(kind=dp), intent(in) :: n
+      
+      real(kind=dp) :: calc_sigma
+      
+      calc_sigma = (1-(x+1)**(-n))/(1-2**(-n))
+    end function calc_sigma
+  end subroutine initVertCoord_upn
+    
+  !> initialise vertical coordinate type from file
+  subroutine initVertCoord_file(params,sigfile,upn)
+    use glimmer_log, only : write_log, GM_FATAL
+    implicit none
+    type(vertCoord_type)  :: params         !< the vertical coordinate type
+    character(len=*), intent(in) :: sigfile !< name of file containing sigma coordinates
+    integer, intent(in) :: upn              !< the number of sigma coordinates
+
+    integer :: up
+    logical :: there
+    integer ios
+    integer, parameter :: unit = 999
+    integer, parameter :: maxSig = 10000
+    real(kind=dp), dimension(maxSig) :: tempSigma
+
+    inquire (exist=there,file=sigfile)
+    if (.not.there) then
+       call write_log('Sigma levels file: '//trim(sigfile)//' does not exist',GM_FATAL)
+    end if
+    call write_log('Reading sigma file: '//sigfile)
+    open(unit,file=sigfile)
+    up = 1
+    do while (up.le.maxSig)
+       read(unit,*,err=10,iostat=ios) tempSigma(up)
+       if (ios.ne.0) then
+          exit
+       end if
+       up = up + 1
+    end do
+    close(unit)    
+    
+    if (up .ne. upn) then
+       call write_log('Wrong number of sigma coordinates read from file',GM_FATAL)
+    end if
+
+    call initVertCoord_array(params,tempSigma(1:up))
+
+    return
+10  call write_log('something wrong with sigma coord file',GM_FATAL)
+  end subroutine initVertCoord_file
+
+  !> initialise vertical coordinate type from array of sigma levels
+  subroutine initVertCoord_array(params,sigma)
+    implicit none
+    type(vertCoord_type)  :: params !< the vertical coordinate type
+    real(dp),dimension(:) :: sigma  !< array containing vertical sigma levels
 
     integer :: up
 
@@ -117,37 +213,47 @@ contains
 
     params%sigma(:) = sigma(:)
 
+    call initFDFactors(params)
+
+  end subroutine initVertCoord_array
+
+  !> compute finite difference factors
+  subroutine initFDFactors(params)
+    implicit none
+    type(vertCoord_type) :: params !< the vertical coordinate type
+
+    integer up
+
     params%dupa = (/ &
          0.0d0,      &
          0.0d0,      &
-         ((sigma(up)   - sigma(up-1)) / &
-         ((sigma(up-2) - sigma(up-1)) * (sigma(up-2) - sigma(up))), &
+         ((params%sigma(up)   - params%sigma(up-1)) / &
+         ((params%sigma(up-2) - params%sigma(up-1)) * (params%sigma(up-2) - params%sigma(up))), &
          up=3,params%upn)  &
          /)
 
     params%dupb = (/ &
          0.0d0,      &
          0.0d0,      &
-         ((sigma(up)   - sigma(up-2)) / &
-         ((sigma(up-1) - sigma(up-2)) * (sigma(up-1) - sigma(up))), &
+         ((params%sigma(up)   - params%sigma(up-2)) / &
+         ((params%sigma(up-1) - params%sigma(up-2)) * (params%sigma(up-1) - params%sigma(up))), &
          up=3,params%upn)  &
          /)
 
     params%dupc = (/ &
-         (sigma(2) - sigma(1)) / 2.0d0, &
-         ((sigma(up+1) - sigma(up-1)) / 2.0d0, up=2,params%upn-1), &
-         (sigma(params%upn) - sigma(params%upn-1)) / 2.0d0  &
+         (params%sigma(2) - params%sigma(1)) / 2.0d0, &
+         ((params%sigma(up+1) - params%sigma(up-1)) / 2.0d0, up=2,params%upn-1), &
+         (params%sigma(params%upn) - params%sigma(params%upn-1)) / 2.0d0  &
          /)
 
     params%dups = 0.0d0
     do up = 2, params%upn-1
-       params%dups(up,1) = 1.d0/((sigma(up+1) - sigma(up-1)) * (sigma(up)   - sigma(up-1)))
-       params%dups(up,2) = 1.d0/((sigma(up+1) - sigma(up-1)) * (sigma(up+1) - sigma(up)))
-       params%dups(up,3) = 1.d0/( sigma(up+1) - sigma(up-1))
+       params%dups(up,1) = 1.d0/((params%sigma(up+1) - params%sigma(up-1)) * (params%sigma(up)   - params%sigma(up-1)))
+       params%dups(up,2) = 1.d0/((params%sigma(up+1) - params%sigma(up-1)) * (params%sigma(up+1) - params%sigma(up)))
+       params%dups(up,3) = 1.d0/( params%sigma(up+1) - params%sigma(up-1))
     end do
 
-    params%dupn = sigma(params%upn) - sigma(params%upn-1)
-
-  end subroutine initVertCoord
+    params%dupn = params%sigma(params%upn) - params%sigma(params%upn-1)
+  end subroutine initFDFactors
 
 end module glimmer_vertcoord

@@ -1,4 +1,14 @@
 2009-10-28 Magnus Hagdorn
+ * libglide/glide.F90: initialise temperature code with vertical grid
+ * libglide/glide_setup.F90: initialise vertical grid
+ * libglide/glide_tempFullSoln.F90: take initialised vertical grid and point
+   to it in temperature derived type
+ * libglide/glide_types.F90: make vertical grid in glide_general a pointer
+   and allocate accordingly
+ * glimmer_vertcoord.F90: add routines to initialise vertical coord system
+   from file or number of sigma levels
+
+2009-10-28 Magnus Hagdorn
  * doc/common/packages.tex: add new package
  * doc/dg/Makefile.am: distribute new file
  * doc/dg/dg.tex: document memory handling scheme

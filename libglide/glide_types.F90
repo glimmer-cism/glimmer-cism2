@@ -65,6 +65,7 @@ module glide_types
   use isostasy_types
   use profile
   use glimmer_coordinates
+  use glimmer_vertcoord, only: vertCoord_type
   use glimmer_map_types, pi_dummy=>pi
   use glide_glenflow, only: glenflow_params
   use glide_deriv, only: timederiv_params
@@ -82,6 +83,7 @@ module glide_types
 
     type(coordsystem_type) :: ice_grid  !*FD coordinate system of the ice grid
     type(coordsystem_type) :: velo_grid !*FD coordinate system of the velocity grid
+    type(vertCoord_type), pointer :: sigma_grid !< the sigma coordinate system
 
     real(sp), dimension(:),pointer :: x0 => null() !original x0 grid 
     real(sp), dimension(:),pointer :: y0 => null() !original y0 grid
@@ -604,6 +606,8 @@ contains
     upn=model%general%upn
 
     ! Allocate appropriately
+
+    allocate(model%general%sigma_grid)
 
     allocate(model%general%x0(ewn-1))!; model%general%x0 = 0.0
     allocate(model%general%y0(nsn-1))!; model%general%y0 = 0.0

@@ -268,6 +268,7 @@ contains
     use glide_types
     use glimmer_log
     use glimmer_filenames
+    use glimmer_vertcoord, only : initVertCoord, vertCoord_print
     implicit none
 
     ! Arguments
@@ -291,6 +292,7 @@ contains
        do up=1,upn
           model%numerics%sigma(up) = glide_calc_sigma(real(up-1)/real(upn-1),2.)
        end do
+       call initVertCoord(model%general%sigma_grid,upn)
     case(1)
        inquire (exist=there,file=process_path(model%funits%sigfile))
        if (.not.there) then
@@ -301,10 +303,12 @@ contains
        open(unit,file=process_path(model%funits%sigfile))
        read(unit,'(f5.2)',err=10,end=10) (model%numerics%sigma(up), up=1,upn)
        close(unit)
+       call initVertCoord(model%general%sigma_grid,process_path(model%funits%sigfile),upn)
     case(2)
        call write_log('Using sigma levels from main configuration file')
     end select
     call print_sigma(model)
+    call vertCoord_print(model%general%sigma_grid)
     return
 
 10  call write_log('something wrong with sigma coord file',GM_FATAL)
@@ -440,7 +444,7 @@ contains
     use glimmer_log
     implicit none
     type(glide_global_type)  :: model
-    character(len=100) :: message
+    character(len=msg_length) :: message
 
     ! local variables
     character(len=*), dimension(0:1), parameter :: temperature = (/ &

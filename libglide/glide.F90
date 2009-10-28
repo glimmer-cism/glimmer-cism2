@@ -182,7 +182,7 @@ contains
          model%general%nsn,    &
          model%numerics%dew,   &
          model%numerics%dns,   &
-         model%numerics%sigma, &
+         model%general%sigma_grid, &
          model%numerics%thklim,&
          model%options%periodic_ew)
 

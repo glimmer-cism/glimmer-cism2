@@ -86,7 +86,7 @@ module glide_tempFullSoln
      integer                           :: nsn         !< Number of points in y
      real(dp)                          :: dew         !< Spacing in x
      real(dp)                          :: dns         !< Spacing in y
-     type(vertCoord_type)              :: zCoord      !< Vertical coordinate information
+     type(vertCoord_type), pointer     :: zCoord      !< Vertical coordinate information
      real(dp)                          :: thklim      !< Thickness threshold for calculation
      integer                           :: periodic_ew !< Set to indicate periodic BCs
      integer                           :: niter = 0   !< Maximum number of iterations
@@ -98,7 +98,7 @@ module glide_tempFullSoln
 contains
 
   !> Initialises parameters for full temperature solution
-  subroutine init_tempFullSoln(params,ewn,nsn,dew,dns,sigma,thklim,periodic_ew)
+  subroutine init_tempFullSoln(params,ewn,nsn,dew,dns,zCoord,thklim,periodic_ew)
 
     use glimmer_vertcoord, only: initVertCoord
     use glimmer_log,     only: write_log, GM_FATAL
@@ -110,7 +110,7 @@ contains
     integer,                intent(in)  :: nsn     !< Number of points in y
     real(dp),               intent(in)  :: dew     !< Spacing in x
     real(dp),               intent(in)  :: dns     !< Spacing in y
-    real(dp),dimension(:),  intent(in)  :: sigma   !< Sigma levels
+    type(vertCoord_type), target        :: zCoord  !< the sigma coordinate system
     real(dp),               intent(in)  :: thklim  !< Thickness threshold for calculation
     integer,                intent(in)  :: periodic_ew !< Set to indicate periodic BCs
 
@@ -124,7 +124,7 @@ contains
     params%dew = dew
     params%dns = dns
 
-    call initVertCoord(params%zCoord,sigma)
+    params%zCoord => zCoord
 
     params%thklim = thklim
 
