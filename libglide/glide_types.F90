@@ -242,8 +242,6 @@ module glide_types
     integer :: totpts = 0
     !*FD The total number of points with non-zero thickness
 
-    logical               :: empty = .true. !*FD I have no idea what this is for.
-
     real(dp) :: ivol, iarea !*FD ice volume and ice area
 
   end type glide_geometry
@@ -451,13 +449,17 @@ module glide_types
      real(dp),dimension(:,:),  pointer :: oldthck   => null()
      real(dp),dimension(:,:),  pointer :: oldthck2  => null()
      real(dp),dimension(:,:),pointer :: float => null()
-     
-     real(dp), dimension(:), pointer :: alpha => null()
-     real(dp), dimension(:), pointer :: beta  => null()
-     real(dp), dimension(:), pointer :: gamma => null()
-     real(dp), dimension(:), pointer :: delta => null()
 
   end type glide_thckwk
+
+  ! This is here temporarily to avoid circular references
+
+  type thckADI_type
+     integer  :: ewn
+     integer  :: nsn
+     real(dp) :: dew
+     real(dp) :: dns
+  end type thckADI_type
 
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -507,6 +509,7 @@ module glide_types
     type(isos_type)      :: isos
     type(timederiv_params) :: timederivs
     type(type_tempFullSoln) :: tempFullSoln
+    type(thckADI_type) :: thckADI
   end type glide_global_type
 
 !MH!  !MAKE_RESTART

@@ -50,7 +50,29 @@ module glide_thckADI
 
 contains
 
-  subroutine stagleapthck(model,newtemps)
+  subroutine thckADI_init(params,ewn,nsn,dew,dns)
+
+    use glide_types, only: thckADI_type
+    use glimmer_global, only: dp
+
+    implicit none
+
+    type(thckADI_type),intent(out) :: params
+    integer,           intent(in)  :: ewn
+    integer,           intent(in)  :: nsn
+    real(dp),          intent(in)  :: dew
+    real(dp),          intent(in)  :: dns
+
+    params%ewn = ewn
+    params%nsn = nsn
+    params%dew = dew
+    params%dns = dns
+
+  end subroutine thckADI_init
+
+  !--------------------------------------------------------------------
+
+  subroutine stagleapthck(params,model,newtemps,thck,acab,lsrf,topg,dt)
     
     !*FD this subroutine solves the ice sheet thickness equation using the ADI scheme
     !*FD diffusivities are updated for each half time step
@@ -58,22 +80,34 @@ contains
     use glide_setup, only: glide_calclsrf
     use glide_velo
     use glimmer_utils
-    use glide_types, only: glide_global_type
+    use glide_types, only: glide_global_type, thckADI_type
+    use glimmer_global, only: dp, sp
 
     implicit none
 
     ! subroutine arguments
+    type(thckADI_type),intent(inout) :: params
     type(glide_global_type) :: model
-    logical, intent(in) :: newtemps                     !*FD true when we should recalculate Glen's A
+    logical,                                  intent(in)    :: newtemps !< true when we should recalculate Glen's A
+    real(dp),dimension(params%ewn,params%nsn),intent(inout) :: thck     !< Ice thickness
+    real(sp),dimension(params%ewn,params%nsn),intent(in)    :: acab     !< Mass balance
+    real(dp),dimension(params%ewn,params%nsn),intent(inout) :: lsrf     !< Lower surface elevation
+    real(dp),dimension(params%ewn,params%nsn),intent(in)    :: topg     !< basal topography
+    real(dp),                                 intent(in)    :: dt       !< Timestep
 
     ! local variables
     integer ew,ns, n
+     
+    real(dp), dimension(max(params%ewn,params%nsn)) :: alpha
+    real(dp), dimension(max(params%ewn,params%nsn)) :: beta
+    real(dp), dimension(max(params%ewn,params%nsn)) :: gamma
+    real(dp), dimension(max(params%ewn,params%nsn)) :: delta
 
-    if (all(model%geometry%thck==0.0)) then
+    if (all(thck==0.0)) then
 
-       model%geometry%thck = dmax1(0.0d0,model%geometry%thck + model%climate%acab * model%pcgdwk%fc2(2))
+       thck = dmax1(0.0d0,thck + acab * dt)
 #ifdef DEBUG       
-       print *, "* thck empty - net accumulation added", model%numerics%time
+       print *, "* thck empty - net accumulation added"
 #endif
     else
 
@@ -85,7 +119,10 @@ contains
                model%velocity% ubas,          &
                model%velocity% vbas)
           ! calculate Glen's A if necessary
-          call velo_integrate_flwa(model%velowk,model%geomderv%stagthck,model%temper%flwa)
+          call velo_integrate_flwa(     &
+               model%velowk,            &
+               model%geomderv%stagthck, &
+               model%temper%flwa)
        end if
        call slipvelo(model,                &
             2,                             &
@@ -94,70 +131,74 @@ contains
             model%velocity% vbas)
 
        ! calculate diffusivity
-       call velo_calc_diffu(model%velowk,model%geomderv%stagthck,model%geomderv%dusrfdew, &
-            model%geomderv%dusrfdns,model%velocity%diffu)
+       call velo_calc_diffu(         &
+            model%velowk,            &
+            model%geomderv%stagthck, &
+            model%geomderv%dusrfdew, &
+            model%geomderv%dusrfdns, &
+            model%velocity%diffu)
 
        model%velocity%total_diffu(:,:) = model%velocity%diffu(:,:) + model%velocity%ubas(:,:)
 
        ! first ADI step, solve thickness equation along rows j
-       n = model%general%ewn
-       do ns=2,model%general%nsn-1
-          call adi_tri ( model%thckwk%alpha,                 &
-                         model%thckwk%beta,                  &
-                         model%thckwk%gamma,                 &
-                         model%thckwk%delta,                 &
-                         model%geometry%thck(:,ns),          &
-                         model%geometry%lsrf(:,ns),          &
-                         model%climate%acab(:,ns)-real(model%options%basal_mbal)*real(model%temper%bmlt(:,ns),sp),           &
+       n = params%ewn
+       do ns=2,params%nsn-1
+          call adi_tri ( alpha,                 &
+                         beta,                  &
+                         gamma,                 &
+                         delta,                 &
+                         thck(:,ns),            &
+                         lsrf(:,ns),            &
+                         acab(:,ns)-real(model%options%basal_mbal)*real(model%temper%bmlt(:,ns),sp),           &
                          model%velocity%vflx(:,ns),          &
                          model%velocity%vflx(:,ns-1),        &
                          model%velocity%total_diffu(:,ns),   &
                          model%velocity%total_diffu(:,ns-1), &
-                         model%numerics%dt,                  &
-                         model%numerics%dew,                 &
-                         model%numerics%dns )
+                         dt,                                 &
+                         params%dew,                         &
+                         params%dns )
 
-          call tridiag(model%thckwk%alpha(1:n),    &
-                       model%thckwk%beta(1:n),     &
-                       model%thckwk%gamma(1:n),    &
+          call tridiag(alpha(1:n),    &
+                       beta(1:n),     &
+                       gamma(1:n),    &
                        model%thckwk%oldthck(:,ns), &
-                       model%thckwk%delta(1:n))
+                       delta(1:n))
        end do
 
        model%thckwk%oldthck(:,:) = max(model%thckwk%oldthck(:,:), 0.d0)
 
        ! second ADI step, solve thickness equation along columns i
-       n = model%general%nsn
-       do ew=2,model%general%ewn-1
-          call adi_tri ( model%thckwk%alpha,                 &
-                         model%thckwk%beta,                  &
-                         model%thckwk%gamma,                 &
-                         model%thckwk%delta,                 &
+       n = params%nsn
+       do ew=2,params%ewn-1
+          call adi_tri ( alpha,                 &
+                         beta,                  &
+                         gamma,                 &
+                         delta,                 &
                          model%thckwk%oldthck(ew,:),         &
-                         model%geometry%lsrf(ew, :),         &
-                         model%climate%acab(ew, :)-real(model%options%basal_mbal)*real(model%temper%bmlt(ew, :),sp),          &
+                         lsrf(ew, :),                        &
+                         acab(ew, :)-real(model%options%basal_mbal)*real(model%temper%bmlt(ew, :),sp),          &
                          model%velocity%uflx(ew,:),          &
                          model%velocity%uflx(ew-1,:),        &
                          model%velocity%total_diffu(ew,:),   &
                          model%velocity%total_diffu(ew-1,:), &
-                         model%numerics%dt,                  &
-                         model%numerics%dns,                 &
-                         model%numerics%dew )
+                         dt,                                 &
+                         params%dns,                         &
+                         params%dew )
 
-          call tridiag(model%thckwk%alpha(1:n),    &
-                       model%thckwk%beta(1:n),     &
-                       model%thckwk%gamma(1:n),    &
-                       model%geometry%thck(ew, :), &
-                       model%thckwk%delta(1:n))
+          call tridiag(alpha(1:n),    &
+                       beta(1:n),     &
+                       gamma(1:n),    &
+                       thck(ew,:),    &
+                       delta(1:n))
        end do
 
-       model%geometry%thck(:,:) = max(model%geometry%thck(:,:), 0.d0)
+       thck(:,:) = max(thck(:,:), 0.d0)
 
        ! Apply boundary conditions
-       model%geometry%thck(1,:) = 0.0
-       model%geometry%thck(model%general%ewn,:) = 0.0
-       model%geometry%thck(:,1) = 0.0
-       model%geometry%thck(:,model%general%nsn) = 0.0
+       thck(1,:) = 0.0
+       thck(params%ewn,:) = 0.0
+       thck(:,1) = 0.0
+       thck(:,params%nsn) = 0.0
 
        ! calculate horizontal velocity field
        call slipvelo(model,                &
@@ -165,16 +206,26 @@ contains
             model%velocity%btrc,           &
             model%velocity%ubas,           &
             model%velocity%vbas)
-       call velo_calc_velo(model%velowk,model%geomderv%stagthck,model%geomderv%dusrfdew, &
-            model%geomderv%dusrfdns,model%temper%flwa,model%velocity%diffu,model%velocity%ubas, &
-            model%velocity%vbas,model%velocity%uvel,model%velocity%vvel,model%velocity%uflx,model%velocity%vflx)
+
+       call velo_calc_velo(model%velowk, &
+            model%geomderv%stagthck,     &
+            model%geomderv%dusrfdew,     &
+            model%geomderv%dusrfdns,     &
+            model%temper%flwa,           &
+            model%velocity%diffu,        &
+            model%velocity%ubas,         &
+            model%velocity%vbas,         &
+            model%velocity%uvel,         &
+            model%velocity%vvel,         &
+            model%velocity%uflx,         &
+            model%velocity%vflx)
     end if
 
     !------------------------------------------------------------
     ! calculate upper and lower surface
     !------------------------------------------------------------
-    call glide_calclsrf(model%geometry%thck, model%geometry%topg, model%climate%eus, model%geometry%lsrf)
-    model%geometry%usrf = max(0.d0,model%geometry%thck + model%geometry%lsrf)
+    call glide_calclsrf(thck, topg, model%climate%eus, lsrf)
+    model%geometry%usrf = max(0.d0,thck + lsrf)
 
   end subroutine stagleapthck
 

@@ -68,9 +68,11 @@ contains
 
     
     model%pcgdwk%fc2 = (/ model%numerics%alpha * model%numerics%dt / (2.0d0 * model%numerics%dew * model%numerics%dew), &
-         model%numerics%dt, (1.0d0-model%numerics%alpha) / model%numerics%alpha, &
+         model%numerics%dt, &
+         (1.0d0-model%numerics%alpha) / model%numerics%alpha, &
          1.0d0 / model%numerics%alpha, model%numerics%alpha * model%numerics%dt / &
-         (2.0d0 * model%numerics%dns * model%numerics%dns), 0.0d0 /) 
+         (2.0d0 * model%numerics%dns * model%numerics%dns), &
+         0.0d0 /) 
 
 #ifdef DEBUG_PICARD
     call write_log('Logging Picard iterations')
@@ -78,13 +80,6 @@ contains
     write(picard_unit,*) '#time    max_iter'
 #endif
 
-    ! allocate memory for ADI scheme
-    if (model%options%whichevol.eq.1) then
-       allocate(model%thckwk%alpha(max(model%general%ewn, model%general%nsn)))
-       allocate(model%thckwk%beta (max(model%general%ewn, model%general%nsn)))
-       allocate(model%thckwk%gamma(max(model%general%ewn, model%general%nsn)))
-       allocate(model%thckwk%delta(max(model%general%ewn, model%general%nsn)))
-    end if
   end subroutine init_thck
 
 !---------------------------------------------------------------------------------
@@ -100,6 +95,8 @@ contains
     type(glide_global_type) :: model
     logical, intent(in) :: newtemps                     !*FD true when we should recalculate Glen's A
 
+    logical :: empty
+
 #ifdef PROFILING
     call glide_prof_start(model,model%glide_prof%ice_mask1)
 #endif
@@ -108,12 +105,12 @@ contains
          model%climate%  acab,      &
          model%geometry% mask,      &
          model%geometry% totpts,    &
-         model%geometry% empty)
+         empty)
 #ifdef PROFILING
     call glide_prof_stop(model,model%glide_prof%ice_mask1)
 #endif
 
-    if (model%geometry%empty) then
+    if (empty) then
 
        model%geometry%thck = dmax1(0.0d0,model%geometry%thck + model%climate%acab * model%pcgdwk%fc2(2))
 #ifdef DEBUG       
@@ -181,6 +178,7 @@ contains
     real(kind=dp) :: residual
     integer p
     logical first_p
+    logical empty
 
 #ifdef PROFILING
     call glide_prof_start(model,model%glide_prof%ice_mask1)
@@ -190,12 +188,12 @@ contains
          model%climate%  acab,      &
          model%geometry% mask,      &
          model%geometry% totpts,    &
-         model%geometry% empty)
+         empty)
 #ifdef PROFILING
     call glide_prof_stop(model,model%glide_prof%ice_mask1)
 #endif
 
-    if (model%geometry%empty) then
+    if (empty) then
 
        model%geometry%thck = dmax1(0.0d0,model%geometry%thck + model%climate%acab * model%pcgdwk%fc2(2))
 #ifdef DEBUG

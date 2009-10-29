@@ -114,6 +114,7 @@ contains
     use glimmer_map_init
     use glide_glenflow, only: calcflwa
     use glide_tempFullSoln, only: init_tempFullSoln
+    use glide_thckADI, only: thckADI_init
     implicit none
     type(glide_global_type) :: model        !*FD model instance
 
@@ -187,6 +188,13 @@ contains
          model%options%periodic_ew)
 
     call init_thck(model)
+
+    call thckADI_init(model%thckADI, &
+         model%general%ewn, &
+         model%general%nsn, &
+         model%numerics%dew, &
+         model%numerics%dns)
+
     if (model%options%gthf.gt.0) then
        call glide_lithot_io_createall(model)
        call init_lithot(model)
@@ -451,7 +459,14 @@ contains
 
     case(1) ! Use explicit leap frog method with uflx,vflx -------------------
 
-       call stagleapthck(model,model%temper%newtemps)
+       call stagleapthck(model%thckADI, &
+            model, &
+            model%temper%newtemps, &
+            model%geometry%thck, &
+            model%climate%acab,  &
+            model%geometry%lsrf, &
+            model%geometry%topg, &
+            model%numerics%dt)
 
     case(2) ! Use non-linear calculation that incorporates velocity calc -----
 
