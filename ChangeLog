@@ -1,6 +1,6 @@
 2009-10-29 Ian Rutt
  * libglide/glide_thckADI.F90: More refactoring of ADI scheme
- * Regtest fails at present
+ * Regtested against e2.a
 
 2009-10-28 Magnus Hagdorn
  * libglide/glide.F90: initialise temperature code with vertical grid
@@ -11,6 +11,8 @@
    and allocate accordingly
  * glimmer_vertcoord.F90: add routines to initialise vertical coord system
    from file or number of sigma levels
+ * Precision changes in glimmer_vertcoord.F90 mean retest assume goods
+   must be remade.
 
 2009-10-28 Magnus Hagdorn
  * doc/common/packages.tex: add new package
