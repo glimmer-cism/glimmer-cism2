@@ -1,6 +1,6 @@
 2009-10-31 Ian Rutt
  * libglide/glide_thckADI.F90: More progress on thickness schemes.
- * Regtested against e2.a (but needs testing against e2.h also)
+ * Regtested against e2.a and e2.h
 
 2009-10-29 Ian Rutt
  * libglide/glide_thckADI.F90: More refactoring of ADI scheme
