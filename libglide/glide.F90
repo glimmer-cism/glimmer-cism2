@@ -193,7 +193,8 @@ contains
          model%general%ewn, &
          model%general%nsn, &
          model%numerics%dew, &
-         model%numerics%dns)
+         model%numerics%dns, &
+         model%numerics%thklim)
 
     if (model%options%gthf.gt.0) then
        call glide_lithot_io_createall(model)
@@ -466,7 +467,11 @@ contains
             model%climate%acab,  &
             model%geometry%lsrf, &
             model%geometry%topg, &
-            model%numerics%dt)
+            model%velocity%btrc, &
+            model%velocity%ubas, &
+            model%velocity%vbas, &
+            model%numerics%dt,   &
+            model%climate%eus)
 
     case(2) ! Use non-linear calculation that incorporates velocity calc -----
 

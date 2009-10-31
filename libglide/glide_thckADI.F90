@@ -50,7 +50,7 @@ module glide_thckADI
 
 contains
 
-  subroutine thckADI_init(params,ewn,nsn,dew,dns)
+  subroutine thckADI_init(params,ewn,nsn,dew,dns,thklim)
 
     use glide_types, only: thckADI_type
     use glimmer_global, only: dp
@@ -62,46 +62,56 @@ contains
     integer,           intent(in)  :: nsn
     real(dp),          intent(in)  :: dew
     real(dp),          intent(in)  :: dns
+    real(dp),          intent(in)  :: thklim
 
     params%ewn = ewn
     params%nsn = nsn
     params%dew = dew
     params%dns = dns
+    params%thklim = thklim
 
   end subroutine thckADI_init
 
   !--------------------------------------------------------------------
 
-  subroutine stagleapthck(params,model,newtemps,thck,acab,lsrf,topg,dt)
+  subroutine stagleapthck(params,model,newtemps,thck,acab,lsrf,topg,btrc,ubas,vbas,dt,eus)
     
     !*FD this subroutine solves the ice sheet thickness equation using the ADI scheme
     !*FD diffusivities are updated for each half time step
 
     use glide_setup, only: glide_calclsrf
-    use glide_velo
+    use glide_velo, only: velo_calc_velo, velo_integrate_flwa, velo_calc_diffu
     use glimmer_utils
     use glide_types, only: glide_global_type, thckADI_type
     use glimmer_global, only: dp, sp
+    use physcon, only: rhoi, grav
 
     implicit none
 
     ! subroutine arguments
     type(thckADI_type),intent(inout) :: params
     type(glide_global_type) :: model
-    logical,                                  intent(in)    :: newtemps !< true when we should recalculate Glen's A
-    real(dp),dimension(params%ewn,params%nsn),intent(inout) :: thck     !< Ice thickness
-    real(sp),dimension(params%ewn,params%nsn),intent(in)    :: acab     !< Mass balance
-    real(dp),dimension(params%ewn,params%nsn),intent(inout) :: lsrf     !< Lower surface elevation
-    real(dp),dimension(params%ewn,params%nsn),intent(in)    :: topg     !< basal topography
-    real(dp),                                 intent(in)    :: dt       !< Timestep
+    logical,                                      intent(in)    :: newtemps !< true when we should recalculate Glen's A
+    real(dp),dimension(params%ewn,params%nsn),    intent(inout) :: thck     !< Ice thickness
+    real(sp),dimension(params%ewn,params%nsn),    intent(in)    :: acab     !< Mass balance
+    real(dp),dimension(params%ewn,params%nsn),    intent(inout) :: lsrf     !< Lower surface elevation
+    real(dp),dimension(params%ewn,params%nsn),    intent(in)    :: topg     !< basal topography
+    real(dp),dimension(params%ewn-1,params%nsn-1),intent(in)    :: btrc     !< basal traction coefficient 
+    real(dp),dimension(params%ewn-1,params%nsn-1),intent(out)   :: ubas     !< basal x velocity
+    real(dp),dimension(params%ewn-1,params%nsn-1),intent(out)   :: vbas     !< basal y velocity
+    real(dp),                                     intent(in)    :: dt       !< Timestep
+    real(sp),                                     intent(in)    :: eus      !< Sea level
 
     ! local variables
     integer ew,ns, n
-     
+    real(dp), parameter :: rhograv = - rhoi * grav
+
     real(dp), dimension(max(params%ewn,params%nsn)) :: alpha
     real(dp), dimension(max(params%ewn,params%nsn)) :: beta
     real(dp), dimension(max(params%ewn,params%nsn)) :: gamma
     real(dp), dimension(max(params%ewn,params%nsn)) :: delta
+    real(dp), dimension(params%ewn-1,params%nsn-1)  :: fslip
+    real(dp), dimension(params%ewn-1,params%nsn-1)  :: stagthck
 
     if (all(thck==0.0)) then
 
@@ -111,34 +121,36 @@ contains
 #endif
     else
 
-       ! calculate basal velos
+       ! Calculate staggered thickness
+       call stagvarb(thck,stagthck,params%ewn,params%nsn)
+
+       ! First part of basal velocity calculation
+       fslip =  rhograv * btrc
+
        if (newtemps) then
-          call slipvelo(model,                &
-               1,                             &
-               model%velocity% btrc,          &
-               model%velocity% ubas,          &
-               model%velocity% vbas)
           ! calculate Glen's A if necessary
           call velo_integrate_flwa(     &
                model%velowk,            &
-               model%geomderv%stagthck, &
+               stagthck,                &
                model%temper%flwa)
        end if
-       call slipvelo(model,                &
-            2,                             &
-            model%velocity% btrc,          &
-            model%velocity% ubas,          &
-            model%velocity% vbas)
+
+       ! Second part of velocity calculation
+       where (params%thklim < stagthck)
+          ubas = fslip * stagthck**2  
+       elsewhere
+          ubas = 0.0d0
+       end where
 
        ! calculate diffusivity
        call velo_calc_diffu(         &
             model%velowk,            &
-            model%geomderv%stagthck, &
+            stagthck, &
             model%geomderv%dusrfdew, &
             model%geomderv%dusrfdns, &
             model%velocity%diffu)
 
-       model%velocity%total_diffu(:,:) = model%velocity%diffu(:,:) + model%velocity%ubas(:,:)
+       model%velocity%total_diffu(:,:) = model%velocity%diffu(:,:) + ubas(:,:)
 
        ! first ADI step, solve thickness equation along rows j
        n = params%ewn
@@ -200,21 +212,23 @@ contains
        thck(:,1) = 0.0
        thck(:,params%nsn) = 0.0
 
-       ! calculate horizontal velocity field
-       call slipvelo(model,                &
-            3,                             &
-            model%velocity%btrc,           &
-            model%velocity%ubas,           &
-            model%velocity%vbas)
+       ! Final part of basal velocity calculation
+       where (params%thklim < stagthck)
+          vbas = ubas *  model%geomderv%dusrfdns / stagthck
+          ubas = ubas *  model%geomderv%dusrfdew / stagthck
+       elsewhere
+          ubas = 0.0d0
+          vbas = 0.0d0
+       end where
 
        call velo_calc_velo(model%velowk, &
-            model%geomderv%stagthck,     &
+            stagthck,                    &
             model%geomderv%dusrfdew,     &
             model%geomderv%dusrfdns,     &
             model%temper%flwa,           &
             model%velocity%diffu,        &
-            model%velocity%ubas,         &
-            model%velocity%vbas,         &
+            ubas,                        &
+            vbas,                        &
             model%velocity%uvel,         &
             model%velocity%vvel,         &
             model%velocity%uflx,         &
@@ -224,7 +238,7 @@ contains
     !------------------------------------------------------------
     ! calculate upper and lower surface
     !------------------------------------------------------------
-    call glide_calclsrf(thck, topg, model%climate%eus, lsrf)
+    call glide_calclsrf(thck, topg, eus, lsrf)
     model%geometry%usrf = max(0.d0,thck + lsrf)
 
   end subroutine stagleapthck

@@ -459,6 +459,7 @@ module glide_types
      integer  :: nsn
      real(dp) :: dew
      real(dp) :: dns
+     real(dp) :: thklim
   end type thckADI_type
 
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
