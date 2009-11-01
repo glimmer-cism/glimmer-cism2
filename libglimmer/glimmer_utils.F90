@@ -336,12 +336,11 @@ contains
   !! same number of elements.
   subroutine tridiag(a,b,c,x,y)
 
-
-    real(dp),dimension(:) :: a !< Lower diagonal; a(1) is ignored.
-    real(dp),dimension(:) :: b !< Centre diagonal
-    real(dp),dimension(:) :: c !< Upper diagonal; c(n) is ignored.
-    real(dp),dimension(:) :: x !< Unknown vector
-    real(dp),dimension(:) :: y !< Right-hand side
+    real(dp),dimension(:),intent(in)  :: a !< Lower diagonal; a(1) is ignored.
+    real(dp),dimension(:),intent(in)  :: b !< Centre diagonal
+    real(dp),dimension(:),intent(in)  :: c !< Upper diagonal; c(n) is ignored.
+    real(dp),dimension(:),intent(out) :: x !< Unknown vector
+    real(dp),dimension(:),intent(in)  :: y !< Right-hand side
 
     real(dp),dimension(size(a)) :: aa
     real(dp),dimension(size(a)) :: bb
@@ -365,5 +364,44 @@ contains
     end do
 
   end subroutine tridiag
+
+  !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  function vertintg(dups,in)
+
+    !*FD Performs a depth integral using the trapezium rule.
+    !*RV The value of in integrated over depth.
+
+    implicit none
+
+    !------------------------------------------------------------------------------------
+    ! Subroutine arguments
+    !------------------------------------------------------------------------------------
+
+    real(dp),dimension(:),         intent(in) :: dups !*FD Intervals between sigma layers
+    real(dp),dimension(size(dups)),intent(in) :: in   !*FD Input array of vertical velocities (size = upn)
+    real(dp) :: vertintg
+
+    !------------------------------------------------------------------------------------
+    ! Internal variables
+    !------------------------------------------------------------------------------------
+
+    integer :: up, upn
+
+    ! Set up array of sigma intervals, if not done already ------------------------------
+
+    upn=size(in)
+
+    ! Do integration --------------------------------------------------------------------
+
+    vertintg = 0.0d0
+
+    do up = upn-1, 1, -1
+      vertintg = vertintg + (in(up)+in(up+1)) * dups(up)                   
+    end do
+
+    vertintg = 0.5d0*vertintg
+
+  end function vertintg
 
 end module glimmer_utils

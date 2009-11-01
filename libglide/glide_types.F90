@@ -70,6 +70,7 @@ module glide_types
   use glide_glenflow, only: glenflow_params
   use glide_deriv, only: timederiv_params
   use glide_tempFullSoln, only: type_tempFullSoln
+  use glide_thckADI, only: thckADI_type
 
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -451,16 +452,6 @@ module glide_types
      real(dp),dimension(:,:),pointer :: float => null()
 
   end type glide_thckwk
-
-  ! This is here temporarily to avoid circular references
-
-  type thckADI_type
-     integer  :: ewn
-     integer  :: nsn
-     real(dp) :: dew
-     real(dp) :: dns
-     real(dp) :: thklim
-  end type thckADI_type
 
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 

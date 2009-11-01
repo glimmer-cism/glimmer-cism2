@@ -115,6 +115,7 @@ contains
     use glide_glenflow, only: calcflwa
     use glide_tempFullSoln, only: init_tempFullSoln
     use glide_thckADI, only: thckADI_init
+    use glide_thckCommon, only: glide_calclsrf
     implicit none
     type(glide_global_type) :: model        !*FD model instance
 
@@ -192,9 +193,12 @@ contains
     call thckADI_init(model%thckADI, &
          model%general%ewn, &
          model%general%nsn, &
+         model%general%upn, &
+         model%numerics%sigma, &
          model%numerics%dew, &
          model%numerics%dns, &
-         model%numerics%thklim)
+         model%numerics%thklim, &
+         model%options%basal_mbal)
 
     if (model%options%gthf.gt.0) then
        call glide_lithot_io_createall(model)
@@ -421,7 +425,7 @@ contains
     use glide_setup
     use glide_temp
     use glimmer_mask
-    use glide_thckADI, only: stagleapthck
+    use glide_thckADI, only: thckADI_tstep, get_uflx, get_vflx
     use isostasy
     implicit none
 
@@ -460,18 +464,27 @@ contains
 
     case(1) ! Use explicit leap frog method with uflx,vflx -------------------
 
-       call stagleapthck(model%thckADI, &
-            model, &
-            model%temper%newtemps, &
+       call thckADI_tstep(model%thckADI, &
             model%geometry%thck, &
             model%climate%acab,  &
             model%geometry%lsrf, &
+            model%geometry%usrf, &
             model%geometry%topg, &
             model%velocity%btrc, &
             model%velocity%ubas, &
             model%velocity%vbas, &
+            model%temper%bmlt,   &
+            model%temper%flwa,   &
+            model%velocity%uvel, &
+            model%velocity%vvel, &
+            model%velocity%diffu,&
             model%numerics%dt,   &
-            model%climate%eus)
+            model%climate%eus,   &
+            model%temper%newtemps)
+       
+       ! Retrieve fluxes from ADI model
+       call get_uflx(model%thckADI,model%velocity%uflx)
+       call get_vflx(model%thckADI,model%velocity%vflx)
 
     case(2) ! Use non-linear calculation that incorporates velocity calc -----
 
@@ -538,6 +551,7 @@ contains
     !*FD calculate isostatic adjustment and upper and lower ice surface
     use isostasy
     use glide_setup
+    use glide_thckCommon, only: glide_calclsrf
     implicit none
     type(glide_global_type) :: model        !*FD model instance
     

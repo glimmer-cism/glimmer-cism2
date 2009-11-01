@@ -51,7 +51,7 @@ module glide_setup
 
   private
   public :: glide_readconfig, glide_printconfig, glide_scale_params, &
-       glide_calclsrf, glide_marinlim, glide_load_sigma, &
+       glide_marinlim, glide_load_sigma, &
        glide_read_sigma, glide_calc_sigma
 
 contains
@@ -157,30 +157,6 @@ contains
     end if
 
   end subroutine glide_read_sigma
-
-  subroutine glide_calclsrf(thck,topg,eus,lsrf)
-
-    !*FD Calculates the elevation of the lower surface of the ice, 
-    !*FD by considering whether it is floating or not.
-
-    use glimmer_global, only : dp
-    use physcon, only : rhoi, rhoo
-
-    implicit none
-
-    real(dp), intent(in),  dimension(:,:) :: thck !*FD Ice thickness
-    real(dp), intent(in),  dimension(:,:) :: topg !*FD Bedrock topography elevation
-    real, intent(in)                      :: eus  !*FD global sea level
-    real(dp), intent(out), dimension(:,:) :: lsrf !*FD Lower ice surface elevation
-
-    real(dp), parameter :: con = - rhoi / rhoo
-
-    where (topg-eus < con * thck)
-      lsrf = con * thck
-    elsewhere
-      lsrf = topg
-    end where
-  end subroutine glide_calclsrf
 
 !-------------------------------------------------------------------------
 

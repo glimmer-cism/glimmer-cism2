@@ -90,6 +90,7 @@ contains
     !*FD diffusivity from quantities of the previous time step
 
     use glide_velo
+    use glide_thckCommon, only: velo_calc_velo, velo_integrate_flwa, velo_calc_diffu, glide_calclsrf    
     implicit none
     ! subroutine arguments
     type(glide_global_type) :: model
@@ -126,7 +127,12 @@ contains
                model%velocity% ubas,          &
                model%velocity% vbas)
           ! calculate Glen's A if necessary
-          call velo_integrate_flwa(model%velowk,model%geomderv%stagthck,model%temper%flwa)
+          call velo_integrate_flwa(     &
+               model%velowk%dups,       &
+               model%velowk%depth,      &
+               model%velowk%dintflwa,   &
+               model%geomderv%stagthck, &
+               model%temper%flwa)
        end if
        call slipvelo(model,                &
             2,                             &
@@ -135,7 +141,7 @@ contains
             model%velocity% vbas)
 
        ! calculate diffusivity
-       call velo_calc_diffu(model%velowk,model%geomderv%stagthck,model%geomderv%dusrfdew, &
+       call velo_calc_diffu(model%velowk%dintflwa,model%geomderv%stagthck,model%geomderv%dusrfdew, &
             model%geomderv%dusrfdns,model%velocity%diffu)
 
        ! get new thicknesses
@@ -147,7 +153,7 @@ contains
             model%velocity%btrc,           &
             model%velocity%ubas,           &
             model%velocity%vbas)
-       call velo_calc_velo(model%velowk,model%geomderv%stagthck,model%geomderv%dusrfdew, &
+       call velo_calc_velo(model%velowk%dintflwa,model%velowk%depth,model%geomderv%stagthck,model%geomderv%dusrfdew, &
             model%geomderv%dusrfdns,model%temper%flwa,model%velocity%diffu,model%velocity%ubas, &
             model%velocity%vbas,model%velocity%uvel,model%velocity%vvel,model%velocity%uflx,model%velocity%vflx)
     end if
@@ -166,6 +172,7 @@ contains
     use glide_setup
     use glimmer_utils, only: stagvarb
     use glimmer_deriv, only: df_field_2d_staggered 
+    use glide_thckCommon, only: velo_calc_velo, velo_integrate_flwa, velo_calc_diffu, glide_calclsrf
 
     implicit none
     ! subroutine arguments
@@ -209,7 +216,12 @@ contains
                model%velocity% ubas,          &
                model%velocity% vbas)
           ! calculate Glen's A if necessary
-          call velo_integrate_flwa(model%velowk,model%geomderv%stagthck,model%temper%flwa)
+          call velo_integrate_flwa(     &
+               model%velowk%dups,       &
+               model%velowk%depth,      &
+               model%velowk%dintflwa,   &
+               model%geomderv%stagthck, &
+               model%temper%flwa)
        end if
 
        first_p = .true.
@@ -242,7 +254,7 @@ contains
                model%velocity% vbas)
 
           ! calculate diffusivity
-          call velo_calc_diffu(model%velowk,model%geomderv%stagthck,model%geomderv%dusrfdew, &
+          call velo_calc_diffu(model%velowk%dintflwa,model%geomderv%stagthck,model%geomderv%dusrfdew, &
                model%geomderv%dusrfdns,model%velocity%diffu)
 
           ! get new thicknesses
@@ -269,7 +281,7 @@ contains
             model%velocity%btrc,           &
             model%velocity%ubas,           &
             model%velocity%vbas)
-       call velo_calc_velo(model%velowk,model%geomderv%stagthck,model%geomderv%dusrfdew, &
+       call velo_calc_velo(model%velowk%dintflwa,model%velowk%depth,model%geomderv%stagthck,model%geomderv%dusrfdew, &
             model%geomderv%dusrfdns,model%temper%flwa,model%velocity%diffu,model%velocity%ubas, &
             model%velocity%vbas,model%velocity%uvel,model%velocity%vvel,model%velocity%uflx,model%velocity%vflx)
     end if
@@ -282,7 +294,7 @@ contains
     !*FD set up sparse matrix and solve matrix equation to find new ice thickness distribution
     !*FD this routine does not override the old thickness distribution
 
-    use glide_setup, only: glide_calclsrf
+    use glide_thckCommon, only: glide_calclsrf
     use glimmer_global, only : dp
 
     implicit none

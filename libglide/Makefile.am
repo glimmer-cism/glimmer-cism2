@@ -19,7 +19,7 @@ libglide_la_SOURCES = glide.F90 glide_setup.F90 glide_types.F90 glide_temp.F90 \
                       glide_lithot1d.F90 glide_profile.F90 glimmer_routing.F90 \
                       glimmer_ncio.F90 glimmer_ncparams.F90 glide_glenflow.F90 \
                       glide_deriv.F90 glide_bwat.F90 glide_tempFullSoln.F90 \
-                      glide_thckADI.F90
+                      glide_thckADI.F90 glide_thckCommon.F90
 
 
 test_setup_SOURCES = test_setup.F90

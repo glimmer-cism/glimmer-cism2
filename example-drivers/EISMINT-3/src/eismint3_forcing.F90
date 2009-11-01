@@ -68,6 +68,7 @@ contains
     use glimmer_log
     use physcon, only: rhoi,rhow
     use glimmer_paramets, only: thk0
+    use glide_thckCommon, only: glide_calclsrf
 
     implicit none
 

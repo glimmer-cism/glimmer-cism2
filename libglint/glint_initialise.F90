@@ -242,6 +242,8 @@ contains
     use glint_io
     use glide_setup
     use glide_temp
+    use glide_thckCommon, only: glide_calclsrf
+
     implicit none
 
     type(glint_instance),intent(inout)   :: instance    !*FD Instance whose elements are to be allocated.

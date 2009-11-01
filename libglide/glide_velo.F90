@@ -55,7 +55,7 @@ module glide_velo
   use physcon, only : rhoi, grav, gn
   use glimmer_paramets, only : thk0, len0, vis0, vel0, acc0
 
-  private vertintg, patebudd
+  private patebudd
 
   ! some private parameters
   integer, private, parameter :: p1 = gn+1
@@ -91,6 +91,9 @@ contains
     allocate(model%velowk%dups(upn)) 
     model%velowk%dups = (/ (model%numerics%sigma(up+1) - model%numerics%sigma(up), up=1,upn-1),0.0d0 /)
 
+    !++++++ N.B. The definition of DUPS here is NOT THE SAME as that used in the 
+    !++++++ temperature vertical coordinate!!! You have been warned...
+
     allocate(model%velowk%dupsw (upn))
     allocate(model%velowk%depthw(upn))
     allocate(model%velowk%suvel (upn))
@@ -124,147 +127,6 @@ contains
   ! new velo functions come here
   !*****************************************************************************
 
-  subroutine velo_integrate_flwa(velowk,stagthck,flwa)
-    
-    !*FD this routine calculates the part of the vertically averaged velocity 
-    !*FD field which solely depends on the temperature
-
-    use glimmer_utils, only : hsum4
-    implicit none
-
-    !------------------------------------------------------------------------------------
-    ! Subroutine arguments
-    !------------------------------------------------------------------------------------
-    type(glide_velowk),     intent(inout) :: velowk           
-    real(dp),dimension(:,:),  intent(in)    :: stagthck       !*FD ice thickness on staggered grid
-    real(dp),dimension(:,:,:),intent(in)    :: flwa           !*FD ice flow factor
-
-    !------------------------------------------------------------------------------------
-    ! Internal variables
-    !------------------------------------------------------------------------------------
-    real(dp),dimension(size(flwa,1)) :: hrzflwa, intflwa 
-    integer :: ew,ns,up,ewn,nsn,upn
-
-    upn=size(flwa,1) ; ewn=size(flwa,2) ; nsn=size(flwa,3)
-
-    do ns = 1,nsn-1
-       do ew = 1,ewn-1
-          if (stagthck(ew,ns) /= 0.0d0) then
-             
-             hrzflwa = hsum4(flwa(:,ew:ew+1,ns:ns+1))  
-             intflwa(upn) = 0.0d0
-
-             do up = upn-1, 1, -1
-                intflwa(up) = intflwa(up+1) + velowk%depth(up) * (hrzflwa(up)+hrzflwa(up+1))
-             end do
-
-             velowk%dintflwa(ew,ns) = c * vertintg(velowk,intflwa)
-
-          else 
-
-             velowk%dintflwa(ew,ns) = 0.0d0
-
-          end if
-       end do
-    end do
-  end subroutine velo_integrate_flwa
-
-  !*****************************************************************************
-
-  subroutine velo_calc_diffu(velowk,stagthck,dusrfdew,dusrfdns,diffu)
-
-    !*FD calculate diffusivities
-
-    implicit none
-    
-    !------------------------------------------------------------------------------------
-    ! Subroutine arguments
-    !------------------------------------------------------------------------------------
-    type(glide_velowk),     intent(inout) :: velowk
-    real(dp),dimension(:,:),  intent(in)    :: stagthck
-    real(dp),dimension(:,:),  intent(in)    :: dusrfdew
-    real(dp),dimension(:,:),  intent(in)    :: dusrfdns
-    real(dp),dimension(:,:),  intent(out)   :: diffu
-
-
-    where (stagthck .ne. 0.)
-       diffu = velowk%dintflwa * stagthck**p4 * sqrt(dusrfdew**2 + dusrfdns**2)**p2 
-    elsewhere
-       diffu = 0.0d0
-    end where
-  end subroutine velo_calc_diffu
-
-  !*****************************************************************************
-
-  subroutine velo_calc_velo(velowk,stagthck,dusrfdew,dusrfdns,flwa,diffu,ubas,vbas,uvel,vvel,uflx,vflx)
-
-    !*FD calculate 3D horizontal velocity field and 2D flux field from diffusivity
-    use glimmer_utils, only : hsum4
-    implicit none
-
-    !------------------------------------------------------------------------------------
-    ! Subroutine arguments
-    !------------------------------------------------------------------------------------
-    type(glide_velowk),     intent(inout) :: velowk
-    real(dp),dimension(:,:),  intent(in)    :: stagthck
-    real(dp),dimension(:,:),  intent(in)    :: dusrfdew
-    real(dp),dimension(:,:),  intent(in)    :: dusrfdns
-    real(dp),dimension(:,:,:),intent(in)    :: flwa
-    real(dp),dimension(:,:),  intent(in)    :: diffu
-    real(dp),dimension(:,:),  intent(in)    :: ubas
-    real(dp),dimension(:,:),  intent(in)    :: vbas
-    real(dp),dimension(:,:,:),intent(out)   :: uvel
-    real(dp),dimension(:,:,:),intent(out)   :: vvel
-    real(dp),dimension(:,:),  intent(out)   :: uflx
-    real(dp),dimension(:,:),  intent(out)   :: vflx
-    !------------------------------------------------------------------------------------
-    ! Internal variables
-    !------------------------------------------------------------------------------------
-    real(dp),dimension(size(flwa,1)) :: hrzflwa
-    real(dp) :: factor
-    real(dp),dimension(3)           :: const
-    integer :: ew,ns,up,ewn,nsn,upn
-
-    upn=size(flwa,1) ; ewn=size(stagthck,1) ; nsn=size(stagthck,2)
-    
-    do ns = 1,nsn
-       do ew = 1,ewn
-          if (stagthck(ew,ns) /= 0.0d0) then
-
-             vflx(ew,ns) = diffu(ew,ns) * dusrfdns(ew,ns) + vbas(ew,ns) * stagthck(ew,ns)
-             uflx(ew,ns) = diffu(ew,ns) * dusrfdew(ew,ns) + ubas(ew,ns) * stagthck(ew,ns)
-
-             uvel(upn,ew,ns) = ubas(ew,ns)
-             vvel(upn,ew,ns) = vbas(ew,ns)
-
-             hrzflwa = hsum4(flwa(:,ew:ew+1,ns:ns+1))  
-
-             factor = velowk%dintflwa(ew,ns)*stagthck(ew,ns)
-             if (factor /= 0.0d0) then
-                const(2) = c * diffu(ew,ns) / factor
-                const(3) = const(2) * dusrfdns(ew,ns)  
-                const(2) = const(2) * dusrfdew(ew,ns) 
-             else
-                const(2:3) = 0.0d0
-             end if
-
-             do up = upn-1, 1, -1
-                const(1) = velowk%depth(up) * (hrzflwa(up)+hrzflwa(up+1))
-                uvel(up,ew,ns) = uvel(up+1,ew,ns) + const(1) * const(2)
-                vvel(up,ew,ns) = vvel(up+1,ew,ns) + const(1) * const(3) 
-             end do
-
-          else 
-
-             uvel(:,ew,ns) = 0.0d0
-             vvel(:,ew,ns) = 0.0d0
-             uflx(ew,ns) = 0.0d0
-             vflx(ew,ns) = 0.0d0 
-
-          end if
-       end do
-    end do
-  end subroutine velo_calc_velo
   !-------------------------------------------------------------------------
 
   subroutine calcVerticalVelocity(model)
@@ -433,7 +295,7 @@ contains
     !*FD Performs the velocity calculation. This subroutine is called with
     !*FD different values of \texttt{flag}, depending on exactly what we want to calculate.
 
-    use glimmer_utils, only : hsum4
+    use glimmer_utils, only : hsum4, vertintg
 
     implicit none
 
@@ -503,7 +365,7 @@ contains
 
             ! Calculate u diffusivity (?)
 
-            diffu(ew,ns) = vertintg(velowk,uvel(:,ew,ns)) * stagthck(ew,ns)
+            diffu(ew,ns) = vertintg(velowk%dups,uvel(:,ew,ns)) * stagthck(ew,ns)
 
             ! Complete calculation of u and v
 
@@ -543,7 +405,7 @@ contains
                intflwa(up) = intflwa(up+1) + velowk%depth(up) * sum(hrzflwa(up:up+1)) 
             end do
 
-            velowk%dintflwa(ew,ns) = c * vertintg(velowk,intflwa)
+            velowk%dintflwa(ew,ns) = c * vertintg(velowk%dups,intflwa)
 
           else 
 
@@ -864,45 +726,6 @@ contains
 !------------------------------------------------------------------------------------------
 ! PRIVATE subroutines
 !------------------------------------------------------------------------------------------
-
-  function vertintg(velowk,in)
-
-    !*FD Performs a depth integral using the trapezium rule.
-    !*RV The value of in integrated over depth.
-
-
-    implicit none
-
-    !------------------------------------------------------------------------------------
-    ! Subroutine arguments
-    !------------------------------------------------------------------------------------
-
-    type(glide_velowk), intent(inout) :: velowk !*FD Work arrays and things for this module
-    real(dp),dimension(:),intent(in)    :: in     !*FD Input array of vertical velocities (size = upn)
-    real(dp) :: vertintg
-
-    !------------------------------------------------------------------------------------
-    ! Internal variables
-    !------------------------------------------------------------------------------------
-
-    integer :: up, upn
-
-    ! Set up array of sigma intervals, if not done already ------------------------------
-
-    upn=size(in)
-
-
-    ! Do integration --------------------------------------------------------------------
-
-    vertintg = 0.0d0
-
-    do up = upn-1, 1, -1
-      vertintg = vertintg + (in(up)+in(up+1)) * velowk%dups(up)                   
-    end do
-
-    vertintg = 0.5d0*vertintg
-
-  end function vertintg
 
 !------------------------------------------------------------------------------------------
 
