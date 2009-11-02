@@ -1,3 +1,8 @@
+2009-11-02 Ian Rutt
+ * libglimmer/glimmer_slap.F90: New wrapper for SLAP. 
+ * libglide/glide_thck.F90: Changed to using new SLAP wrapper
+ * Regtested against e2.a
+
 2009-11-01 Ian Rutt
  * libglide/glide_thckADI.F90: ADI scheme almost finished
  * libglide/glide_thckCommon.F90: New module to hold parts common to ADI

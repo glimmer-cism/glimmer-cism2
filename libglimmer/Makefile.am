@@ -19,7 +19,8 @@ libglimmer_la_SOURCES = glimmer_vers.F90 glimmer_commandline.F90 \
                        glimmer_deriv.F90 glimmer_memory.inc \
                        glimmer_map_CFproj.F90 glimmer_map_proj4.F90 \
                        glimmer_map_types.F90 glimmer_map_init.F90 \
-                       glimmer_map_trans.F90 glimmer_scales.F90 glimmer_pmpt.F90
+                       glimmer_map_trans.F90 glimmer_scales.F90 glimmer_pmpt.F90 \
+                       glimmer_slap.F90
 nodist_libglimmer_la_SOURCES = glimmer_vers.F90
 
 libglimmer_IO_la_SOURCES = glimmer_anomcouple.F90 glimmer_filenames.F90 glimmer_ncdf.F90 \

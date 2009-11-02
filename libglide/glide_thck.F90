@@ -296,6 +296,7 @@ contains
 
     use glide_thckCommon, only: glide_calclsrf
     use glimmer_global, only : dp
+    use glimmer_slap, only: slapMatrix_init, slapMatrix_insertElement, slapSolve
 
     implicit none
 
@@ -314,22 +315,24 @@ contains
     real(dp) :: err
     integer :: linit
     integer :: ew,ns
+    integer :: ewn,nsn
 
-    ! the number of grid points
-    model%pcgdwk%pcgsize(1) = model%geometry%totpts
+    ewn = size(old_thck,1)
+    nsn = size(old_thck,2)
 
-    ! Zero the arrays holding the sparse matrix
-    model%pcgdwk%pcgval = 0.0
-    model%pcgdwk%pcgcol = 0 
-    model%pcgdwk%pcgrow = 0
-    model%pcgdwk%ct = 1
+    ! Initialise sparse matrix object
+    call slapMatrix_init(model%pcgdwk%matrix,model%geometry%totpts,ewn*nsn*5)
 
     ! Boundary Conditions ---------------------------------------------------------------
     ! lower and upper BC
     do ew = 1,model%general%ewn
        ns=1
        if (model%geometry%mask(ew,ns) /= 0) then
-          call putpcgc(model%pcgdwk,1.0d0, model%geometry%mask(ew,ns), model%geometry%mask(ew,ns))
+          call slapMatrix_insertElement( &
+               model%pcgdwk%matrix, &
+               1.0d0, &
+               model%geometry%mask(ew,ns), &
+               model%geometry%mask(ew,ns))
           if (calc_rhs) then
              model%pcgdwk%rhsd(model%geometry%mask(ew,ns)) = old_thck(ew,ns) 
           end if
@@ -337,7 +340,11 @@ contains
        end if
        ns=model%general%nsn
        if (model%geometry%mask(ew,ns) /= 0) then
-          call putpcgc(model%pcgdwk,1.0d0, model%geometry%mask(ew,ns), model%geometry%mask(ew,ns))
+          call slapMatrix_insertElement( &
+           model%pcgdwk%matrix, &
+           1.0d0, &
+           model%geometry%mask(ew,ns), &
+           model%geometry%mask(ew,ns))
           if (calc_rhs) then
              model%pcgdwk%rhsd(model%geometry%mask(ew,ns)) = old_thck(ew,ns) 
           end if
@@ -363,7 +370,11 @@ contains
        do ns=2,model%general%nsn-1
           ew=1
           if (model%geometry%mask(ew,ns) /= 0) then
-             call putpcgc(model%pcgdwk,1.0d0, model%geometry%mask(ew,ns), model%geometry%mask(ew,ns))
+             call slapMatrix_insertElement( &
+                  model%pcgdwk%matrix, &
+                  1.0d0, &
+                  model%geometry%mask(ew,ns), &
+                  model%geometry%mask(ew,ns))
              if (calc_rhs) then
                 model%pcgdwk%rhsd(model%geometry%mask(ew,ns)) = old_thck(ew,ns) 
              end if
@@ -371,7 +382,11 @@ contains
           end if
           ew=model%general%ewn
           if (model%geometry%mask(ew,ns) /= 0) then
-             call putpcgc(model%pcgdwk,1.0d0, model%geometry%mask(ew,ns), model%geometry%mask(ew,ns))
+             call slapMatrix_insertElement( &
+                  model%pcgdwk%matrix, &
+                  1.0d0, &
+                  model%geometry%mask(ew,ns), &
+                  model%geometry%mask(ew,ns))
              if (calc_rhs) then
                 model%pcgdwk%rhsd(model%geometry%mask(ew,ns)) = old_thck(ew,ns) 
              end if
@@ -394,11 +409,8 @@ contains
        end do
     end do
 
-    ! Calculate the total number of points
-    model%pcgdwk%pcgsize(2) = model%pcgdwk%ct - 1 
-
     ! Solve the system using SLAP
-    call slapsolv(model,linit,err)   
+    call slapSolve(model%pcgdwk%matrix,model%pcgdwk%rhsd,model%pcgdwk%answ,linit,err)   
 
     ! Rejig the solution onto a 2D array
     do ns = 1,model%general%nsn
@@ -432,11 +444,35 @@ contains
       integer, intent(in) :: nsm,ns,nsp  ! ns index to lower, central, upper node
 
       ! fill sparse matrix
-      call putpcgc(model%pcgdwk,sumd(1), model%geometry%mask(ewm,ns), model%geometry%mask(ew,ns))       ! point (ew-1,ns)
-      call putpcgc(model%pcgdwk,sumd(2), model%geometry%mask(ewp,ns), model%geometry%mask(ew,ns))       ! point (ew+1,ns)
-      call putpcgc(model%pcgdwk,sumd(3), model%geometry%mask(ew,nsm), model%geometry%mask(ew,ns))       ! point (ew,ns-1)
-      call putpcgc(model%pcgdwk,sumd(4), model%geometry%mask(ew,nsp), model%geometry%mask(ew,ns))       ! point (ew,ns+1)
-      call putpcgc(model%pcgdwk,1.0d0 + sumd(5), model%geometry%mask(ew,ns), model%geometry%mask(ew,ns))! point (ew,ns)
+      call slapMatrix_insertElement( &
+           model%pcgdwk%matrix, &
+           sumd(1), &
+           model%geometry%mask(ewm,ns), &
+           model%geometry%mask(ew,ns))       ! point (ew-1,ns)
+
+      call slapMatrix_insertElement( &
+           model%pcgdwk%matrix, &
+           sumd(2), &
+           model%geometry%mask(ewp,ns), &
+           model%geometry%mask(ew,ns))       ! point (ew+1,ns)
+
+      call slapMatrix_insertElement( &
+           model%pcgdwk%matrix,  &
+           sumd(3),  &
+           model%geometry%mask(ew,nsm), &
+           model%geometry%mask(ew,ns))       ! point (ew,ns-1)
+
+      call slapMatrix_insertElement( &
+           model%pcgdwk%matrix, &
+           sumd(4), &
+           model%geometry%mask(ew,nsp), &
+           model%geometry%mask(ew,ns))       ! point (ew,ns+1)
+
+      call slapMatrix_insertElement( &
+           model%pcgdwk%matrix, &
+           1.0d0 + sumd(5), &
+           model%geometry%mask(ew,ns), &
+           model%geometry%mask(ew,ns))! point (ew,ns)
 
       ! calculate RHS
       if (calc_rhs) then
@@ -486,113 +522,7 @@ contains
     end subroutine findsums
   end subroutine thck_evolve
 
-!---------------------------------------------------------------------------------
-
-  subroutine slapsolv(model,iter,err)
-
-    use glimmer_global, only : dp 
-    use glide_stop
-    use glimmer_log
-    use glimmer_filenames
-
-    implicit none
-
-    type(glide_global_type) :: model  !*FD Model data type
-    integer,  intent(out)   :: iter   !*FD Number of iterations
-    real(dp), intent(out)   :: err    !*FD Error estimate of result
-
-    ! For call to dslucs
-    real(dp), parameter :: tol   = 1.0d-12
-    integer,  parameter :: isym  = 0
-    integer,  parameter :: itol  = 2
-    integer,  parameter :: itmax = 101
-    real(dp), dimension(:),allocatable :: rwork ! Real work array
-    integer,  dimension(:),allocatable :: iwork ! Integer work array
-    integer :: ierr, mxnelt
-
-    ! Variables for error handling
-    character(200) :: message
-    character(100) :: errfname
-    integer :: lunit
-
-    mxnelt = 20 * model%pcgdwk%pcgsize(1)
-    allocate(rwork(mxnelt),iwork(mxnelt))
-
-    ! solve the problem using the SLAP package routines     
-
-    call dslucs(model%pcgdwk%pcgsize(1), &  ! n  ... order of matrix a (in)
-                model%pcgdwk%rhsd,       &  ! b  ... right hand side vector (in)
-                model%pcgdwk%answ,       &  ! x  ... initial quess/final solution vector (in/out)
-                model%pcgdwk%pcgsize(2), &  ! nelt ... number of non-zeroes in A (in)
-                model%pcgdwk%pcgrow,     &  ! ia  ... sparse matrix format of A (in)
-                model%pcgdwk%pcgcol,     &  ! ja  ... sparse matrix format of A (in)
-                model%pcgdwk%pcgval,     &  ! a   ... matrix (in)
-                isym,                    &  ! isym ... storage method (0 is complete) (in)
-                itol,                    &  ! itol ... convergence criteria (2 recommended) (in)
-                tol,                     &  ! tol  ... criteria for convergence (in)
-                itmax,                   &  ! itmax ... maximum number of iterations (in)
-                iter,                    &  ! iter  ... returned number of iterations (out)
-                err,                     &  ! err   ... error estimate of solution (out)
-                ierr,                    &  ! ierr  ... returned error message (0 is ok) (out)
-                0,                       &  ! iunit ... unit for error writes during iteration (0 no write) (in)
-                rwork,                   &  ! rwork ... workspace for SLAP routines (in)
-                mxnelt,                  &  ! lenw
-                iwork,                   &  ! iwork ... workspace for SLAP routines (in)
-                mxnelt)                     ! leniw
-
-    ! Handle errors gracefully
-    if (ierr /= 0) then
-
-       ! Acquire a file unit, and open the file
-       lunit = get_free_unit()
-       errfname = trim(process_path('slap_dump.txt'))
-       open(lunit,file=errfname,status='unknown')
-
-       ! Output data to file
-       call dcpplt(model%pcgdwk%pcgsize(1), &
-                   model%pcgdwk%pcgsize(2), &
-                   model%pcgdwk%pcgrow,     &
-                   model%pcgdwk%pcgcol,     &
-                   model%pcgdwk%pcgval,     &
-                   isym,                    &
-                   lunit)
-       write(lunit,*) '***SLAP data ends. PCGVAL follows'
-       write(lunit,*) model%pcgdwk%pcgval
-
-       ! Close unit and finish off
-       close(lunit)
-       call glide_finalise(model,.true.)
-       write(message,*)'SLAP solution error at time: ',model%numerics%time, &
-            '. Data dumped to ',trim(errfname)
-       call write_log(trim(message),GM_FATAL,__FILE__,__LINE__)
-    end if
-
-    deallocate(rwork,iwork)
-
-  end subroutine slapsolv 
-
-!---------------------------------------------------------------------------------
-
-  subroutine putpcgc(pcgdwk,value,col,row)
-
-    use glimmer_global, only : dp
-
-    implicit none
-
-    type(glide_pcgdwk) :: pcgdwk
-    integer, intent(in) :: row, col
-    real(dp), intent(in) :: value
-
-    if (value /= 0.0d0) then
-      pcgdwk%pcgval(pcgdwk%ct) = value
-      pcgdwk%pcgcol(pcgdwk%ct) = col
-      pcgdwk%pcgrow(pcgdwk%ct) = row
-      pcgdwk%ct = pcgdwk%ct + 1
-    end if
-
-  end subroutine putpcgc
-
-!---------------------------------------------------------------------------------
+!----------------------------------------------------------------------
 
   subroutine filterthck(thck,ewn,nsn)
 
@@ -634,25 +564,6 @@ contains
     deallocate(smth)            
 
   end subroutine filterthck
-
-!----------------------------------------------------------------------
-
-  subroutine swapbndh(bc,a,b,c,d)
-
-    use glimmer_global, only : dp
-
-    implicit none
-
-    real(dp), intent(out), dimension(:) :: a, c
-    real(dp), intent(in), dimension(:) :: b, d
-    integer, intent(in) :: bc
-
-    if (bc == 0) then
-      a = b
-      c = d
-    end if
-
-  end subroutine swapbndh
 
 !-------------------------------------------------------------------------
 

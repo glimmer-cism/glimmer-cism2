@@ -71,6 +71,7 @@ module glide_types
   use glide_deriv, only: timederiv_params
   use glide_tempFullSoln, only: type_tempFullSoln
   use glide_thckADI, only: thckADI_type
+  use glimmer_slap, only: slapMatrix_type
 
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -433,15 +434,11 @@ module glide_types
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   type glide_pcgdwk
-    real(dp),dimension(:),pointer :: pcgval  => null()
     real(dp),dimension(:),pointer :: rhsd    => null()
     real(dp),dimension(:),pointer :: answ    => null()
-    integer, dimension(:),pointer :: pcgcol  => null()
-    integer, dimension(:),pointer :: pcgrow  => null()
-    integer, dimension(2)         :: pcgsize = 0
     real(dp),dimension(4)         :: fc      = 0.0
     real(dp),dimension(6)         :: fc2     = 0.0
-    integer :: ct     = 0
+    type(slapMatrix_type) :: matrix
   end type glide_pcgdwk
 
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -678,10 +675,7 @@ contains
        allocate(model%numerics%sigma(upn))
     endif
 
-    ! allocate memory for sparse matrix
-    allocate (model%pcgdwk%pcgrow(ewn*nsn*5))
-    allocate (model%pcgdwk%pcgcol(ewn*nsn*5+2))
-    allocate (model%pcgdwk%pcgval(ewn*nsn*5))
+    ! allocate memory for sparse matrix solution
     allocate (model%pcgdwk%rhsd(ewn*nsn))
     allocate (model%pcgdwk%answ(ewn*nsn))
 
@@ -762,7 +756,7 @@ contains
     deallocate(model%thckwk%float)
     deallocate(model%numerics%sigma)
     
-    deallocate(model%pcgdwk%pcgrow,model%pcgdwk%pcgcol,model%pcgdwk%pcgval,model%pcgdwk%rhsd,model%pcgdwk%answ)
+    deallocate(model%pcgdwk%rhsd,model%pcgdwk%answ)
 
     ! allocate isostasy grids
     call isos_deallocate(model%isos)
