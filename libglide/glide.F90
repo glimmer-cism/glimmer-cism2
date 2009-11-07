@@ -460,7 +460,7 @@ contains
     select case(model%options%whichevol)
     case(0) ! Use precalculated uflx, vflx -----------------------------------
 
-       call thck_lin_evolve(model,model%temper%newtemps)
+       call thck_nonlin_evolve(model,model%temper%newtemps,.true.)
 
     case(1) ! Use explicit leap frog method with uflx,vflx -------------------
 
@@ -488,7 +488,7 @@ contains
 
     case(2) ! Use non-linear calculation that incorporates velocity calc -----
 
-       call thck_nonlin_evolve(model,model%temper%newtemps)
+       call thck_nonlin_evolve(model,model%temper%newtemps,.false.)
 
     end select
 #ifdef PROFILING

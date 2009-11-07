@@ -434,11 +434,8 @@ module glide_types
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   type glide_pcgdwk
-    real(dp),dimension(:),pointer :: rhsd    => null()
-    real(dp),dimension(:),pointer :: answ    => null()
     real(dp),dimension(4)         :: fc      = 0.0
     real(dp),dimension(6)         :: fc2     = 0.0
-    type(slapMatrix_type) :: matrix
   end type glide_pcgdwk
 
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -675,10 +672,6 @@ contains
        allocate(model%numerics%sigma(upn))
     endif
 
-    ! allocate memory for sparse matrix solution
-    allocate (model%pcgdwk%rhsd(ewn*nsn))
-    allocate (model%pcgdwk%answ(ewn*nsn))
-
     ! allocate isostasy grids
     call isos_allocate(model%isos,ewn,nsn)
 
@@ -756,8 +749,6 @@ contains
     deallocate(model%thckwk%float)
     deallocate(model%numerics%sigma)
     
-    deallocate(model%pcgdwk%rhsd,model%pcgdwk%answ)
-
     ! allocate isostasy grids
     call isos_deallocate(model%isos)
 

@@ -404,4 +404,48 @@ contains
 
   end function vertintg
 
+!----------------------------------------------------------------------
+
+  !> Simple filter for 2D fields.
+  subroutine filterthck(thck,ewn,nsn)
+
+    use glimmer_global, only : dp 
+
+    implicit none
+
+    real(dp), dimension(:,:), intent(inout) :: thck
+    real(dp), dimension(:,:), allocatable :: smth
+    integer :: ewn,nsn
+
+    real(dp), parameter :: f = 0.1d0 / 16.0d0
+    integer :: count
+    integer :: ns,ew
+
+    allocate(smth(ewn,nsn))
+    count = 1
+
+    do ns = 3,nsn-2
+      do ew = 3,ewn-2
+
+        if (all((thck(ew-2:ew+2,ns) > 0.0d0)) .and. all((thck(ew,ns-2:ns+2) > 0.0d0))) then
+          smth(ew,ns) =  thck(ew,ns) + f * &
+                        (thck(ew-2,ns) - 4.0d0 * thck(ew-1,ns) + 12.0d0 * thck(ew,ns) - &
+                         4.0d0 * thck(ew+1,ns) + thck(ew+2,ns) + &
+                         thck(ew,ns-2) - 4.0d0 * thck(ew,ns-1) - &
+                         4.0d0 * thck(ew,ns+1) + thck(ew,ns+2))
+          count = count + 1
+        else
+          smth(ew,ns) = thck(ew,ns)
+        end if
+
+      end do
+    end do
+
+    thck(3:ewn-2,3:nsn-2) = smth(3:ewn-2,3:nsn-2)
+    print *, count
+
+    deallocate(smth)            
+
+  end subroutine filterthck
+
 end module glimmer_utils

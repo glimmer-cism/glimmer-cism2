@@ -145,7 +145,7 @@ contains
             model%geomderv%dusrfdns,model%velocity%diffu)
 
        ! get new thicknesses
-       call thck_evolve(model,.true.,model%geometry%thck,model%geometry%thck)
+       call thck_evolve(model,model%geometry%mask,model%geometry%totpts,.true.,model%geometry%thck,model%geometry%thck)
 
        ! calculate horizontal velocity field
        call slipvelo(model,                &
@@ -161,7 +161,7 @@ contains
 
 !---------------------------------------------------------------------------------
 
-  subroutine thck_nonlin_evolve(model,newtemps)
+  subroutine thck_nonlin_evolve(model,newtemps,linear)
 
     !*FD this subroutine solves the ice thickness equation by doing an outer, 
     !*FD non-linear iteration to update the diffusivities and in inner, linear
@@ -178,6 +178,7 @@ contains
     ! subroutine arguments
     type(glide_global_type) :: model
     logical, intent(in) :: newtemps                     !*FD true when we should recalculate Glen's A
+    logical, intent(in) :: linear
 
     ! local variables
     integer, parameter :: pmax=50                       !*FD maximum Picard iterations
@@ -258,11 +259,11 @@ contains
                model%geomderv%dusrfdns,model%velocity%diffu)
 
           ! get new thicknesses
-          call thck_evolve(model,first_p,model%thckwk%oldthck,model%geometry%thck)
+          call thck_evolve(model,model%geometry%mask,model%geometry%totpts,first_p,model%thckwk%oldthck,model%geometry%thck)
 
           first_p = .false.
           residual = maxval(abs(model%geometry%thck-model%thckwk%oldthck2))
-          if (residual.le.tol) then
+          if ((residual.le.tol).or.linear) then
              exit
           end if
           
@@ -289,25 +290,27 @@ contains
 
 !---------------------------------------------------------------------------------
 
-  subroutine thck_evolve(model,calc_rhs,old_thck,new_thck)
+  subroutine thck_evolve(model,mask,totpts,calc_rhs,old_thck,new_thck)
 
     !*FD set up sparse matrix and solve matrix equation to find new ice thickness distribution
     !*FD this routine does not override the old thickness distribution
 
     use glide_thckCommon, only: glide_calclsrf
     use glimmer_global, only : dp
-    use glimmer_slap, only: slapMatrix_init, slapMatrix_insertElement, slapSolve
+    use glimmer_slap, only: slapMatrix_type, slapMatrix_init, slapMatrix_insertElement, slapSolve
 
     implicit none
 
     ! subroutine arguments -------------------------------------------------------------
 
     type(glide_global_type) :: model
-    logical,intent(in) :: calc_rhs                      !*FD set to true when rhs should be calculated 
-                                                        !*FD i.e. when doing lin solution or first picard iteration
-    real(dp), intent(in), dimension(:,:) :: old_thck    !*FD contains ice thicknesses from previous time step
-    real(dp), intent(inout), dimension(:,:) :: new_thck !*FD on entry contains first guess for new ice thicknesses
-                                                        !*FD on exit contains ice thicknesses of new time step
+    logical,intent(in) :: calc_rhs                      !< set to true when rhs should be calculated 
+                                                        !! i.e. when doing lin solution or first picard iteration
+    integer,  intent(in), dimension(:,:) :: mask        !< Index mask for matrix mapping
+    integer,  intent(in)                 :: totpts      !< Number of non-zero points in mask
+    real(dp), intent(in), dimension(:,:) :: old_thck    !< contains ice thicknesses from previous time step
+    real(dp), intent(inout), dimension(:,:) :: new_thck !< on entry contains first guess for new ice thicknesses
+                                                        !< on exit contains ice thicknesses of new time step
 
     ! local variables ------------------------------------------------------------------
 
@@ -316,91 +319,78 @@ contains
     integer :: linit
     integer :: ew,ns
     integer :: ewn,nsn
+    type(slapMatrix_type) :: matrix
+    real(dp),dimension(totpts) :: rhsd
+    real(dp),dimension(totpts) :: answ
 
     ewn = size(old_thck,1)
     nsn = size(old_thck,2)
 
     ! Initialise sparse matrix object
-    call slapMatrix_init(model%pcgdwk%matrix,model%geometry%totpts,ewn*nsn*5)
+    call slapMatrix_init(matrix,totpts,ewn*nsn*5)
 
     ! Boundary Conditions ---------------------------------------------------------------
     ! lower and upper BC
-    do ew = 1,model%general%ewn
+    do ew = 1,ewn
        ns=1
-       if (model%geometry%mask(ew,ns) /= 0) then
-          call slapMatrix_insertElement( &
-               model%pcgdwk%matrix, &
-               1.0d0, &
-               model%geometry%mask(ew,ns), &
-               model%geometry%mask(ew,ns))
+       if (mask(ew,ns) /= 0) then
+          call slapMatrix_insertElement(matrix,1.0d0,mask(ew,ns),mask(ew,ns))
           if (calc_rhs) then
-             model%pcgdwk%rhsd(model%geometry%mask(ew,ns)) = old_thck(ew,ns) 
+             rhsd(mask(ew,ns)) = old_thck(ew,ns) 
           end if
-          model%pcgdwk%answ(model%geometry%mask(ew,ns)) = new_thck(ew,ns)
+          answ(mask(ew,ns)) = new_thck(ew,ns)
        end if
-       ns=model%general%nsn
-       if (model%geometry%mask(ew,ns) /= 0) then
-          call slapMatrix_insertElement( &
-           model%pcgdwk%matrix, &
-           1.0d0, &
-           model%geometry%mask(ew,ns), &
-           model%geometry%mask(ew,ns))
+       ns=nsn
+       if (mask(ew,ns) /= 0) then
+          call slapMatrix_insertElement(matrix,1.0d0,mask(ew,ns),mask(ew,ns))
           if (calc_rhs) then
-             model%pcgdwk%rhsd(model%geometry%mask(ew,ns)) = old_thck(ew,ns) 
+             rhsd(mask(ew,ns)) = old_thck(ew,ns) 
           end if
-          model%pcgdwk%answ(model%geometry%mask(ew,ns)) = new_thck(ew,ns)
+          answ(mask(ew,ns)) = new_thck(ew,ns)
        end if
     end do
 
     !left and right BC
     if (model%options%periodic_ew.eq.1) then
-       do ns=2,model%general%nsn-1
+       do ns=2,nsn-1
           ew = 1
-          if (model%geometry%mask(ew,ns) /= 0) then
-             call findsums(model%general%ewn-2,model%general%ewn-1,ns-1,ns)
-             call generate_row(model%general%ewn-2,ew,ew+1,ns-1,ns,ns+1)
+          if (mask(ew,ns) /= 0) then
+             call findsums(ewn-2,ewn-1,ns-1,ns)
+             call generate_row(ewn-2,ew,ew+1,ns-1,ns,ns+1)
           end if
-          ew=model%general%ewn
-          if (model%geometry%mask(ew,ns) /= 0) then
+          ew=ewn
+          if (mask(ew,ns) /= 0) then
              call findsums(1,2,ns-1,ns)
              call generate_row(ew-1,ew,3,ns-1,ns,ns+1)
           end if
        end do
     else
-       do ns=2,model%general%nsn-1
+       do ns=2,nsn-1
           ew=1
-          if (model%geometry%mask(ew,ns) /= 0) then
-             call slapMatrix_insertElement( &
-                  model%pcgdwk%matrix, &
-                  1.0d0, &
-                  model%geometry%mask(ew,ns), &
-                  model%geometry%mask(ew,ns))
+          if (mask(ew,ns) /= 0) then
+             call slapMatrix_insertElement(matrix,1.0d0,mask(ew,ns),mask(ew,ns))
              if (calc_rhs) then
-                model%pcgdwk%rhsd(model%geometry%mask(ew,ns)) = old_thck(ew,ns) 
+                rhsd(mask(ew,ns)) = old_thck(ew,ns) 
              end if
-             model%pcgdwk%answ(model%geometry%mask(ew,ns)) = new_thck(ew,ns)
+             answ(mask(ew,ns)) = new_thck(ew,ns)
           end if
-          ew=model%general%ewn
-          if (model%geometry%mask(ew,ns) /= 0) then
-             call slapMatrix_insertElement( &
-                  model%pcgdwk%matrix, &
-                  1.0d0, &
-                  model%geometry%mask(ew,ns), &
-                  model%geometry%mask(ew,ns))
+          ew=ewn
+          if (mask(ew,ns) /= 0) then
+             call slapMatrix_insertElement(matrix,1.0d0,mask(ew,ns),mask(ew,ns))
              if (calc_rhs) then
-                model%pcgdwk%rhsd(model%geometry%mask(ew,ns)) = old_thck(ew,ns) 
+                rhsd(mask(ew,ns)) = old_thck(ew,ns) 
              end if
-             model%pcgdwk%answ(model%geometry%mask(ew,ns)) = new_thck(ew,ns)
+             answ(mask(ew,ns)) = new_thck(ew,ns)
           end if
        end do
     end if
 
     ! ice body -------------------------------------------------------------------------
 
-    do ns = 2,model%general%nsn-1
-       do ew = 2,model%general%ewn-1
+    do ns = 2,nsn-1
+       do ew = 2,ewn-1
 
-          if (model%geometry%mask(ew,ns) /= 0) then
+          if (mask(ew,ns) /= 0) then
                 
              call findsums(ew-1,ew,ns-1,ns)
              call generate_row(ew-1,ew,ew+1,ns-1,ns,ns+1)
@@ -410,14 +400,14 @@ contains
     end do
 
     ! Solve the system using SLAP
-    call slapSolve(model%pcgdwk%matrix,model%pcgdwk%rhsd,model%pcgdwk%answ,linit,err)   
+    call slapSolve(matrix,rhsd,answ,linit,err)   
 
     ! Rejig the solution onto a 2D array
-    do ns = 1,model%general%nsn
-       do ew = 1,model%general%ewn 
+    do ns = 1,nsn
+       do ew = 1,ewn 
 
-          if (model%geometry%mask(ew,ns) /= 0) then
-             new_thck(ew,ns) = model%pcgdwk%answ(model%geometry%mask(ew,ns))
+          if (mask(ew,ns) /= 0) then
+             new_thck(ew,ns) = answ(mask(ew,ns))
           end if
 
        end do
@@ -426,8 +416,8 @@ contains
     new_thck = max(0.0d0, new_thck)
 
 #ifdef DEBUG
-    print *, "* thck ", model%numerics%time, linit, model%geometry%totpts, &
-         real(thk0*new_thck(model%general%ewn/2+1,model%general%nsn/2+1)), &
+    print *, "* thck ", model%numerics%time, linit, totpts, &
+         real(thk0*new_thck(ewn/2+1,nsn/2+1)), &
          real(vel0*maxval(abs(model%velocity%ubas))), real(vel0*maxval(abs(model%velocity%vbas))) 
 #endif
 
@@ -444,39 +434,15 @@ contains
       integer, intent(in) :: nsm,ns,nsp  ! ns index to lower, central, upper node
 
       ! fill sparse matrix
-      call slapMatrix_insertElement( &
-           model%pcgdwk%matrix, &
-           sumd(1), &
-           model%geometry%mask(ewm,ns), &
-           model%geometry%mask(ew,ns))       ! point (ew-1,ns)
-
-      call slapMatrix_insertElement( &
-           model%pcgdwk%matrix, &
-           sumd(2), &
-           model%geometry%mask(ewp,ns), &
-           model%geometry%mask(ew,ns))       ! point (ew+1,ns)
-
-      call slapMatrix_insertElement( &
-           model%pcgdwk%matrix,  &
-           sumd(3),  &
-           model%geometry%mask(ew,nsm), &
-           model%geometry%mask(ew,ns))       ! point (ew,ns-1)
-
-      call slapMatrix_insertElement( &
-           model%pcgdwk%matrix, &
-           sumd(4), &
-           model%geometry%mask(ew,nsp), &
-           model%geometry%mask(ew,ns))       ! point (ew,ns+1)
-
-      call slapMatrix_insertElement( &
-           model%pcgdwk%matrix, &
-           1.0d0 + sumd(5), &
-           model%geometry%mask(ew,ns), &
-           model%geometry%mask(ew,ns))! point (ew,ns)
+      call slapMatrix_insertElement(matrix,sumd(1),mask(ewm,ns),mask(ew,ns))       ! point (ew-1,ns)
+      call slapMatrix_insertElement(matrix,sumd(2),mask(ewp,ns),mask(ew,ns))       ! point (ew+1,ns)
+      call slapMatrix_insertElement(matrix,sumd(3),mask(ew,nsm),mask(ew,ns))       ! point (ew,ns-1)
+      call slapMatrix_insertElement(matrix,sumd(4),mask(ew,nsp),mask(ew,ns))       ! point (ew,ns+1)
+      call slapMatrix_insertElement(matrix,1.0d0 + sumd(5),mask(ew,ns),mask(ew,ns))! point (ew,ns)
 
       ! calculate RHS
       if (calc_rhs) then
-         model%pcgdwk%rhsd(model%geometry%mask(ew,ns)) =                    &
+         rhsd(mask(ew,ns)) =                    &
               old_thck(ew,ns) * (1.0d0 - model%pcgdwk%fc2(3) * sumd(5))     &
             - model%pcgdwk%fc2(3) * (old_thck(ewm,ns) * sumd(1)             &
                                    + old_thck(ewp,ns) * sumd(2)             &
@@ -489,13 +455,13 @@ contains
                                    + model%geometry%lsrf(ew,nsp) * sumd(4)) &
             + model%climate%acab(ew,ns) * model%pcgdwk%fc2(2)
          if(model%options%basal_mbal==1) then
-            model%pcgdwk%rhsd(model%geometry%mask(ew,ns)) =                    &
-                 model%pcgdwk%rhsd(model%geometry%mask(ew,ns))                 &
+            rhsd(mask(ew,ns)) =                    &
+                 rhsd(mask(ew,ns))                 &
                  - model%temper%bmlt(ew,ns) * model%pcgdwk%fc2(2) ! basal melt is +ve for mass loss
          end if
       end if
 
-      model%pcgdwk%answ(model%geometry%mask(ew,ns)) = new_thck(ew,ns)      
+      answ(mask(ew,ns)) = new_thck(ew,ns)      
 
     end subroutine generate_row
 
@@ -521,49 +487,6 @@ contains
       sumd(5) = - (sumd(1) + sumd(2) + sumd(3) + sumd(4))
     end subroutine findsums
   end subroutine thck_evolve
-
-!----------------------------------------------------------------------
-
-  subroutine filterthck(thck,ewn,nsn)
-
-    use glimmer_global, only : dp ! ew, ewn, ns, nsn
-
-    implicit none
-
-    real(dp), dimension(:,:), intent(inout) :: thck
-    real(dp), dimension(:,:), allocatable :: smth
-    integer :: ewn,nsn
-
-    real(dp), parameter :: f = 0.1d0 / 16.0d0
-    integer :: count
-    integer :: ns,ew
-
-    allocate(smth(ewn,nsn))
-    count = 1
-
-    do ns = 3,nsn-2
-      do ew = 3,ewn-2
-
-        if (all((thck(ew-2:ew+2,ns) > 0.0d0)) .and. all((thck(ew,ns-2:ns+2) > 0.0d0))) then
-          smth(ew,ns) =  thck(ew,ns) + f * &
-                        (thck(ew-2,ns) - 4.0d0 * thck(ew-1,ns) + 12.0d0 * thck(ew,ns) - &
-                         4.0d0 * thck(ew+1,ns) + thck(ew+2,ns) + &
-                         thck(ew,ns-2) - 4.0d0 * thck(ew,ns-1) - &
-                         4.0d0 * thck(ew,ns+1) + thck(ew,ns+2))
-          count = count + 1
-        else
-          smth(ew,ns) = thck(ew,ns)
-        end if
-
-      end do
-    end do
-
-    thck(3:ewn-2,3:nsn-2) = smth(3:ewn-2,3:nsn-2)
-    print *, count
-
-    deallocate(smth)            
-
-  end subroutine filterthck
 
 !-------------------------------------------------------------------------
 

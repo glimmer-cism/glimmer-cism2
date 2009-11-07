@@ -1,3 +1,7 @@
+2009-11-07 Ian Rutt
+ * libglide/glide_thck.F90: More refactoring of thickness calc. Began to
+   combine linear and non-linear SIA schemes. Not regtested yet.
+
 2009-11-02 Ian Rutt
  * libglimmer/glimmer_slap.F90: New wrapper for SLAP. 
  * libglide/glide_thck.F90: Changed to using new SLAP wrapper
