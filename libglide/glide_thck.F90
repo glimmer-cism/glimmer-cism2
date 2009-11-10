@@ -319,7 +319,6 @@ contains
     integer :: linit
     integer :: ew,ns
     integer :: ewn,nsn
-    type(slapMatrix_type) :: matrix
     real(dp),dimension(totpts) :: rhsd
     real(dp),dimension(totpts) :: answ
 
@@ -327,14 +326,14 @@ contains
     nsn = size(old_thck,2)
 
     ! Initialise sparse matrix object
-    call slapMatrix_init(matrix,totpts,ewn*nsn*5)
+    call slapMatrix_init(model%pcgdwk%matrix,totpts,ewn*nsn*5)
 
     ! Boundary Conditions ---------------------------------------------------------------
     ! lower and upper BC
     do ew = 1,ewn
        ns=1
        if (mask(ew,ns) /= 0) then
-          call slapMatrix_insertElement(matrix,1.0d0,mask(ew,ns),mask(ew,ns))
+          call slapMatrix_insertElement(model%pcgdwk%matrix,1.0d0,mask(ew,ns),mask(ew,ns))
           if (calc_rhs) then
              rhsd(mask(ew,ns)) = old_thck(ew,ns) 
           end if
@@ -342,7 +341,7 @@ contains
        end if
        ns=nsn
        if (mask(ew,ns) /= 0) then
-          call slapMatrix_insertElement(matrix,1.0d0,mask(ew,ns),mask(ew,ns))
+          call slapMatrix_insertElement(model%pcgdwk%matrix,1.0d0,mask(ew,ns),mask(ew,ns))
           if (calc_rhs) then
              rhsd(mask(ew,ns)) = old_thck(ew,ns) 
           end if
@@ -368,7 +367,7 @@ contains
        do ns=2,nsn-1
           ew=1
           if (mask(ew,ns) /= 0) then
-             call slapMatrix_insertElement(matrix,1.0d0,mask(ew,ns),mask(ew,ns))
+             call slapMatrix_insertElement(model%pcgdwk%matrix,1.0d0,mask(ew,ns),mask(ew,ns))
              if (calc_rhs) then
                 rhsd(mask(ew,ns)) = old_thck(ew,ns) 
              end if
@@ -376,7 +375,7 @@ contains
           end if
           ew=ewn
           if (mask(ew,ns) /= 0) then
-             call slapMatrix_insertElement(matrix,1.0d0,mask(ew,ns),mask(ew,ns))
+             call slapMatrix_insertElement(model%pcgdwk%matrix,1.0d0,mask(ew,ns),mask(ew,ns))
              if (calc_rhs) then
                 rhsd(mask(ew,ns)) = old_thck(ew,ns) 
              end if
@@ -400,7 +399,7 @@ contains
     end do
 
     ! Solve the system using SLAP
-    call slapSolve(matrix,rhsd,answ,linit,err)   
+    call slapSolve(model%pcgdwk%matrix,rhsd,answ,linit,err)   
 
     ! Rejig the solution onto a 2D array
     do ns = 1,nsn
@@ -434,11 +433,11 @@ contains
       integer, intent(in) :: nsm,ns,nsp  ! ns index to lower, central, upper node
 
       ! fill sparse matrix
-      call slapMatrix_insertElement(matrix,sumd(1),mask(ewm,ns),mask(ew,ns))       ! point (ew-1,ns)
-      call slapMatrix_insertElement(matrix,sumd(2),mask(ewp,ns),mask(ew,ns))       ! point (ew+1,ns)
-      call slapMatrix_insertElement(matrix,sumd(3),mask(ew,nsm),mask(ew,ns))       ! point (ew,ns-1)
-      call slapMatrix_insertElement(matrix,sumd(4),mask(ew,nsp),mask(ew,ns))       ! point (ew,ns+1)
-      call slapMatrix_insertElement(matrix,1.0d0 + sumd(5),mask(ew,ns),mask(ew,ns))! point (ew,ns)
+      call slapMatrix_insertElement(model%pcgdwk%matrix,sumd(1),mask(ewm,ns),mask(ew,ns))       ! point (ew-1,ns)
+      call slapMatrix_insertElement(model%pcgdwk%matrix,sumd(2),mask(ewp,ns),mask(ew,ns))       ! point (ew+1,ns)
+      call slapMatrix_insertElement(model%pcgdwk%matrix,sumd(3),mask(ew,nsm),mask(ew,ns))       ! point (ew,ns-1)
+      call slapMatrix_insertElement(model%pcgdwk%matrix,sumd(4),mask(ew,nsp),mask(ew,ns))       ! point (ew,ns+1)
+      call slapMatrix_insertElement(model%pcgdwk%matrix,1.0d0 + sumd(5),mask(ew,ns),mask(ew,ns))! point (ew,ns)
 
       ! calculate RHS
       if (calc_rhs) then

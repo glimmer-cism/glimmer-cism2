@@ -1,3 +1,8 @@
+2009-11-10 Ian Rutt
+ * libglide/glide_thck.F90: Fixed failed regtest - now passes e2.a and
+   e2.h. Fixed memory leak in SLAP interface (though this _may_ have been
+   due to a gfortran bug).
+
 2009-11-10 Magnus Hagdorn
  * Makefile.am: add new subdirectory
  * configure.in: check for C++ compiler and C++ bindings to netCDF

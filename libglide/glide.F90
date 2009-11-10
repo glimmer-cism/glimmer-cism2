@@ -460,7 +460,7 @@ contains
     select case(model%options%whichevol)
     case(0) ! Use precalculated uflx, vflx -----------------------------------
 
-       call thck_nonlin_evolve(model,model%temper%newtemps,.true.)
+       call thck_lin_evolve(model,model%temper%newtemps)
 
     case(1) ! Use explicit leap frog method with uflx,vflx -------------------
 
