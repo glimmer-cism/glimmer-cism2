@@ -11,6 +11,8 @@ test_c = test_C_non-lin_50km_5.00a.nc test_C_lin_50km_5.00a.nc \
 test_d = test_D_non-lin_50km_5.00a.nc test_D_lin_50km_5.00a.nc \
          test_D_non-lin_20km_1.00a.nc test_D_lin_20km_1.00a.nc
 
+CLEANFILES = $(all_tests)
+
 all_tests = $(test_b) $(test_c) $(test_d)
 
 graphics:	vole_c.png vole_d.png errors.png time.png $(subst nc,png,$(all_tests))
@@ -36,6 +38,6 @@ results:	$(all_tests)
 	$(PYTHON) $(top_srcdir)/tests/exact-isothermal/scripts/plot_diff.py -T-1 -o $@ $< 
 
 %.nc:	$(top_srcdir)/tests/exact-isothermal/tests/template.config
-	$(PYTHON) $(top_srcdir)/tests/exact-isothermal/scripts/run_verif.py -m ../src/verif_glide -f $* $<
+	$(PYTHON) $(top_srcdir)/tests/exact-isothermal/scripts/run_verif.py -m ../src/verif_glide @SGE_OPTS@ -f $* $<
 
 
