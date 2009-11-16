@@ -229,7 +229,7 @@ contains
 
        ! Close unit and finish off
        close(lunit)
-       write(message,*)'SLAP solution error: Data dumped to ',trim(errfname)
+       write(message,*)'SLAP solution error: ',ierr,' Data dumped to ',trim(errfname)
        call write_log(trim(message),GM_FATAL,__FILE__,__LINE__)
     end if
 

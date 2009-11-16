@@ -97,6 +97,7 @@ contains
     logical, intent(in) :: newtemps                     !*FD true when we should recalculate Glen's A
 
     logical :: empty
+    real(dp),dimension(:),allocatable :: rhs
 
 #ifdef PROFILING
     call glide_prof_start(model,model%glide_prof%ice_mask1)
@@ -110,6 +111,8 @@ contains
 #ifdef PROFILING
     call glide_prof_stop(model,model%glide_prof%ice_mask1)
 #endif
+
+    allocate(rhs(model%geometry%totpts))
 
     if (empty) then
 
@@ -145,7 +148,7 @@ contains
             model%geomderv%dusrfdns,model%velocity%diffu)
 
        ! get new thicknesses
-       call thck_evolve(model,model%geometry%mask,model%geometry%totpts,.true.,model%geometry%thck,model%geometry%thck)
+       call thck_evolve(model,rhs,model%geometry%mask,model%geometry%totpts,.true.,model%geometry%thck,model%geometry%thck)
 
        ! calculate horizontal velocity field
        call slipvelo(model,                &
@@ -157,6 +160,9 @@ contains
             model%geomderv%dusrfdns,model%temper%flwa,model%velocity%diffu,model%velocity%ubas, &
             model%velocity%vbas,model%velocity%uvel,model%velocity%vvel,model%velocity%uflx,model%velocity%vflx)
     end if
+
+    deallocate(rhs)
+
   end subroutine thck_lin_evolve
 
 !---------------------------------------------------------------------------------
@@ -187,6 +193,7 @@ contains
     integer p
     logical first_p
     logical empty
+    real(dp),dimension(:),allocatable :: rhs
 
 #ifdef PROFILING
     call glide_prof_start(model,model%glide_prof%ice_mask1)
@@ -200,6 +207,8 @@ contains
 #ifdef PROFILING
     call glide_prof_stop(model,model%glide_prof%ice_mask1)
 #endif
+
+    allocate(rhs(model%geometry%totpts))
 
     if (empty) then
 
@@ -259,7 +268,7 @@ contains
                model%geomderv%dusrfdns,model%velocity%diffu)
 
           ! get new thicknesses
-          call thck_evolve(model,model%geometry%mask,model%geometry%totpts,first_p,model%thckwk%oldthck,model%geometry%thck)
+          call thck_evolve(model,rhs,model%geometry%mask,model%geometry%totpts,first_p,model%thckwk%oldthck,model%geometry%thck)
 
           first_p = .false.
           residual = maxval(abs(model%geometry%thck-model%thckwk%oldthck2))
@@ -286,11 +295,14 @@ contains
             model%geomderv%dusrfdns,model%temper%flwa,model%velocity%diffu,model%velocity%ubas, &
             model%velocity%vbas,model%velocity%uvel,model%velocity%vvel,model%velocity%uflx,model%velocity%vflx)
     end if
+ 
+    deallocate(rhs)
+
   end subroutine thck_nonlin_evolve
 
 !---------------------------------------------------------------------------------
 
-  subroutine thck_evolve(model,mask,totpts,calc_rhs,old_thck,new_thck)
+  subroutine thck_evolve(model,rhsd,mask,totpts,calc_rhs,old_thck,new_thck)
 
     !*FD set up sparse matrix and solve matrix equation to find new ice thickness distribution
     !*FD this routine does not override the old thickness distribution
@@ -304,6 +316,7 @@ contains
     ! subroutine arguments -------------------------------------------------------------
 
     type(glide_global_type) :: model
+    
     logical,intent(in) :: calc_rhs                      !< set to true when rhs should be calculated 
                                                         !! i.e. when doing lin solution or first picard iteration
     integer,  intent(in), dimension(:,:) :: mask        !< Index mask for matrix mapping
@@ -311,6 +324,7 @@ contains
     real(dp), intent(in), dimension(:,:) :: old_thck    !< contains ice thicknesses from previous time step
     real(dp), intent(inout), dimension(:,:) :: new_thck !< on entry contains first guess for new ice thicknesses
                                                         !< on exit contains ice thicknesses of new time step
+    real(dp),intent(inout),dimension(totpts) :: rhsd
 
     ! local variables ------------------------------------------------------------------
 
@@ -319,7 +333,6 @@ contains
     integer :: linit
     integer :: ew,ns
     integer :: ewn,nsn
-    real(dp),dimension(totpts) :: rhsd
     real(dp),dimension(totpts) :: answ
 
     ewn = size(old_thck,1)
@@ -327,6 +340,8 @@ contains
 
     ! Initialise sparse matrix object
     call slapMatrix_init(model%pcgdwk%matrix,totpts,ewn*nsn*5)
+
+    answ = 0.0
 
     ! Boundary Conditions ---------------------------------------------------------------
     ! lower and upper BC

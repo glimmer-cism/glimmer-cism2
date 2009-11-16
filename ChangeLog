@@ -1,3 +1,10 @@
+2009-11-16 Ian Rutt
+ * libglide/glide_thck.F90: Fixed bug introduced into non-linear scheme in
+   commit 1391. e2.f now executes successfully. However, e2.f fails
+   regtest at present - more investigation needed.
+ * libglimmer/glimmer_slap.F90: Added slap error number to output when
+   error encountered.
+
 2009-11-16 Magnus Hagdorn
  * libglide/glide.F90: pass horizontal grid to temperature initialisation
  * libglide/glide_tempFullSoln.F90: use horizontal coordinate system type
