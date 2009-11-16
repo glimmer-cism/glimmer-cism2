@@ -333,8 +333,8 @@ contains
                upscale_temp, &
                routing_temp, &
                instance%out_mask, &
-               real(instance%lgrid%delta%pt(1),rk), &
-               real(instance%lgrid%delta%pt(2),rk))
+               real(instance%lgrid%delta(1),rk), &
+               real(instance%lgrid%delta(2),rk))
 
           call mean_to_global(instance%ups,   &
                routing_temp,   &
@@ -349,13 +349,13 @@ contains
        ! Sum water fluxes and convert if necessary ------------------------------
 
        if (out_f%total_win) then
-          t_win  = sum(accum_temp)*instance%lgrid%delta%pt(1)* &
-               instance%lgrid%delta%pt(2)
+          t_win  = sum(accum_temp)*instance%lgrid%delta(1)* &
+               instance%lgrid%delta(2)
        endif
 
        if (out_f%total_wout) then
-          t_wout = sum(ablat_temp)*instance%lgrid%delta%pt(1)* &
-               instance%lgrid%delta%pt(2)
+          t_wout = sum(ablat_temp)*instance%lgrid%delta(1)* &
+               instance%lgrid%delta(2)
        endif
 
     end if
@@ -377,8 +377,8 @@ contains
 
     if (out_f%ice_vol) then
        call glide_get_thk(instance%model,thck_temp)
-       ice_vol=sum(thck_temp)*instance%lgrid%delta%pt(1)* &
-            instance%lgrid%delta%pt(2)
+       ice_vol=sum(thck_temp)*instance%lgrid%delta(1)* &
+            instance%lgrid%delta(2)
     endif
 
     ! Tidy up ----------------------------------------------------------------

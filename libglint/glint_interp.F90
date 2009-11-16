@@ -144,8 +144,8 @@ contains
     upsm => null()
     ! Allocate arrays
 
-    allocate(downs%xloc(lgrid%size%pt(1),lgrid%size%pt(2),4))
-    allocate(downs%yloc(lgrid%size%pt(1),lgrid%size%pt(2),4))
+    allocate(downs%xloc(lgrid%size(1),lgrid%size(2),4))
+    allocate(downs%yloc(lgrid%size(1),lgrid%size(2),4))
     call coordsystem_allocate(lgrid,downs%xfrac)
     call coordsystem_allocate(lgrid,downs%yfrac)
     call coordsystem_allocate(lgrid,downs%llons)
@@ -166,8 +166,8 @@ contains
 
     ! Find lats and lons
 
-    do i=1,lgrid%size%pt(1)
-       do j=1,lgrid%size%pt(2)
+    do i=1,lgrid%size(1)
+       do j=1,lgrid%size(2)
           call glimmap_xy_to_ll(llon,llat,real(i,rk),real(j,rk),proj,lgrid)
           downs%llons(i,j)=llon
           downs%llats(i,j)=llat
@@ -291,8 +291,8 @@ contains
 
     ! Main interpolation loop
 
-    do i=1,lgrid%size%pt(1)
-       do j=1,lgrid%size%pt(2)
+    do i=1,lgrid%size(1)
+       do j=1,lgrid%size(2)
 
           ! Compile the temporary array f from adjacent points 
 
@@ -365,11 +365,11 @@ contains
 
     integer :: i,j,xbox,ybox
     real(rk) :: lat,lon,x,y
-    real(dp),dimension(lgrid%size%pt(1),lgrid%size%pt(2)) :: temp_out
-    real(rk),dimension(lgrid%size%pt(1),lgrid%size%pt(2)) :: mean_count
+    real(dp),dimension(lgrid%size(1),lgrid%size(2)) :: temp_out
+    real(rk),dimension(lgrid%size(1),lgrid%size(2)) :: mean_count
 
     if (.not.present(global_fn)) then 
-       if ((lgrid%size%pt(1)/=size(ggrid%lons)).or.(lgrid%size%pt(2)/=size(ggrid%lats))) then
+       if ((lgrid%size(1)/=size(ggrid%lons)).or.(lgrid%size(2)/=size(ggrid%lats))) then
           call write_log('Size mismatch in interp_to_local',GM_FATAL,__FILE__,__LINE__)
        end if
     end if
@@ -387,11 +387,11 @@ contains
 
     ! Loop over all global points
 
-    do i=1,lgrid%size%pt(1)
+    do i=1,lgrid%size(1)
 
        lon=ggrid%lons(i)
 
-       do j=1,lgrid%size%pt(2)
+       do j=1,lgrid%size(2)
 
           ! Find location in local coordinates
 
@@ -402,8 +402,8 @@ contains
 
           ! Add to appropriate location and update count
 
-          if (xbox.ge.1.and.xbox.le.lgrid%size%pt(1).and. &
-               ybox.ge.1.and.ybox.le.lgrid%size%pt(2)) then
+          if (xbox.ge.1.and.xbox.le.lgrid%size(1).and. &
+               ybox.ge.1.and.ybox.le.lgrid%size(2)) then
              if (present(global_fn)) then
                 temp_out(xbox,ybox)=temp_out(xbox,ybox)+global_fn(i,j)*ggrid%box_areas(xbox,ybox)
              else
@@ -677,8 +677,8 @@ contains
     integer :: i,j,il,jl,temp
     real(rk) :: ilon,jlat,xa,ya,xb,yb,xc,yc,xd,yd
 
-    do i=1,lgrid%size%pt(1)
-       do j=1,lgrid%size%pt(2)
+    do i=1,lgrid%size(1)
+       do j=1,lgrid%size(2)
 
           ! Find out where point i,j is in lat-lon space
 
@@ -771,11 +771,11 @@ contains
     integer :: i,j
     real(rk) :: latn,lonn,lats,lons,lat,lon,dlat,dlon,temp
 
-    do i=1,lgrid%size%pt(1)
+    do i=1,lgrid%size(1)
 
        ! Main, central block
 
-       do j=2,lgrid%size%pt(2)-1
+       do j=2,lgrid%size(2)-1
           call glimmap_xy_to_ll(lonn,latn,real(i,rk),real(j+1,rk),proj,lgrid)
           call glimmap_xy_to_ll(lon,lat,real(i,rk),real(j,rk),proj,lgrid)
           call glimmap_xy_to_ll(lons,lats,real(i,rk),real(j-1,rk),proj,lgrid)
@@ -800,14 +800,14 @@ contains
 
        ! top row
 
-       call glimmap_xy_to_ll(lon,lat,real(i,rk),real(lgrid%size%pt(2),rk),proj,lgrid)
-       call glimmap_xy_to_ll(lons,lats,real(i,rk),real(lgrid%size%pt(2)-1,rk),proj,lgrid)
+       call glimmap_xy_to_ll(lon,lat,real(i,rk),real(lgrid%size(2),rk),proj,lgrid)
+       call glimmap_xy_to_ll(lons,lats,real(i,rk),real(lgrid%size(2)-1,rk),proj,lgrid)
        dlat=lat-lats
        dlon=lon-lons
        if (dlon<-90) dlon=dlon+360
        temp=atan(dlon/dlat)
-       downs%sintheta(i,lgrid%size%pt(2))=sin(temp)
-       downs%costheta(i,lgrid%size%pt(2))=cos(temp)
+       downs%sintheta(i,lgrid%size(2))=sin(temp)
+       downs%costheta(i,lgrid%size(2))=cos(temp)
 
     enddo
 
@@ -845,12 +845,12 @@ contains
     if (associated(ups%gboxy)) deallocate(ups%gboxy)
     if (associated(ups%gboxn)) deallocate(ups%gboxn)
 
-    allocate(ups%gboxx(lgrid%size%pt(1),lgrid%size%pt(2)))
-    allocate(ups%gboxy(lgrid%size%pt(1),lgrid%size%pt(2)))     
+    allocate(ups%gboxx(lgrid%size(1),lgrid%size(2)))
+    allocate(ups%gboxy(lgrid%size(1),lgrid%size(2)))     
     allocate(ups%gboxn(ggrid%nx,ggrid%ny))
 
     gnx=ggrid%nx ; gny=ggrid%ny
-    nx =lgrid%size%pt(1) ; ny =lgrid%size%pt(2)
+    nx =lgrid%size(1) ; ny =lgrid%size(2)
 
     ups%gboxx=0 ; ups%gboxy=0
 

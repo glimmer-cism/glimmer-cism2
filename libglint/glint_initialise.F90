@@ -148,9 +148,9 @@ contains
          instance%lgrid, &
          config,instance%whichacab, &
          instance%snowd,instance%siced, &
-         instance%lgrid%size%pt(1), &
-         instance%lgrid%size%pt(2), &
-         real(instance%lgrid%delta%pt(1),rk))
+         instance%lgrid%size(1), &
+         instance%lgrid%size(2), &
+         real(instance%lgrid%delta(1),rk))
     instance%mbal_tstep=instance%mbal_accum%mbal%tstep
     mbts=instance%mbal_tstep
 
@@ -286,8 +286,8 @@ contains
 
     tempcount=0
 
-    do i=1,lgrid%size%pt(1)
-       do j=1,lgrid%size%pt(2)
+    do i=1,lgrid%size(1)
+       do j=1,lgrid%size(2)
           tempcount(ups%gboxx(i,j),ups%gboxy(i,j))=tempcount(ups%gboxx(i,j),ups%gboxy(i,j))+mask(i,j)
        enddo
     enddo
@@ -297,7 +297,7 @@ contains
           if (tempcount(i,j)==0) then
              frac_coverage(i,j)=0.0
           else
-             frac_coverage(i,j)=(tempcount(i,j)*lgrid%delta%pt(1)*lgrid%delta%pt(2))/ &
+             frac_coverage(i,j)=(tempcount(i,j)*lgrid%delta(1)*lgrid%delta(2))/ &
                   (lon_diff(grid%lon_bound(i+1),grid%lon_bound(i))*D2R*EQ_RAD**2*    &
                   (sin(grid%lat_bound(j)*D2R)-sin(grid%lat_bound(j+1)*D2R)))
           endif

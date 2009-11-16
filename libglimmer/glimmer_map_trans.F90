@@ -499,8 +499,8 @@ contains
     real(rk),intent(in)  :: gy !< y-location in grid space
     type(coordsystem_type), intent(in) :: coordsys  !< coordinate system
 
-    x=coordsys%origin%pt(1) + real(gx - 1)*coordsys%delta%pt(1)
-    y=coordsys%origin%pt(2) + real(gy - 1)*coordsys%delta%pt(2)
+    x=coordsys%origin(1) + real(gx - 1)*coordsys%delta(1)
+    y=coordsys%origin(2) + real(gy - 1)*coordsys%delta(2)
 
   end subroutine grid2space
 
@@ -519,8 +519,8 @@ contains
     real(rk),intent(out) :: gy !< y-location in grid space
     type(coordsystem_type), intent(in) :: coordsys  !< coordinate system
 
-    gx = 1.0 + (x - coordsys%origin%pt(1))/coordsys%delta%pt(1)
-    gy = 1.0 + (y - coordsys%origin%pt(2))/coordsys%delta%pt(2)
+    gx = 1.0 + (x - coordsys%origin(1))/coordsys%delta(1)
+    gy = 1.0 + (y - coordsys%origin(2))/coordsys%delta(2)
 
   end subroutine space2grid
 

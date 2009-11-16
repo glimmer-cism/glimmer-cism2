@@ -53,22 +53,12 @@ module glimmer_coordinates
 
   use glimmer_global, only: dp, sp
 
-  !> derived type describing a 2D point
-  type coord_point
-     real(kind=dp), dimension(2) :: pt !< the coordinates
-  end type coord_point
-
-  !> derived type describing a 2D integer point
-  type coord_ipoint
-     integer, dimension(2) :: pt !< the coordinates
-  end type coord_ipoint
-
   !> type describing coordinate systems
   type coordsystem_type
-     type(coord_point) :: origin   !< origin of coordinate space
-     type(coord_point) :: delta    !< stepsize in x and y direction
-     type(coord_point) :: delta_r  !< reciprocal stepsize in x and y direction
-     type(coord_ipoint) :: size    !< extent in x and y direction
+     real(kind=dp), dimension(2) :: origin   !< origin of coordinate space
+     real(kind=dp), dimension(2) :: delta    !< stepsize in x and y direction
+     real(kind=dp), dimension(2) :: delta_r  !< reciprocal stepsize in x and y direction
+     integer, dimension(2) :: size    !< extent in x and y direction
   end type coordsystem_type
   
   !> interface of creating new coord system
@@ -106,10 +96,10 @@ contains
     implicit none
     type(coordsystem_type), intent(in) :: coord  !< coordinate system
     integer,intent(in) :: unit                   !< unit to be printed to
-    write(unit,*) 'Origin  ',coord%origin%pt
-    write(unit,*) 'Delta   ',coord%delta%pt
-    write(unit,*) '1/Delta ',coord%delta_r%pt
-    write(unit,*) 'Size    ',coord%size%pt
+    write(unit,*) 'Origin  ',coord%origin
+    write(unit,*) 'Delta   ',coord%delta
+    write(unit,*) '1/Delta ',coord%delta_r
+    write(unit,*) 'Size    ',coord%size
   end subroutine coordsystem_print
 
   !> create new coordinate system from individual variables
@@ -121,31 +111,31 @@ contains
     type(coordsystem_type) :: coordsystem_new_real
     
     ! origin
-    coordsystem_new_real%origin%pt(1) = ox
-    coordsystem_new_real%origin%pt(2) = oy
+    coordsystem_new_real%origin(1) = ox
+    coordsystem_new_real%origin(2) = oy
     ! deltas
-    coordsystem_new_real%delta%pt(1) = dx
-    coordsystem_new_real%delta%pt(2) = dy
-    coordsystem_new_real%delta_r%pt(1) = 1.d0/dx
-    coordsystem_new_real%delta_r%pt(2) = 1.d0/dy
+    coordsystem_new_real%delta(1) = dx
+    coordsystem_new_real%delta(2) = dy
+    coordsystem_new_real%delta_r(1) = 1.d0/dx
+    coordsystem_new_real%delta_r(2) = 1.d0/dy
     ! size
-    coordsystem_new_real%size%pt(1) = sx
-    coordsystem_new_real%size%pt(2) = sy
+    coordsystem_new_real%size(1) = sx
+    coordsystem_new_real%size(2) = sy
   end function coordsystem_new_real
 
   !> create new coordinate system from points
   function coordsystem_new_pt(o, d, s)
     implicit none
-    type(coord_point), intent(in) :: o  !< coordinates of origin
-    type(coord_point), intent(in) :: d  !< offsets
-    type(coord_ipoint), intent(in) :: s !< x and y dimension
+    real(kind=dp), dimension(2), intent(in) :: o  !< coordinates of origin
+    real(kind=dp), dimension(2), intent(in) :: d  !< offsets
+    integer, dimension(2), intent(in) :: s !< x and y dimension
     type(coordsystem_type) :: coordsystem_new_pt
 
     ! origin
     coordsystem_new_pt%origin = o
     ! deltas
     coordsystem_new_pt%delta = d
-    coordsystem_new_pt%delta_r%pt(:) = 1.d0/d%pt(:)
+    coordsystem_new_pt%delta_r(:) = 1.d0/d(:)
     ! size
     coordsystem_new_pt%size = s
   end function coordsystem_new_pt
@@ -155,19 +145,19 @@ contains
     use glimmer_log
     implicit none
     type(coordsystem_type), intent(in) :: coord  !< coordinate system
-    type(coord_ipoint), intent(in) :: node       !< node
+    integer, dimension(2), intent(in) :: node       !< node
 
-    type(coord_point) :: coordsystem_get_coord
+    real(kind=dp), dimension(2) :: coordsystem_get_coord
   
 #ifdef DEBUG_COORDS
     if (.not.coordsystem_node_inside(coord,node)) then
-       write(message,*) 'node (',node%pt,') not inside coord system'
+       write(message,*) 'node (',node,') not inside coord system'
        call coordsystem_print(coord,glimmer_get_logunit())
        call write_log(message,GM_FATAL,__FILE__,__LINE__)
     end if
 #endif
 
-    coordsystem_get_coord%pt(:) = coord%origin%pt(:) + (node%pt(:) - 1)*coord%delta%pt(:)
+    coordsystem_get_coord(:) = coord%origin(:) + (node(:) - 1)*coord%delta(:)
   end function coordsystem_get_coord
 
   !> get index of nearest node given coords of a point
@@ -175,17 +165,17 @@ contains
     use glimmer_log
     implicit none
     type(coordsystem_type), intent(in) :: coord !< coordinate system
-    type(coord_point), intent(in) :: point      !< point
+    real(kind=dp), dimension(2), intent(in) :: point      !< point
     
-    type(coord_ipoint) :: coordsystem_get_node
+    integer, dimension(2) :: coordsystem_get_node
     
-    coordsystem_get_node%pt(:) = 1+floor(0.5+(point%pt(:)-coord%origin%pt(:))*coord%delta_r%pt(:))
-    if (coordsystem_get_node%pt(1).eq.coord%size%pt(1)+1) coordsystem_get_node%pt(1) = coord%size%pt(1)
-    if (coordsystem_get_node%pt(2).eq.coord%size%pt(2)+1) coordsystem_get_node%pt(2) = coord%size%pt(2)
+    coordsystem_get_node(:) = 1+floor(0.5+(point(:)-coord%origin(:))*coord%delta_r(:))
+    if (coordsystem_get_node(1).eq.coord%size(1)+1) coordsystem_get_node(1) = coord%size(1)
+    if (coordsystem_get_node(2).eq.coord%size(2)+1) coordsystem_get_node(2) = coord%size(2)
 
 #ifdef DEBUG_COORDS
     if (.not.coordsystem_node_inside(coord,coordsystem_get_node)) then
-       write(message,*) 'point (',point%pt,') not inside coord system'
+       write(message,*) 'point (',point,') not inside coord system'
        call coordsystem_print(coord,glimmer_get_logunit())
        call write_log(message,GM_FATAL,__FILE__,__LINE__)
     end if
@@ -197,22 +187,22 @@ contains
     use glimmer_log
     implicit none
     type(coordsystem_type), intent(in) :: coord !< coordinate system
-    type(coord_point), intent(in) :: point      !< point
+    real(kind=dp), dimension(2), intent(in) :: point      !< point
     
-    type(coord_ipoint) :: coordsystem_get_llnode
+    integer, dimension(2) :: coordsystem_get_llnode
 
-    coordsystem_get_llnode%pt(:) = 1+floor((point%pt(:)-coord%origin%pt(:))*coord%delta_r%pt(:))
+    coordsystem_get_llnode(:) = 1+floor((point(:)-coord%origin(:))*coord%delta_r(:))
   end function coordsystem_get_llnode
 
   !> return true iff node is inside coord system
   function coordsystem_node_inside(coord,node)
     implicit none
     type(coordsystem_type), intent(in) :: coord !< coordinate system
-    type(coord_ipoint), intent(in) :: node      !< node
+    integer, dimension(2), intent(in) :: node      !< node
 
     logical coordsystem_node_inside
     
-    coordsystem_node_inside = (all(node%pt.ge.1) .and. all(node%pt.le.coord%size%pt))
+    coordsystem_node_inside = (all(node.ge.1) .and. all(node.le.coord%size))
   end function coordsystem_node_inside
 
   !> return true iff point is inside coord system
@@ -220,14 +210,14 @@ contains
     use glimmer_log
     implicit none
     type(coordsystem_type), intent(in) :: coord !< coordinate system
-    type(coord_point), intent(in) :: point      !< point
+    real(kind=dp), dimension(2), intent(in) :: point      !< point
     logical coordsystem_point_inside
     integer i
 
     coordsystem_point_inside = .true.
     do i=1,2
-       coordsystem_point_inside = (point%pt(i).ge.coord%origin%pt(i)) .and. &
-            (point%pt(i).le.coord%origin%pt(i)+coord%size%pt(i)*coord%delta%pt(i))
+       coordsystem_point_inside = (point(i).ge.coord%origin(i)) .and. &
+            (point(i).le.coord%origin(i)+coord%size(i)*coord%delta(i))
        if (.not.coordsystem_point_inside) then
           exit
        end if
@@ -239,20 +229,20 @@ contains
     use glimmer_log
     implicit none
     type(coordsystem_type), intent(in) :: coord !< coordinate system
-    type(coord_ipoint), intent(in) :: node      !< node
+    integer, dimension(2), intent(in) :: node      !< node
     integer coordsystem_linearise2d
 
     coordsystem_linearise2d = -1
 
 #ifdef DEBUG_COORDS
     if (.not.coordsystem_node_inside(coord,node)) then
-       write(message,*) 'node (',node%pt,') not inside coord system'
+       write(message,*) 'node (',node,') not inside coord system'
        call write_log(message,GM_ERROR,__FILE__,__LINE__)
        return
     end if
 #endif
     
-    coordsystem_linearise2d = node%pt(1) + (node%pt(2)-1)*coord%size%pt(1)
+    coordsystem_linearise2d = node(1) + (node(2)-1)*coord%size(1)
   end function coordsystem_linearise2d
 
   !> expand linearisation
@@ -261,17 +251,17 @@ contains
     implicit none
     type(coordsystem_type), intent(in) :: coord !< coordinate system
     integer, intent(in) :: ind                  !< index
-    type(coord_ipoint) :: coordsystem_delinearise2d
+    integer, dimension(2) :: coordsystem_delinearise2d
 
 #ifdef DEBUG_COORDS
-    if (ind.lt.1 .or. ind.gt.coord%size%pt(1)*coord%size%pt(2)) then
+    if (ind.lt.1 .or. ind.gt.coord%size(1)*coord%size(2)) then
        write(message,*) 'index ',ind,' outside coord system'
        call write_log(message,GM_FATAL,__FILE__,__LINE__)
     end if
 #endif
 
-    coordsystem_delinearise2d%pt(1) = mod(ind-1,coord%size%pt(1)) + 1
-    coordsystem_delinearise2d%pt(2) = (ind-1)/coord%size%pt(1) + 1
+    coordsystem_delinearise2d(1) = mod(ind-1,coord%size(1)) + 1
+    coordsystem_delinearise2d(2) = (ind-1)/coord%size(1) + 1
   end function coordsystem_delinearise2d
 
   !> allocate memory to pointer field
@@ -280,7 +270,7 @@ contains
     type(coordsystem_type), intent(in) :: coord !< coordinate system
     real(kind=dp), dimension(:,:), pointer :: field !< unallocated field
 
-    allocate(field(coord%size%pt(1),coord%size%pt(2)))
+    allocate(field(coord%size(1),coord%size(2)))
     field = 0.d0
   end subroutine coordsystem_allocate_d
   
@@ -290,7 +280,7 @@ contains
     type(coordsystem_type), intent(in) :: coord !< coordinate system
     real(kind=sp), dimension(:,:), pointer :: field !< unallocated field
 
-    allocate(field(coord%size%pt(1),coord%size%pt(2)))
+    allocate(field(coord%size(1),coord%size(2)))
     field = 0.e0
   end subroutine coordsystem_allocate_s
 
@@ -300,7 +290,7 @@ contains
     type(coordsystem_type), intent(in) :: coord !< coordinate system
     integer, dimension(:,:), pointer :: field !< unallocated field
 
-    allocate(field(coord%size%pt(1),coord%size%pt(2)))
+    allocate(field(coord%size(1),coord%size(2)))
     field = 0
   end subroutine coordsystem_allocate_i
 
@@ -310,7 +300,7 @@ contains
     type(coordsystem_type), intent(in) :: coord !< coordinate system
     logical, dimension(:,:), pointer :: field !< unallocated field
 
-    allocate(field(coord%size%pt(1),coord%size%pt(2)))
+    allocate(field(coord%size(1),coord%size(2)))
     field = .FALSE.
   end subroutine coordsystem_allocate_l
 
@@ -321,7 +311,7 @@ contains
     integer, intent(in) :: nup !< the number of vertical points
     real(kind=dp), dimension(:,:,:), pointer :: field !< unallocated field
 
-    allocate(field(nup,coord%size%pt(1),coord%size%pt(2)))
+    allocate(field(nup,coord%size(1),coord%size(2)))
     field = 0.d0
   end subroutine coordsystem_allocate_d2
 
@@ -332,7 +322,7 @@ contains
     integer, intent(in) :: nup !< the number of vertical points
     real(kind=sp), dimension(:,:,:), pointer :: field !< unallocated field
 
-    allocate(field(nup,coord%size%pt(1),coord%size%pt(2)))
+    allocate(field(nup,coord%size(1),coord%size(2)))
     field = 0.d0
   end subroutine coordsystem_allocate_s2
 
@@ -343,7 +333,7 @@ contains
     integer, intent(in) :: nup !< the number of vertical points
     integer, dimension(:,:,:), pointer :: field !< unallocated field
 
-    allocate(field(nup,coord%size%pt(1),coord%size%pt(2)))
+    allocate(field(nup,coord%size(1),coord%size(2)))
     field = 0.d0
   end subroutine coordsystem_allocate_i2
 
