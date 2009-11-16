@@ -69,7 +69,7 @@ module glimmer_vertcoord
 
   !> generic interface for initialising a vertical coordsystem
   interface initVertCoord
-     module procedure initVertCoord_upn, initVertCoord_file, initVertCoord_array
+     module procedure initVertCoord_upn, initVertCoord_file, initVertCoord_array, initVertCoord_vertCoord
   end interface
 
   private :: initFDFactors
@@ -216,6 +216,20 @@ contains
     call initFDFactors(params)
 
   end subroutine initVertCoord_array
+
+  !> initialise vertical coordinate type from another vertical coord type
+  subroutine initVertCoord_vertCoord(params,vertCoord)
+    implicit none
+    type(vertCoord_type)  :: params    !< the vertical coordinate type
+    type(vertCoord_type)  :: vertCoord !< fully populated vertical coordinate type to be copied
+
+    call vertCoord_allocate(params,vertCoord%upn)
+
+    params%sigma(:) = vertCoord%sigma(:)
+
+    call initFDFactors(params)
+
+  end subroutine initVertCoord_vertCoord
 
   !> compute finite difference factors
   subroutine initFDFactors(params)

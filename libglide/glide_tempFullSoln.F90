@@ -82,14 +82,14 @@ module glide_tempFullSoln
   !! variable.
   type type_tempFullSoln
      private
-     integer                           :: ewn         !< Number of points in x
-     integer                           :: nsn         !< Number of points in y
-     real(dp)                          :: dew         !< Spacing in x
-     real(dp)                          :: dns         !< Spacing in y
-     type(vertCoord_type), pointer     :: zCoord      !< Vertical coordinate information
-     real(dp)                          :: thklim      !< Thickness threshold for calculation
-     integer                           :: periodic_ew !< Set to indicate periodic BCs
-     integer                           :: niter = 0   !< Maximum number of iterations
+     integer              :: ewn         !< Number of points in x
+     integer              :: nsn         !< Number of points in y
+     real(dp)             :: dew         !< Spacing in x
+     real(dp)             :: dns         !< Spacing in y
+     type(vertCoord_type) :: zCoord      !< Vertical coordinate information
+     real(dp)             :: thklim      !< Thickness threshold for calculation
+     integer              :: periodic_ew !< Set to indicate periodic BCs
+     integer              :: niter = 0   !< Maximum number of iterations
   end type type_tempFullSoln
 
   private
@@ -100,7 +100,7 @@ contains
   !> Initialises parameters for full temperature solution
   subroutine init_tempFullSoln(params,ewn,nsn,dew,dns,zCoord,thklim,periodic_ew)
 
-    use glimmer_vertcoord, only: initVertCoord
+    use glimmer_vertcoord, only: initVertCoord,initVertCoord
     use glimmer_log,     only: write_log, GM_FATAL
 
     implicit none
@@ -110,7 +110,7 @@ contains
     integer,                intent(in)  :: nsn     !< Number of points in y
     real(dp),               intent(in)  :: dew     !< Spacing in x
     real(dp),               intent(in)  :: dns     !< Spacing in y
-    type(vertCoord_type), target        :: zCoord  !< the sigma coordinate system
+    type(vertCoord_type)                :: zCoord  !< the sigma coordinate system
     real(dp),               intent(in)  :: thklim  !< Thickness threshold for calculation
     integer,                intent(in)  :: periodic_ew !< Set to indicate periodic BCs
 
@@ -124,7 +124,7 @@ contains
     params%dew = dew
     params%dns = dns
 
-    params%zCoord => zCoord
+    call initVertCoord(params%zCoord,zCoord)
 
     params%thklim = thklim
 

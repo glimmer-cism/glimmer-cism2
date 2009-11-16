@@ -1,3 +1,11 @@
+2009-11-16 Magnus Hagdorn
+ * libglide/glide_tempFullSoln.F90: vertical coordinate system is no longer
+   a pointer, initialise it and copy data from argument
+ * libglide/glide_types.F90: vertical coordinate system type is no longer a
+   pointer
+ * libglimmer/glimmer_vertcoord.F90: add procedure to initialise type from an
+   initialised one and copy its data
+
 2009-11-13 Magnus Hagdorn
  * added changeset 1321 which was missing
 
