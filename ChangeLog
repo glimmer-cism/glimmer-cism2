@@ -1,4 +1,9 @@
 2009-11-16 Magnus Hagdorn
+ * libglide/glide.F90: pass horizontal grid to temperature initialisation
+ * libglide/glide_tempFullSoln.F90: use horizontal coordinate system type
+   for coordinate definitions
+
+2009-11-16 Magnus Hagdorn
  * libglimmer/glimmer_coordinates.F90: use arrays of length 2 instead of
    derived types for points, remove one level of derived types
  * libglimmer/glimmer_map_trans.F90: memembers of coord type are arrays

@@ -180,10 +180,7 @@ contains
 
     call init_tempFullSoln(    &
          model%tempFullSoln,   &
-         model%general%ewn,    &
-         model%general%nsn,    &
-         model%numerics%dew,   &
-         model%numerics%dns,   &
+         model%general%ice_grid,   &
          model%general%sigma_grid, &
          model%numerics%thklim,&
          model%options%periodic_ew)

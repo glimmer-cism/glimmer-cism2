@@ -73,6 +73,7 @@
 module glide_tempFullSoln
 
   use glimmer_vertcoord, only: vertCoord_type
+  use glimmer_coordinates, only : coordsystem_type
   use glimmer_global,    only: dp
 
   implicit none
@@ -82,10 +83,7 @@ module glide_tempFullSoln
   !! variable.
   type type_tempFullSoln
      private
-     integer              :: ewn         !< Number of points in x
-     integer              :: nsn         !< Number of points in y
-     real(dp)             :: dew         !< Spacing in x
-     real(dp)             :: dns         !< Spacing in y
+     type(coordsystem_type) :: hCoord    !< the horizontal coordinate system
      type(vertCoord_type) :: zCoord      !< Vertical coordinate information
      real(dp)             :: thklim      !< Thickness threshold for calculation
      integer              :: periodic_ew !< Set to indicate periodic BCs
@@ -98,7 +96,7 @@ module glide_tempFullSoln
 contains
 
   !> Initialises parameters for full temperature solution
-  subroutine init_tempFullSoln(params,ewn,nsn,dew,dns,zCoord,thklim,periodic_ew)
+  subroutine init_tempFullSoln(params,hCoord,zCoord,thklim,periodic_ew)
 
     use glimmer_vertcoord, only: initVertCoord,initVertCoord
     use glimmer_log,     only: write_log, GM_FATAL
@@ -106,10 +104,7 @@ contains
     implicit none
 
     type(type_tempFullSoln),intent(out) :: params  !< Temperature model parameters
-    integer,                intent(in)  :: ewn     !< Number of points in x
-    integer,                intent(in)  :: nsn     !< Number of points in y
-    real(dp),               intent(in)  :: dew     !< Spacing in x
-    real(dp),               intent(in)  :: dns     !< Spacing in y
+    type(coordsystem_type), intent(in)  :: hCoord  !< the horizontal coordinate system
     type(vertCoord_type)                :: zCoord  !< the sigma coordinate system
     real(dp),               intent(in)  :: thklim  !< Thickness threshold for calculation
     integer,                intent(in)  :: periodic_ew !< Set to indicate periodic BCs
@@ -119,11 +114,7 @@ contains
     if (VERT_ADV.eq.0.)    call write_log('Vertical advection is switched off')
     if (STRAIN_HEAT.eq.0.) call write_log('Strain heating is switched off')
 
-    params%ewn = ewn
-    params%nsn = nsn
-    params%dew = dew
-    params%dns = dns
-
+    params%hCoord = hCoord
     call initVertCoord(params%zCoord,zCoord)
 
     params%thklim = thklim
@@ -212,8 +203,8 @@ contains
     ! Set up various parameters
     !------------------------------------------------------------------------------------
 
-    advconst1 = HORIZ_ADV * dt / (16.0d0 * params%dew)
-    advconst2 = HORIZ_ADV * dt / (16.0d0 * params%dns)
+    advconst1 = HORIZ_ADV * dt / (16.0d0 * params%hCoord%delta(1))
+    advconst2 = HORIZ_ADV * dt / (16.0d0 * params%hCoord%delta(2))
 
     cons1 = 2.0d0 * tim0 * dt * coni / (2.0d0 * rhoi * shci * thk0**2)
     cons2 = dt / 2.0d0
@@ -240,8 +231,8 @@ contains
 
     ! Calculate staggered variables and spatial derivatives -----------------------------
 
-    call stagvarb(thck,stagthck,params%ewn,params%nsn)
-    call df_field_2d_staggered(usrf,params%dew,params%dns,dusrfdew,dusrfdns,.false.,.false.)
+    call stagvarb(thck,stagthck,params%hCoord%size(1),params%hCoord%size(2))
+    call df_field_2d_staggered(usrf,params%hCoord%delta(1),params%hCoord%delta(2),dusrfdew,dusrfdns,.false.,.false.)
 
     ! Calculate dissipative term --------------------------------------------------------
 
@@ -251,15 +242,15 @@ contains
          dusrfdew,                     &
          dusrfdns,                     &
          flwa,                         &
-         params%ewn,                   &
-         params%nsn,                   &
+         params%hCoord%size(1),                   &
+         params%hCoord%size(2),                   &
          c1,                           &
          params%thklim)
 
     ! translate velo field --------------------------------------------------------------
 
-    do ns = 2,params%nsn-1
-       do ew = 2,params%ewn-1
+    do ns = 2,params%hCoord%size(2)-1
+       do ew = 2,params%hCoord%size(1)-1
           hadv_u(:,ew,ns) = advconst1 * hsum4(uvel(:,ew-1:ew,ns-1:ns))
           hadv_v(:,ew,ns) = advconst2 * hsum4(vvel(:,ew-1:ew,ns-1:ns))
        end do
@@ -273,8 +264,8 @@ contains
          params%thklim,                 &
          hadv_u,                        &
          hadv_v,                        &
-         params%ewn,                    &
-         params%nsn,                    &
+         params%hCoord%size(1),                    &
+         params%hCoord%size(2),                    &
          params%zCoord%upn)
 
     ! Iterative temperature solution ----------------------------------------------------
@@ -285,8 +276,8 @@ contains
     do while (tempresid.gt.tempthres .and. iter.le.mxit)
        tempresid = 0.0d0
 
-       do ns = 2,params%nsn-1
-          do ew = 2,params%ewn-1
+       do ns = 2,params%hCoord%size(2)-1
+          do ew = 2,params%hCoord%size(1)-1
              if(thck(ew,ns) > params%thklim) then
 
                 ! Calculate effective vertical velocity
@@ -374,8 +365,8 @@ contains
        
     ! set temperature of thin ice to the air temperature and set ice free nodes to zero
 
-    do ns = 1,params%nsn
-       do ew = 1,params%ewn
+    do ns = 1,params%hCoord%size(2)
+       do ew = 1,params%hCoord%size(1)
           if (is_thin(thkmask(ew,ns))) then
              temp(:,ew,ns) = min(0.0d0,dble(artm(ew,ns)))
           else if (thkmask(ew,ns)<0) then
@@ -387,10 +378,10 @@ contains
     ! apply periodic ew BC ----------------------------------------------------------
 
     if (params%periodic_ew.eq.1) then
-       temp(:,0           ,:) = temp(:,params%ewn-2,:)
-       temp(:,1           ,:) = temp(:,params%ewn-1,:)
-       temp(:,params%ewn  ,:) = temp(:,2           ,:)
-       temp(:,params%ewn+1,:) = temp(:,3           ,:)
+       temp(:,0           ,:) = temp(:,params%hCoord%size(1)-2,:)
+       temp(:,1           ,:) = temp(:,params%hCoord%size(1)-1,:)
+       temp(:,params%hCoord%size(1)  ,:) = temp(:,2           ,:)
+       temp(:,params%hCoord%size(1)+1,:) = temp(:,3           ,:)
     end if
 
     ! Calculate basal melt rate --------------------------------------------------
@@ -407,8 +398,8 @@ contains
          bheatflx,                        &
          bmlt,                            &
          is_float(thkmask),               &
-         params%nsn,                      &
-         params%ewn,                      &
+         params%hCoord%size(2),                      &
+         params%hCoord%size(1),                      &
          params%thklim,                   &
          params%periodic_ew,              &
          f3)
@@ -416,7 +407,7 @@ contains
     ! Output some information ----------------------------------------
 #ifdef DEBUG
     print *, "* temp ",  iter, params%niter, &
-         real(temp(params%zCoord%upn,params%ewn/2+1,params%nsn/2+1))
+         real(temp(params%zCoord%upn,params%hCoord%size(1)/2+1,params%hCoord%size(2)/2+1))
 #endif
 
   end subroutine tstep_tempFullSoln
