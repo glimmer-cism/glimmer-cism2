@@ -1,7 +1,6 @@
 2009-11-16 Ian Rutt
  * libglide/glide_thck.F90: Fixed bug introduced into non-linear scheme in
-   commit 1391. e2.f now executes successfully. However, e2.f fails
-   regtest at present - more investigation needed.
+   commit 1391. e2.f regtest succeeds against r1371
  * libglimmer/glimmer_slap.F90: Added slap error number to output when
    error encountered.
 
