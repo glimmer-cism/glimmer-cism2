@@ -1,4 +1,19 @@
 2009-11-20 Magnus Hagdorn
+ * m4macros/ax_f90_module_extension.m4: added new macro to detect f90 module
+   extension
+ * configure.in: determine f90 module file extension
+ * example-drivers/EISMINT-3/src/Makefile.am: delete module files when 
+   make clean is run
+ * example-drivers/eis/src/Makefile.am: ditto
+ * example-drivers/glint/src/Makefile.am: ditto
+ * libglide/Makefile.am: ditto
+ * libglimmer/Makefile.am: ditto
+ * libglimmer-solve/Makefile.am: ditto
+ * libglint/Makefile.am: ditto
+ * tests/EISMINT/src/Makefile.am: ditto
+ * tests/exact-isothermal/src/Makefile.am: ditto
+
+2009-11-20 Magnus Hagdorn
  * libglimmer/glimmer_horizcoord.F90: renamed glimmer_coordinates.F90 to 
    glimmer_horizcoord.F90, renamed exported symbols
  * libglimmer/glimmer_coordinates.F90: this module now contains a derived 

@@ -3,7 +3,7 @@ bin_PROGRAMS  =  glint_example glex_ebm
 nodist_include_HEADERS := $(wildcard *.mod)
 EXTRA_DIST = f90_dep.mak
 BUILT_SOURCES = 
-CLEANFILES = $(BUILT_SOURCES) f90_dep.mak
+CLEANFILES = *.$(F90_MODULE_EXTENSION) $(BUILT_SOURCES) f90_dep.mak
 
 
 

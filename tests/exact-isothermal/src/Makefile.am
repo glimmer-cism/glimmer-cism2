@@ -8,7 +8,7 @@ dist_variable_DATA = $(variable_DATA)
 nodist_include_HEADERS := $(wildcard *.mod)
 EXTRA_DIST = f90_dep.mak
 BUILT_SOURCES = verif_io.F90
-CLEANFILES = $(BUILT_SOURCES) f90_dep.mak
+CLEANFILES = *.$(F90_MODULE_EXTENSION) $(BUILT_SOURCES) f90_dep.mak
 
 libverif_la_SOURCES = verif.F90 verifBC.F90 verifD.F90 verif_io.F90
 verif_glide_SOURCES = verif_glide.F90
