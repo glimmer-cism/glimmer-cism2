@@ -47,9 +47,12 @@
 #define NCO outfile%nc
 #define NCI infile%nc
 
+!> read netCDF I/O related configuration files
+!!
+!! \author Magnus Hagdorn
+!! \date May 2004
+
 module glimmer_ncparams
-  !*FD read netCDF I/O related configuration files
-  !*FD written by Magnus Hagdorn, May 2004
   use glimmer_ncdf, only: glimmer_nc_meta
     
   private
@@ -59,14 +62,17 @@ module glimmer_ncparams
   character(10000) :: configstring
 
 contains
-    subroutine glimmer_nc_readparams(model,config)
-    !*FD read netCDF I/O related configuration file
-    use glide_types
+  !> read netCDF I/O related configuration file
+  subroutine glimmer_nc_readparams(config,start_yr,out_list,in_list)
+    use glimmer_ncdf
     use glimmer_config
     implicit none
-    type(glide_global_type)      :: model  !*FD model instance
-    type(ConfigSection), pointer :: config !*FD structure holding sections of configuration file
+    type(ConfigSection), pointer :: config !< structure holding sections of configuration file
+    real, intent(in) :: start_yr           !< start year of model
+    type(glimmer_nc_output), pointer :: out_list !< first element of the output file linked list
+    type(glimmer_nc_input), pointer :: in_list   !< first element of the input file linked list
     
+
     ! local variables
     type(ConfigSection), pointer :: section
     type(glimmer_nc_output), pointer :: output => null()
@@ -84,9 +90,9 @@ contains
     ! setup outputs
     call GetSection(config,section,'CF output')
     do while(associated(section))
-       output => handle_output(section,output,model%numerics%tstart,configstring)
-       if (.not.associated(model%funits%out_first)) then
-          model%funits%out_first => output
+       output => handle_output(section,output,start_yr,configstring)
+       if (.not.associated(out_list)) then
+          out_list => output
        end if
        call GetSection(section%next,section,'CF output')
     end do
@@ -95,8 +101,8 @@ contains
     call GetSection(config,section,'CF input')
     do while(associated(section))
        input => handle_input(section,input)
-       if (.not.associated(model%funits%in_first)) then
-          model%funits%in_first => input
+       if (.not.associated(in_list)) then
+          in_list => input
        end if
        call GetSection(section%next,section,'CF input')
     end do

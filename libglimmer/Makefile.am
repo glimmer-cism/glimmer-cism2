@@ -24,7 +24,7 @@ libglimmer_la_SOURCES = glimmer_vers.F90 glimmer_commandline.F90 \
 nodist_libglimmer_la_SOURCES = glimmer_vers.F90
 
 libglimmer_IO_la_SOURCES = glimmer_anomcouple.F90 glimmer_filenames.F90 glimmer_ncdf.F90 \
-                          glimmer_ts.F90 glimmer_config.F90 \
+                          glimmer_ts.F90 glimmer_config.F90 glimmer_ncparams.F90 \
                           glimmer_writestats.F90 ncdf_utils.F90 writestats.c writestats.h cfortran.h 
 
 nc2config_SOURCES = nc2config.F90

@@ -1,3 +1,10 @@
+2009-11-20 Magnus Hagdorn
+ * libglide/Makefile.am: remove glimmer_ncparams.F90
+ * libglide/glide.F90: implement API change of glimmer_nc_readparams
+ * libglimmer/Makefile.am: added glimmer_ncparams.F90
+ * libglimmer/glimmer_ncparams.F90: moved from libglide, changed API so dummy
+   variables do not depend on libglide
+
 2009-11-16 Ian Rutt
  * libglide/glide_thck.F90: Fixed bug introduced into non-linear scheme in
    commit 1391. e2.f regtest succeeds against r1371

@@ -97,7 +97,7 @@ contains
     else
        call ConfigRead(process_path(model%funits%ncfile),ncconfig)
     end if
-    call glimmer_nc_readparams(model,ncconfig)
+    call glimmer_nc_readparams(ncconfig,model%numerics%tstart,model%funits%out_first,model%funits%in_first)
   end subroutine glide_config
 
   subroutine glide_initialise(model)
