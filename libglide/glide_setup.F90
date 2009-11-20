@@ -268,7 +268,7 @@ contains
        do up=1,upn
           model%numerics%sigma(up) = glide_calc_sigma(real(up-1)/real(upn-1),2.)
        end do
-       call initVertCoord(model%general%sigma_grid,upn)
+       call initVertCoord(model%coordinates%sigma_grid,upn)
     case(1)
        inquire (exist=there,file=process_path(model%funits%sigfile))
        if (.not.there) then
@@ -279,12 +279,12 @@ contains
        open(unit,file=process_path(model%funits%sigfile))
        read(unit,'(f5.2)',err=10,end=10) (model%numerics%sigma(up), up=1,upn)
        close(unit)
-       call initVertCoord(model%general%sigma_grid,process_path(model%funits%sigfile),upn)
+       call initVertCoord(model%coordinates%sigma_grid,process_path(model%funits%sigfile),upn)
     case(2)
        call write_log('Using sigma levels from main configuration file')
     end select
     call print_sigma(model)
-    call vertCoord_print(model%general%sigma_grid)
+    call vertCoord_print(model%coordinates%sigma_grid)
     return
 
 10  call write_log('something wrong with sigma coord file',GM_FATAL)

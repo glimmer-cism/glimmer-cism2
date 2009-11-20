@@ -1,4 +1,19 @@
 2009-11-20 Magnus Hagdorn
+ * libglide/glide_types.F90: move coordinate systems from glide_general to
+   glide_coordinates and add the projection type to it as well, adjust 
+   references to coordinate systems
+ * example-drivers/EISMINT-3/src/eismint3_forcing.F90: adjust references to
+   where coordinate systems and projection is stored
+ * example-drivers/eis/src/eis_ela.F90: ditto
+ * libglide/glide.F90: ditto
+ * libglide/glide_setup.F90: ditto
+ * libglint/glint_initialise.F90: ditto
+ * scripts/generate_ncvars.py: ditto
+ * libglide/glimmer_ncio.F90: ditto, convert to doxygen strings
+ * libglide/glide_tempFullSoln.F90: pass combined coordinate type instead of 
+   individual coordinate types
+
+2009-11-20 Magnus Hagdorn
  * libglide/Makefile.am: remove glimmer_ncparams.F90
  * libglide/glide.F90: implement API change of glimmer_nc_readparams
  * libglimmer/Makefile.am: added glimmer_ncparams.F90

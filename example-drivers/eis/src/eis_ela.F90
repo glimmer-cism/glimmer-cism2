@@ -161,7 +161,7 @@ contains
     ela%ela_c = ela%ela_c/thk0
 
     ! calculate shape of mass balance field
-    call coordsystem_allocate(model%general%ice_grid, ela%ela)
+    call coordsystem_allocate(model%coordinates%ice_grid, ela%ela)
     ela%ela = 0.
   end subroutine eis_init_ela
     

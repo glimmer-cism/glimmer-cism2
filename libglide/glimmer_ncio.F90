@@ -47,9 +47,11 @@
 #define NCO outfile%nc
 #define NCI infile%nc
 
+!> module for common netCDF I/O
+!!
+!! \author Magnus Hagdorn
+!! \date 2004
 module glimmer_ncio
-  !*FD module for common netCDF I/O
-  !*FD written by Magnus Hagdorn, 2004
 
   use glimmer_ncdf
   
@@ -57,8 +59,8 @@ contains
   !*****************************************************************************
   ! netCDF output
   !*****************************************************************************  
+  !> open all netCDF files for output
   subroutine openall_out(model,outfiles)
-    !*FD open all netCDF files for output
     use glide_types
     use glimmer_ncdf
     implicit none
@@ -84,8 +86,8 @@ contains
     end do
   end subroutine openall_out
 
+  !> close all netCDF files for output
   subroutine closeall_out(model,outfiles)
-    !*FD close all netCDF files for output
     use glide_types
     use glimmer_ncdf
     implicit none
@@ -107,8 +109,8 @@ contains
     if (.not.present(outfiles)) model%funits%out_first=>NULL()
   end subroutine closeall_out
 
+  !> open netCDF file for appending
   subroutine glimmer_nc_openappend(outfile,model)
-    !*FD open netCDF file for appending
     use glimmer_log
     use glide_types
     use glimmer_map_CFproj
@@ -151,8 +153,8 @@ contains
 
   end subroutine glimmer_nc_openappend
 
+  !> create a new netCDF file
   subroutine glimmer_nc_createfile(outfile,model)
-    !*FD create a new netCDF file
     use glimmer_log
     use glide_types
     use glimmer_map_CFproj
@@ -214,18 +216,18 @@ contains
     status = nf90_put_att(NCO%id, NCO%timevar, 'calendar', 'none')
 
     ! adding projection info
-    if (glimmap_allocated(model%projection)) then
+    if (glimmap_allocated(model%coordinates%projection)) then
        status = nf90_def_var(NCO%id,glimmer_nc_mapvarname,NF90_CHAR,mapid)
        call nc_errorhandle(__FILE__,__LINE__,status)
-       call glimmap_CFPutProj(NCO%id,mapid,model%projection)
+       call glimmap_CFPutProj(NCO%id,mapid,model%coordinates%projection)
     end if
 
     ! setting the size of the level dimension
     NCO%nlevel = model%general%upn
   end subroutine glimmer_nc_createfile
 
+  !> check if we should write to file
   subroutine glimmer_nc_checkwrite(outfile,model,forcewrite,time)
-    !*FD check if we should write to file
     use glimmer_log
     use glide_types
     use glimmer_filenames
@@ -282,8 +284,8 @@ contains
   !*****************************************************************************
   ! netCDF input
   !*****************************************************************************  
+  !> open all netCDF files for input
   subroutine openall_in(model)
-    !*FD open all netCDF files for input
     use glide_types
     use glimmer_ncdf
     implicit none
@@ -299,8 +301,8 @@ contains
     end do
   end subroutine openall_in
 
+  !> close all netCDF files for input
   subroutine closeall_in(model)
-    !*FD close all netCDF files for input
     use glide_types
     use glimmer_ncdf
     implicit none
@@ -316,8 +318,8 @@ contains
     model%funits%in_first=>NULL()
   end subroutine closeall_in
 
+  !> open an existing netCDF file
   subroutine glimmer_nc_openfile(infile,model)
-    !*FD open an existing netCDF file
     use glide_types
     use glimmer_map_cfproj
     use glimmer_map_types
@@ -348,7 +350,7 @@ contains
     call write_log('opening file '//trim(process_path(NCI%filename))//' for input')
 
     ! getting projection, if none defined already
-    if (.not.glimmap_allocated(model%projection)) model%projection = glimmap_CFGetProj(NCI%id)
+    if (.not.glimmap_allocated(model%coordinates%projection)) model%coordinates%projection = glimmap_CFGetProj(NCI%id)
 
     ! getting time dimension
     status = nf90_inq_dimid(NCI%id, 'time', NCI%timedim)
@@ -430,8 +432,8 @@ contains
   
   end subroutine glimmer_nc_openfile
 
+  !> check if we should read from file
   subroutine glimmer_nc_checkread(infile,model,time)
-    !*FD check if we should read from file
     use glimmer_log
     use glide_types
     use glimmer_filenames

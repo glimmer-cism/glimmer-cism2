@@ -83,16 +83,20 @@ module glide_types
     integer :: nsn = 0  !*FD The number of grid-points in the N-S direction.
     integer :: upn = 1  !*FD The number of vertical levels in the model.
 
-    type(coordsystem_type) :: ice_grid  !*FD coordinate system of the ice grid
-    type(coordsystem_type) :: velo_grid !*FD coordinate system of the velocity grid
-    type(vertCoord_type)   :: sigma_grid !< the sigma coordinate system
-
     real(sp), dimension(:),pointer :: x0 => null() !original x0 grid 
     real(sp), dimension(:),pointer :: y0 => null() !original y0 grid
     real(sp), dimension(:),pointer :: x1 => null() !original x1 grid
     real(sp), dimension(:),pointer :: y1 => null() !original y1 grid
   end type glide_general
 
+  !> define the various coordinate systems used by glide
+  type glide_coordinates
+     type(coordsystem_type) :: ice_grid   !< coordinate system of the ice grid
+     type(coordsystem_type) :: velo_grid  !< coordinate system of the velocity grid
+     type(vertCoord_type)   :: sigma_grid !< the sigma coordinate system
+     type(glimmap_proj) :: projection     !< the geographic projection
+  end type glide_coordinates
+     
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   type glide_options
@@ -477,6 +481,7 @@ module glide_types
 
   type glide_global_type
     type(glide_general)  :: general
+    type(glide_coordinates) :: coordinates
     type(glide_options)  :: options
     type(glide_geometry) :: geometry
     type(glide_geomderv) :: geomderv
@@ -490,7 +495,6 @@ module glide_types
     type(glide_pcgdwk)   :: pcgdwk
     type(glide_thckwk)   :: thckwk
     type(glide_paramets) :: paramets
-    type(glimmap_proj) :: projection
     type(profile_type)   :: profile
     type(glide_prof_type) :: glide_prof
     type(isos_type)      :: isos
@@ -602,65 +606,65 @@ contains
     allocate(model%general%x1(ewn))!; model%general%x1 = 0.0
     allocate(model%general%y1(nsn))!; model%general%y1 = 0.0
     allocate(model%temper%temp(upn,0:ewn+1,0:nsn+1)); model%temper%temp = 0.0
-    call coordsystem_allocate(model%general%ice_grid, upn, model%temper%flwa)
-    call coordsystem_allocate(model%general%ice_grid, model%temper%bheatflx)
-    call coordsystem_allocate(model%general%ice_grid, model%temper%bwat)
-    call coordsystem_allocate(model%general%velo_grid, model%temper%stagbwat)
-    call coordsystem_allocate(model%general%velo_grid, model%temper%stagbtemp)
-    call coordsystem_allocate(model%general%ice_grid, model%temper%bmlt)
-    call coordsystem_allocate(model%general%ice_grid, model%temper%bpmp)
-    call coordsystem_allocate(model%general%ice_grid, model%temper%bmlt_tavg)
-    call coordsystem_allocate(model%general%velo_grid, model%temper%stagbpmp)
+    call coordsystem_allocate(model%coordinates%ice_grid, upn, model%temper%flwa)
+    call coordsystem_allocate(model%coordinates%ice_grid, model%temper%bheatflx)
+    call coordsystem_allocate(model%coordinates%ice_grid, model%temper%bwat)
+    call coordsystem_allocate(model%coordinates%velo_grid, model%temper%stagbwat)
+    call coordsystem_allocate(model%coordinates%velo_grid, model%temper%stagbtemp)
+    call coordsystem_allocate(model%coordinates%ice_grid, model%temper%bmlt)
+    call coordsystem_allocate(model%coordinates%ice_grid, model%temper%bpmp)
+    call coordsystem_allocate(model%coordinates%ice_grid, model%temper%bmlt_tavg)
+    call coordsystem_allocate(model%coordinates%velo_grid, model%temper%stagbpmp)
 
     allocate(model%lithot%temp(1:ewn,1:nsn,model%lithot%nlayer)); model%lithot%temp = 0.0
-    call coordsystem_allocate(model%general%ice_grid, model%lithot%mask)
+    call coordsystem_allocate(model%coordinates%ice_grid, model%lithot%mask)
 
-    call coordsystem_allocate(model%general%velo_grid, upn, model%velocity%uvel)
-    call coordsystem_allocate(model%general%velo_grid, upn, model%velocity%vvel)
-    call coordsystem_allocate(model%general%ice_grid, upn, model%velocity%wvel)
-    call coordsystem_allocate(model%general%ice_grid, upn, model%velocity%wgrd)
-    call coordsystem_allocate(model%general%velo_grid, model%velocity%uflx)
-    call coordsystem_allocate(model%general%velo_grid, model%velocity%vflx)
-    call coordsystem_allocate(model%general%velo_grid, model%velocity%diffu)
-    call coordsystem_allocate(model%general%velo_grid, model%velocity%total_diffu)
-    call coordsystem_allocate(model%general%velo_grid, model%velocity%bed_softness)
-    call coordsystem_allocate(model%general%velo_grid, model%velocity%btrc)
-    call coordsystem_allocate(model%general%velo_grid, model%velocity%ubas)
-    call coordsystem_allocate(model%general%velo_grid, model%velocity%ubas_tavg)
-    call coordsystem_allocate(model%general%velo_grid, model%velocity%vbas)
-    call coordsystem_allocate(model%general%velo_grid, model%velocity%vbas_tavg)
-    call coordsystem_allocate(model%general%velo_grid, model%velocity%tau_x)
-    call coordsystem_allocate(model%general%velo_grid, model%velocity%tau_y)
+    call coordsystem_allocate(model%coordinates%velo_grid, upn, model%velocity%uvel)
+    call coordsystem_allocate(model%coordinates%velo_grid, upn, model%velocity%vvel)
+    call coordsystem_allocate(model%coordinates%ice_grid, upn, model%velocity%wvel)
+    call coordsystem_allocate(model%coordinates%ice_grid, upn, model%velocity%wgrd)
+    call coordsystem_allocate(model%coordinates%velo_grid, model%velocity%uflx)
+    call coordsystem_allocate(model%coordinates%velo_grid, model%velocity%vflx)
+    call coordsystem_allocate(model%coordinates%velo_grid, model%velocity%diffu)
+    call coordsystem_allocate(model%coordinates%velo_grid, model%velocity%total_diffu)
+    call coordsystem_allocate(model%coordinates%velo_grid, model%velocity%bed_softness)
+    call coordsystem_allocate(model%coordinates%velo_grid, model%velocity%btrc)
+    call coordsystem_allocate(model%coordinates%velo_grid, model%velocity%ubas)
+    call coordsystem_allocate(model%coordinates%velo_grid, model%velocity%ubas_tavg)
+    call coordsystem_allocate(model%coordinates%velo_grid, model%velocity%vbas)
+    call coordsystem_allocate(model%coordinates%velo_grid, model%velocity%vbas_tavg)
+    call coordsystem_allocate(model%coordinates%velo_grid, model%velocity%tau_x)
+    call coordsystem_allocate(model%coordinates%velo_grid, model%velocity%tau_y)
 
-    call coordsystem_allocate(model%general%ice_grid, model%climate%acab)
-    call coordsystem_allocate(model%general%ice_grid, model%climate%acab_tavg)
-    call coordsystem_allocate(model%general%ice_grid, model%climate%artm)
-    call coordsystem_allocate(model%general%ice_grid, model%climate%lati)
-    call coordsystem_allocate(model%general%ice_grid, model%climate%loni)
-    call coordsystem_allocate(model%general%ice_grid, model%climate%calving)
+    call coordsystem_allocate(model%coordinates%ice_grid, model%climate%acab)
+    call coordsystem_allocate(model%coordinates%ice_grid, model%climate%acab_tavg)
+    call coordsystem_allocate(model%coordinates%ice_grid, model%climate%artm)
+    call coordsystem_allocate(model%coordinates%ice_grid, model%climate%lati)
+    call coordsystem_allocate(model%coordinates%ice_grid, model%climate%loni)
+    call coordsystem_allocate(model%coordinates%ice_grid, model%climate%calving)
 
-    call coordsystem_allocate(model%general%velo_grid, model%geomderv%dthckdew)
-    call coordsystem_allocate(model%general%velo_grid, model%geomderv%dusrfdew)
-    call coordsystem_allocate(model%general%velo_grid, model%geomderv%dthckdns)
-    call coordsystem_allocate(model%general%velo_grid, model%geomderv%dusrfdns)
-    call coordsystem_allocate(model%general%ice_grid, model%geomderv%dthckdtm)
-    call coordsystem_allocate(model%general%ice_grid, model%geomderv%dusrfdtm)
-    call coordsystem_allocate(model%general%velo_grid, model%geomderv%stagthck)
+    call coordsystem_allocate(model%coordinates%velo_grid, model%geomderv%dthckdew)
+    call coordsystem_allocate(model%coordinates%velo_grid, model%geomderv%dusrfdew)
+    call coordsystem_allocate(model%coordinates%velo_grid, model%geomderv%dthckdns)
+    call coordsystem_allocate(model%coordinates%velo_grid, model%geomderv%dusrfdns)
+    call coordsystem_allocate(model%coordinates%ice_grid, model%geomderv%dthckdtm)
+    call coordsystem_allocate(model%coordinates%ice_grid, model%geomderv%dusrfdtm)
+    call coordsystem_allocate(model%coordinates%velo_grid, model%geomderv%stagthck)
   
-    call coordsystem_allocate(model%general%velo_grid, model%geometry%temporary0)
-    call coordsystem_allocate(model%general%ice_grid, model%geometry%temporary1)
-    call coordsystem_allocate(model%general%ice_grid, model%geometry%thck)
-    call coordsystem_allocate(model%general%ice_grid, model%geometry%usrf)
-    call coordsystem_allocate(model%general%ice_grid, model%geometry%lsrf)
-    call coordsystem_allocate(model%general%ice_grid, model%geometry%topg)
-    call coordsystem_allocate(model%general%ice_grid, model%geometry%mask)
-    call coordsystem_allocate(model%general%ice_grid, model%geometry%thkmask)
+    call coordsystem_allocate(model%coordinates%velo_grid, model%geometry%temporary0)
+    call coordsystem_allocate(model%coordinates%ice_grid, model%geometry%temporary1)
+    call coordsystem_allocate(model%coordinates%ice_grid, model%geometry%thck)
+    call coordsystem_allocate(model%coordinates%ice_grid, model%geometry%usrf)
+    call coordsystem_allocate(model%coordinates%ice_grid, model%geometry%lsrf)
+    call coordsystem_allocate(model%coordinates%ice_grid, model%geometry%topg)
+    call coordsystem_allocate(model%coordinates%ice_grid, model%geometry%mask)
+    call coordsystem_allocate(model%coordinates%ice_grid, model%geometry%thkmask)
 
     call timeders_init(model%timederivs,ewn,nsn)
 
-    call coordsystem_allocate(model%general%ice_grid, model%thckwk%oldthck)
-    call coordsystem_allocate(model%general%ice_grid, model%thckwk%oldthck2)
-    call coordsystem_allocate(model%general%ice_grid, model%thckwk%float)
+    call coordsystem_allocate(model%coordinates%ice_grid, model%thckwk%oldthck)
+    call coordsystem_allocate(model%coordinates%ice_grid, model%thckwk%oldthck2)
+    call coordsystem_allocate(model%coordinates%ice_grid, model%thckwk%float)
 
     ! If we already have sigma, don't reallocate
     if (associated(model%numerics%sigma)) then

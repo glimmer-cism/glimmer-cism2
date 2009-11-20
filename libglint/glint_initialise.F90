@@ -120,14 +120,14 @@ contains
          get_ewn(instance%model), &
          get_nsn(instance%model))
 
-    call new_downscale(instance%downs,instance%model%projection,grid, &
+    call new_downscale(instance%downs,instance%model%coordinates%projection,grid, &
          instance%lgrid,mpint=(instance%use_mpint==1))    ! Initialise the downscaling
 
     call glint_i_allocate(instance,grid%nx,grid%ny,grid_orog%nx,grid_orog%ny)           ! Allocate arrays appropriately
     call glint_i_readdata(instance)
-    call new_upscale(instance%ups,grid,instance%model%projection, &
+    call new_upscale(instance%ups,grid,instance%model%coordinates%projection, &
          instance%out_mask,instance%lgrid) ! Initialise upscaling parameters
-    call new_upscale(instance%ups_orog,grid_orog,instance%model%projection, &
+    call new_upscale(instance%ups_orog,grid_orog,instance%model%coordinates%projection, &
          instance%out_mask,instance%lgrid) ! Initialise upscaling parameters
 
     call calc_coverage(instance%lgrid, &                         ! Calculate coverage map

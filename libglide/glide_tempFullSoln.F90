@@ -96,16 +96,16 @@ module glide_tempFullSoln
 contains
 
   !> Initialises parameters for full temperature solution
-  subroutine init_tempFullSoln(params,hCoord,zCoord,thklim,periodic_ew)
+  subroutine init_tempFullSoln(params,coords,thklim,periodic_ew)
 
     use glimmer_vertcoord, only: initVertCoord,initVertCoord
+    use glide_types, only : glide_coordinates
     use glimmer_log,     only: write_log, GM_FATAL
 
     implicit none
 
     type(type_tempFullSoln),intent(out) :: params  !< Temperature model parameters
-    type(coordsystem_type), intent(in)  :: hCoord  !< the horizontal coordinate system
-    type(vertCoord_type)                :: zCoord  !< the sigma coordinate system
+    type(glide_coordinates), intent(in) :: coords  !< the glide coordinate systems
     real(dp),               intent(in)  :: thklim  !< Thickness threshold for calculation
     integer,                intent(in)  :: periodic_ew !< Set to indicate periodic BCs
 
@@ -114,8 +114,8 @@ contains
     if (VERT_ADV.eq.0.)    call write_log('Vertical advection is switched off')
     if (STRAIN_HEAT.eq.0.) call write_log('Strain heating is switched off')
 
-    params%hCoord = hCoord
-    call initVertCoord(params%zCoord,zCoord)
+    params%hCoord = coords%ice_grid
+    call initVertCoord(params%zCoord,coords%sigma_grid)
 
     params%thklim = thklim
 

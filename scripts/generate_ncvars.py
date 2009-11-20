@@ -313,7 +313,7 @@ class PrintNC_template(PrintVars):
                                                                                             attrib,
                                                                                             var[attrib]))
         if not is_dimvar(var):
-            self.stream.write("%s    if (glimmap_allocated(model%%projection)) then\n"%(spaces*' '))
+            self.stream.write("%s    if (glimmap_allocated(model%%coordinates%%projection)) then\n"%(spaces*' '))
             self.stream.write("%s       status = nf90_put_att(NCO%%id, %s, 'grid_mapping',glimmer_nc_mapvarname)\n"%(spaces*' ',idstring))
             attrib='coordinates'
             if attrib in var:
