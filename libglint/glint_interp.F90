@@ -121,7 +121,7 @@ contains
     use glint_global_grid
     use glimmer_map_trans
     use glimmer_map_types
-    use glimmer_coordinates
+    use glimmer_horizcoord
 
     !*FD Initialises a downscale variable,
     !*FD according to given projected and global grids
@@ -131,7 +131,7 @@ contains
     type(downscale),intent(out)      :: downs   !*FD Downscaling variable to be set
     type(glimmap_proj),intent(in)    :: proj    !*FD Projection to use
     type(global_grid),intent(in)     :: ggrid   !*FD Global grid to use
-    type(coordsystem_type),intent(in) :: lgrid  !*FD Local (ice) grid 
+    type(horizCoord_type),intent(in) :: lgrid  !*FD Local (ice) grid 
     logical,optional :: mpint !*FD Set true if we're using mean-preserving interp
 
     ! Internal variables
@@ -146,15 +146,15 @@ contains
 
     allocate(downs%xloc(lgrid%size(1),lgrid%size(2),4))
     allocate(downs%yloc(lgrid%size(1),lgrid%size(2),4))
-    call coordsystem_allocate(lgrid,downs%xfrac)
-    call coordsystem_allocate(lgrid,downs%yfrac)
-    call coordsystem_allocate(lgrid,downs%llons)
-    call coordsystem_allocate(lgrid,downs%llats)
-    call coordsystem_allocate(lgrid,downs%sintheta)
-    call coordsystem_allocate(lgrid,downs%costheta)
-    call coordsystem_allocate(lgrid,downs%xin)
-    call coordsystem_allocate(lgrid,downs%yin)
-    call coordsystem_allocate(lgrid,upsm)
+    call horizCoord_allocate(lgrid,downs%xfrac)
+    call horizCoord_allocate(lgrid,downs%yfrac)
+    call horizCoord_allocate(lgrid,downs%llons)
+    call horizCoord_allocate(lgrid,downs%llats)
+    call horizCoord_allocate(lgrid,downs%sintheta)
+    call horizCoord_allocate(lgrid,downs%costheta)
+    call horizCoord_allocate(lgrid,downs%xin)
+    call horizCoord_allocate(lgrid,downs%yin)
+    call horizCoord_allocate(lgrid,upsm)
   
     ! index local boxes
 
@@ -197,11 +197,11 @@ contains
     !*FD (or any vector field) onto a given projected grid.
 
     use glimmer_utils
-    use glimmer_coordinates
+    use glimmer_horizcoord
 
     ! Argument declarations
 
-    type(coordsystem_type), intent(in)     :: lgrid            !*FD Target grid
+    type(horizCoord_type), intent(in)     :: lgrid            !*FD Target grid
     real(rk),dimension(:,:),intent(in)     :: zonwind          !*FD Zonal component (input)
     real(rk),dimension(:,:),intent(in)     :: merwind          !*FD Meridional components (input)
     type(downscale),        intent(inout)  :: downs            !*FD Downscaling parameters
@@ -243,12 +243,12 @@ contains
     !*FD which precision output is required.
 
     use glimmer_utils
-    use glimmer_coordinates
+    use glimmer_horizcoord
     use glimmer_log
 
     ! Argument declarations
 
-    type(coordsystem_type),  intent(in)           :: lgrid     !*FD Local grid
+    type(horizCoord_type),  intent(in)           :: lgrid     !*FD Local grid
     real(rk), dimension(:,:),intent(in)           :: global    !*FD Global field (input)
     type(downscale),         intent(inout)        :: downs     !*FD Downscaling parameters
     real(sp),dimension(:,:), intent(out),optional :: localsp   !*FD Local field on projected grid (output) sp
@@ -343,7 +343,7 @@ contains
 
     use glimmer_map_types
     use glimmer_map_trans
-    use glimmer_coordinates
+    use glimmer_horizcoord
     use glimmer_utils
     use glimmer_log
     use glint_global_grid
@@ -351,7 +351,7 @@ contains
     ! Argument declarations
 
     type(glimmap_proj),              intent(in)  :: proj      !*FD Target map projection
-    type(coordsystem_type),          intent(in)  :: lgrid     !*FD Local grid information
+    type(horizCoord_type),          intent(in)  :: lgrid     !*FD Local grid information
     type(global_grid),               intent(in)  :: ggrid     !*FD Global grid information
     real(rk),dimension(:,:),         intent(in)  :: global    !*FD Global field (input)
     real(sp),dimension(:,:),optional,intent(out) :: localsp   !*FD Local field on projected grid (output) sp
@@ -432,13 +432,13 @@ contains
     !*FD Note that this is the mathematically inverse process of the 
     !*FD \texttt{interp\_to\_local} routine.
 
-    use glimmer_coordinates
+    use glimmer_horizcoord
     use glimmer_map_trans
 
     ! Arguments
 
     type(glimmap_proj),     intent(in)  :: proj      !*FD Projection to use
-    type(coordsystem_type), intent(in)  :: lgrid     !*FD Local grid
+    type(horizCoord_type), intent(in)  :: lgrid     !*FD Local grid
     real(rk),dimension(:,:),intent(in)  :: local     !*FD Local field (input)
     real(rk),dimension(:,:),intent(out) :: global    !*FD Global field (output)
     real(rk),dimension(:),  intent(in)  :: lats      !*FD Latitudes of grid-points (degrees)
@@ -661,7 +661,7 @@ contains
 
     use glimmer_utils
     use glint_global_grid
-    use glimmer_coordinates
+    use glimmer_horizcoord
     use glimmer_map_trans
 
     ! Arguments
@@ -670,7 +670,7 @@ contains
     real(rk),dimension(:,:),  intent(out) :: xfrac,yfrac !*FD Fractional off-sets of grid points
     type(global_grid),        intent(in)  :: ggrid       !*FD Global grid to be used
     type(glimmap_proj),       intent(in)  :: proj        !*FD Projection to be used
-    type(coordsystem_type),   intent(in)  :: lgrid       !*FD Local grid
+    type(horizCoord_type),   intent(in)  :: lgrid       !*FD Local grid
 
     ! Internal variables
 
@@ -761,12 +761,12 @@ contains
     !*FD grid makes with north at each point and stores the cos 
     !*FD and sin of that angle in the relevant arrays in \texttt{proj}.
 
-    use glimmer_coordinates
+    use glimmer_horizcoord
     use glimmer_map_trans
 
     type(downscale),intent(inout) :: downs !*FD The projection to be used
     type(glimmap_proj),intent(in) :: proj
-    type(coordsystem_type),intent(in) :: lgrid
+    type(horizCoord_type),intent(in) :: lgrid
 
     integer :: i,j
     real(rk) :: latn,lonn,lats,lons,lat,lon,dlat,dlon,temp
@@ -820,7 +820,7 @@ contains
     use glint_global_grid
     use glimmer_log
     use glimmer_map_trans
-    use glimmer_coordinates
+    use glimmer_horizcoord
 
     !*FD Compiles an index of which global grid box contains a given
     !*FD grid box on the projected grid, and sets derived type \texttt{ups}
@@ -832,7 +832,7 @@ contains
     type(global_grid),     intent(in)  :: ggrid      !*FD Global grid to be used
     type(glimmap_proj),    intent(in)  :: proj       !*FD Projection being used
     integer,dimension(:,:),intent(in)  :: mask       !*FD Upscaling mask to be used
-    type(coordsystem_type),intent(in)  :: lgrid      !*FD local grid
+    type(horizCoord_type),intent(in)  :: lgrid      !*FD local grid
 
     ! Internal variables
 

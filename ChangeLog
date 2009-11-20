@@ -1,4 +1,24 @@
 2009-11-20 Magnus Hagdorn
+ * libglimmer/glimmer_horizcoord.F90: renamed glimmer_coordinates.F90 to 
+   glimmer_horizcoord.F90, renamed exported symbols
+ * libglimmer/glimmer_coordinates.F90: this module now contains a derived 
+   type combining horizontal and vertical coordinate systems and the map
+   projection
+ * libglimmer/Makefile.am: add new file
+ * libglimmer/glimmer_map_trans.F90: renamed procedures from
+   glimmer_horizcoord.F90
+ * example-drivers/EISMINT-3/src/eismint3_forcing.F90: ditto
+ * example-drivers/eis/src/eis_ela.F90: ditto
+ * libglide/glide.F90: ditto
+ * libglide/glide_tempFullSoln.F90: ditto
+ * libglide/glide_types.F90: ditto
+ * libglint/glint_initialise.F90: ditto
+ * libglint/glint_interp.F90: ditto
+ * libglint/glint_mbal_coupling.F90: ditto
+ * libglint/glint_timestep.F90: ditto
+ * libglint/glint_type.F90: ditto
+
+2009-11-20 Magnus Hagdorn
  * libglide/glide_types.F90: move coordinate systems from glide_general to
    glide_coordinates and add the projection type to it as well, adjust 
    references to coordinate systems

@@ -76,6 +76,7 @@ contains
     use glint_routing
     use glimmer_log
     use physcon, only: rhow,rhoi
+    use glimmer_horizCoord, only : horizCoord_allocate
     implicit none
 
     ! ------------------------------------------------------------------------  
@@ -134,8 +135,8 @@ contains
 
     ! Assume we always need this, as it's too complicated to work out when we do and don't
 
-    call coordsystem_allocate(instance%lgrid,thck_temp)
-    call coordsystem_allocate(instance%lgrid,calve_temp)
+    call horizCoord_allocate(instance%lgrid,thck_temp)
+    call horizCoord_allocate(instance%lgrid,calve_temp)
     ice_tstep=.false.
 
     ! Downscale input fields -------------------------------------------------
@@ -197,8 +198,8 @@ contains
        ! Prepare arrays for water budgeting
 
        if (out_f%water_out.or.out_f%total_wout.or.out_f%water_in .or.out_f%total_win) then
-          call coordsystem_allocate(instance%lgrid,accum_temp)
-          call coordsystem_allocate(instance%lgrid,ablat_temp)
+          call horizCoord_allocate(instance%lgrid,accum_temp)
+          call horizCoord_allocate(instance%lgrid,ablat_temp)
           accum_temp=0.0
           ablat_temp=0.0
        end if
@@ -272,7 +273,7 @@ contains
 
        if (out_f%water_out.or.out_f%total_wout.or.out_f%water_in .or.out_f%total_win) then
 
-          call coordsystem_allocate(instance%lgrid,fudge_mask)
+          call horizCoord_allocate(instance%lgrid,fudge_mask)
 
           call glide_get_thk(instance%model,thck_temp)
           end_volume=sum(thck_temp)
@@ -300,7 +301,7 @@ contains
        ! First water input (i.e. mass balance + ablation)
 
        if (out_f%water_in) then
-          call coordsystem_allocate(instance%lgrid,upscale_temp)
+          call horizCoord_allocate(instance%lgrid,upscale_temp)
 
           where (thck_temp>0.0)
              upscale_temp=accum_temp
@@ -319,8 +320,8 @@ contains
        ! Now water output (i.e. ablation) - and do routing
 
        if (out_f%water_out) then
-          call coordsystem_allocate(instance%lgrid,upscale_temp)
-          call coordsystem_allocate(instance%lgrid,routing_temp)
+          call horizCoord_allocate(instance%lgrid,upscale_temp)
+          call horizCoord_allocate(instance%lgrid,routing_temp)
 
           where (thck_temp>0.0)
              upscale_temp=ablat_temp

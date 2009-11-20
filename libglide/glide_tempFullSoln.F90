@@ -73,7 +73,7 @@
 module glide_tempFullSoln
 
   use glimmer_vertcoord, only: vertCoord_type
-  use glimmer_coordinates, only : coordsystem_type
+  use glimmer_coordinates, only : horizCoord_type
   use glimmer_global,    only: dp
 
   implicit none
@@ -83,7 +83,7 @@ module glide_tempFullSoln
   !! variable.
   type type_tempFullSoln
      private
-     type(coordsystem_type) :: hCoord    !< the horizontal coordinate system
+     type(horizCoord_type):: hCoord      !< the horizontal coordinate system
      type(vertCoord_type) :: zCoord      !< Vertical coordinate information
      real(dp)             :: thklim      !< Thickness threshold for calculation
      integer              :: periodic_ew !< Set to indicate periodic BCs
@@ -99,13 +99,13 @@ contains
   subroutine init_tempFullSoln(params,coords,thklim,periodic_ew)
 
     use glimmer_vertcoord, only: initVertCoord,initVertCoord
-    use glide_types, only : glide_coordinates
+    use glimmer_coordinates, only : coordinates_type
     use glimmer_log,     only: write_log, GM_FATAL
 
     implicit none
 
     type(type_tempFullSoln),intent(out) :: params  !< Temperature model parameters
-    type(glide_coordinates), intent(in) :: coords  !< the glide coordinate systems
+    type(coordinates_type), intent(in)  :: coords  !< the glide coordinate systems
     real(dp),               intent(in)  :: thklim  !< Thickness threshold for calculation
     integer,                intent(in)  :: periodic_ew !< Set to indicate periodic BCs
 

@@ -67,6 +67,7 @@ contains
     use glide
     use glimmer_log
     use glint_constants
+    use glimmer_horizcoord, only : horizCoord_new
     implicit none
 
     ! Arguments
@@ -114,7 +115,7 @@ contains
 
     ! New grid and downscaling
 
-    instance%lgrid = coordsystem_new(0.d0, 0.d0, &
+    instance%lgrid = horizCoord_new(0.d0, 0.d0, &
          get_dew(instance%model), &
          get_dns(instance%model), &
          get_ewn(instance%model), &
@@ -266,12 +267,12 @@ contains
     !*FD domain.
 
     use glimmer_map_types
-    use glimmer_coordinates
+    use glimmer_horizcoord, only : horizCoord_type
     use glint_global_grid
 
     ! Arguments
 
-    type(coordsystem_type), intent(in)  :: lgrid         !*FD Local grid
+    type(horizCoord_type), intent(in)  :: lgrid         !*FD Local grid
     type(upscale),          intent(in)  :: ups           !*FD Upscaling used
     type(global_grid),      intent(in)  :: grid          !*FD Global grid used
     integer, dimension(:,:),intent(in)  :: mask          !*FD Mask of points for upscaling

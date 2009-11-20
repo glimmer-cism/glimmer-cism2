@@ -64,7 +64,7 @@ contains
   subroutine glimmap_ll_to_xy(lon,lat,x,y,proj,grid)
 
     use glimmer_log
-    use glimmer_coordinates
+    use glimmer_horizcoord, only : horizCoord_type
 
     implicit none
 
@@ -73,7 +73,7 @@ contains
     real(rk),intent(out) :: x   !< The location of the point in x-y space (x coordinate)
     real(rk),intent(out) :: y   !< The location of the point in x-y space (y coordinate)
     type(glimmap_proj),    intent(in) :: proj !< The projection being used
-    type(coordsystem_type),intent(in) :: grid !< the grid definition
+    type(horizCoord_type),intent(in) :: grid !< the grid definition
 
     real(rk) :: xx,yy ! These are real-space distances in meters
 
@@ -105,7 +105,7 @@ contains
 
 
     use glimmer_log
-    use glimmer_coordinates
+    use glimmer_horizcoord, only : horizCoord_type
 
     implicit none
 
@@ -114,7 +114,7 @@ contains
     real(rk),intent(in)  :: x   !< The location of the point in x-y space (x coordinate)
     real(rk),intent(in)  :: y   !< The location of the point in x-y space (y coordinate)
     type(glimmap_proj),    intent(in) :: proj !< The projection being used
-    type(coordsystem_type),intent(in) :: grid !< the grid definition
+    type(horizCoord_type),intent(in) :: grid !< the grid definition
 
     real(rk) :: xx,yy ! These are real-space distances in meters
 
@@ -489,7 +489,7 @@ contains
   !> transform from grid to space
   subroutine grid2space(x,y,gx,gy,coordsys)
 
-    use glimmer_coordinates
+    use glimmer_horizcoord, only : horizCoord_type
 
     implicit none
 
@@ -497,7 +497,7 @@ contains
     real(rk),intent(out) :: y  !< y-location in real space
     real(rk),intent(in)  :: gx !< x-location in grid space
     real(rk),intent(in)  :: gy !< y-location in grid space
-    type(coordsystem_type), intent(in) :: coordsys  !< coordinate system
+    type(horizCoord_type), intent(in) :: coordsys  !< coordinate system
 
     x=coordsys%origin(1) + real(gx - 1)*coordsys%delta(1)
     y=coordsys%origin(2) + real(gy - 1)*coordsys%delta(2)
@@ -509,7 +509,7 @@ contains
   !> convert from space to grid
   subroutine space2grid(x,y,gx,gy,coordsys)
 
-    use glimmer_coordinates
+    use glimmer_horizcoord, only : horizCoord_type
 
     implicit none
 
@@ -517,7 +517,7 @@ contains
     real(rk),intent(in)  :: y  !< y-location in real space
     real(rk),intent(out) :: gx !< x-location in grid space
     real(rk),intent(out) :: gy !< y-location in grid space
-    type(coordsystem_type), intent(in) :: coordsys  !< coordinate system
+    type(horizCoord_type), intent(in) :: coordsys  !< coordinate system
 
     gx = 1.0 + (x - coordsys%origin(1))/coordsys%delta(1)
     gy = 1.0 + (y - coordsys%origin(2))/coordsys%delta(2)

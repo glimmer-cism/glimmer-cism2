@@ -142,6 +142,7 @@ contains
   subroutine eis_init_ela(ela,model)
     !*FD initialise ELA forcing
     use glide_types
+    use glimmer_horizCoord, only : horizCoord_allocate
     use glimmer_paramets, only: thk0, acc0, scyr
     implicit none
     type(eis_ela_type)      :: ela   !*FD ela data
@@ -161,7 +162,7 @@ contains
     ela%ela_c = ela%ela_c/thk0
 
     ! calculate shape of mass balance field
-    call coordsystem_allocate(model%coordinates%ice_grid, ela%ela)
+    call horizCoord_allocate(model%coordinates%ice_grid, ela%ela)
     ela%ela = 0.
   end subroutine eis_init_ela
     

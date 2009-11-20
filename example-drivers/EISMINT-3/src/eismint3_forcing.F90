@@ -69,6 +69,7 @@ contains
     use physcon, only: rhoi,rhow
     use glimmer_paramets, only: thk0
     use glide_thckCommon, only: glide_calclsrf
+    use glimmer_horizCoord, only : horizCoord_allocate
 
     implicit none
 
@@ -79,16 +80,16 @@ contains
     call eismint3_readconfig(climate,config)
     call eismint3_printconfig(climate)
 
-    call coordsystem_allocate(model%coordinates%ice_grid,climate%prcp)
-    call coordsystem_allocate(model%coordinates%ice_grid,climate%artm)
-    call coordsystem_allocate(model%coordinates%ice_grid,climate%arng)
-    call coordsystem_allocate(model%coordinates%ice_grid,climate%acab)
-    call coordsystem_allocate(model%coordinates%ice_grid,climate%usrf)
-    call coordsystem_allocate(model%coordinates%ice_grid,climate%ablt)
-    call coordsystem_allocate(model%coordinates%ice_grid,climate%presusurf)
-    call coordsystem_allocate(model%coordinates%ice_grid,climate%presprcp)
-    call coordsystem_allocate(model%coordinates%ice_grid,climate%presartm)
-    call coordsystem_allocate(model%coordinates%ice_grid,climate%landsea)
+    call horizCoord_allocate(model%coordinates%ice_grid,climate%prcp)
+    call horizCoord_allocate(model%coordinates%ice_grid,climate%artm)
+    call horizCoord_allocate(model%coordinates%ice_grid,climate%arng)
+    call horizCoord_allocate(model%coordinates%ice_grid,climate%acab)
+    call horizCoord_allocate(model%coordinates%ice_grid,climate%usrf)
+    call horizCoord_allocate(model%coordinates%ice_grid,climate%ablt)
+    call horizCoord_allocate(model%coordinates%ice_grid,climate%presusurf)
+    call horizCoord_allocate(model%coordinates%ice_grid,climate%presprcp)
+    call horizCoord_allocate(model%coordinates%ice_grid,climate%presartm)
+    call horizCoord_allocate(model%coordinates%ice_grid,climate%landsea)
 
     call eismint3_io_readall(climate,model)
     call glimmer_pdd_init(climate%pdd_scheme,config)

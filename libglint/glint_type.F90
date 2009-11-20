@@ -55,14 +55,14 @@ module glint_type
   use glint_interp
   use glide_types
   use glint_mbal_coupling
-
+  use glimmer_horizcoord, only : horizCoord_type
   implicit none
 
   type glint_instance
 
      !*FD Derived type holding information about ice model instance. 
 
-     type(coordsystem_type)           :: lgrid              !*FD Local grid for interfacing with glide
+     type(horizCoord_type)            :: lgrid              !*FD Local grid for interfacing with glide
      type(downscale)                  :: downs              !*FD Downscaling parameters.
      type(upscale)                    :: ups                !*FD Upscaling parameters
      type(upscale)                    :: ups_orog           !*FD Upscaling parameters for orography (to cope
@@ -440,6 +440,7 @@ contains
     !*FD \end{itemize}
 
     use glimmer_paramets
+    use glimmer_horizcoord, only : horizCoord_allocate
 
     ! Arguments ----------------------------------------------------------------------------------------
 
@@ -466,7 +467,7 @@ contains
          instance%out_mask)
     orog=thk0*orog
 
-    call coordsystem_allocate(instance%lgrid,temp)
+    call horizCoord_allocate(instance%lgrid,temp)
 
     ! Ice-no-snow fraction
     where (instance%mbal_accum%snowd==0.0.and.instance%model%geometry%thck>0.0)

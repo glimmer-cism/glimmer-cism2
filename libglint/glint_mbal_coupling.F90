@@ -93,10 +93,10 @@ contains
 
   subroutine glint_mbc_init(params,lgrid,config,whichacab,snowd,siced,nx,ny,dx)
 
-    use glimmer_coordinates
+    use glimmer_horizcoord
 
     type(glint_mbc)  :: params
-    type(coordsystem_type) :: lgrid
+    type(horizCoord_type) :: lgrid
     type(ConfigSection), pointer :: config !*FD structure holding sections of configuration file
     integer          :: whichacab
     real(sp),dimension(:,:),intent(in) :: snowd !*FD Initial snow-depth field
@@ -127,24 +127,24 @@ contains
 
     ! Allocate arrays and zero
 
-    call coordsystem_allocate(lgrid,params%prcp_save);  params%prcp_save = 0.0
-    call coordsystem_allocate(lgrid,params%ablt_save);  params%ablt_save = 0.0
-    call coordsystem_allocate(lgrid,params%acab_save);  params%acab_save = 0.0
-    call coordsystem_allocate(lgrid,params%artm_save);  params%artm_save = 0.0
-    call coordsystem_allocate(lgrid,params%snowd);      params%snowd = 0.0
-    call coordsystem_allocate(lgrid,params%siced);      params%siced = 0.0
-    call coordsystem_allocate(lgrid,params%prcp);       params%prcp = 0.0
-    call coordsystem_allocate(lgrid,params%ablt);       params%ablt = 0.0
-    call coordsystem_allocate(lgrid,params%acab);       params%acab = 0.0
-    call coordsystem_allocate(lgrid,params%artm);       params%artm = 0.0
-    call coordsystem_allocate(lgrid,params%xwind);      params%xwind = 0.0
-    call coordsystem_allocate(lgrid,params%ywind);      params%ywind = 0.0
-    call coordsystem_allocate(lgrid,params%humidity);   params%humidity = 0.0
-    call coordsystem_allocate(lgrid,params%SWdown);     params%SWdown = 0.0
-    call coordsystem_allocate(lgrid,params%LWdown);     params%LWdown = 0.0
-    call coordsystem_allocate(lgrid,params%Psurf);      params%Psurf = 0.0
-    call coordsystem_allocate(lgrid,params%snowd_save); params%snowd_save = 0.0
-    call coordsystem_allocate(lgrid,params%siced_save); params%siced_save = 0.0
+    call horizCoord_allocate(lgrid,params%prcp_save);  params%prcp_save = 0.0
+    call horizCoord_allocate(lgrid,params%ablt_save);  params%ablt_save = 0.0
+    call horizCoord_allocate(lgrid,params%acab_save);  params%acab_save = 0.0
+    call horizCoord_allocate(lgrid,params%artm_save);  params%artm_save = 0.0
+    call horizCoord_allocate(lgrid,params%snowd);      params%snowd = 0.0
+    call horizCoord_allocate(lgrid,params%siced);      params%siced = 0.0
+    call horizCoord_allocate(lgrid,params%prcp);       params%prcp = 0.0
+    call horizCoord_allocate(lgrid,params%ablt);       params%ablt = 0.0
+    call horizCoord_allocate(lgrid,params%acab);       params%acab = 0.0
+    call horizCoord_allocate(lgrid,params%artm);       params%artm = 0.0
+    call horizCoord_allocate(lgrid,params%xwind);      params%xwind = 0.0
+    call horizCoord_allocate(lgrid,params%ywind);      params%ywind = 0.0
+    call horizCoord_allocate(lgrid,params%humidity);   params%humidity = 0.0
+    call horizCoord_allocate(lgrid,params%SWdown);     params%SWdown = 0.0
+    call horizCoord_allocate(lgrid,params%LWdown);     params%LWdown = 0.0
+    call horizCoord_allocate(lgrid,params%Psurf);      params%Psurf = 0.0
+    call horizCoord_allocate(lgrid,params%snowd_save); params%snowd_save = 0.0
+    call horizCoord_allocate(lgrid,params%siced_save); params%siced_save = 0.0
 
     ! Initialise the mass-balance scheme and other components
 

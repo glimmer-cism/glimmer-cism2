@@ -112,6 +112,7 @@ contains
     use glimmer_scales
     use isostasy
     use glimmer_map_init
+    use glimmer_horizcoord
     use glide_glenflow, only: calcflwa
     use glide_tempFullSoln, only: init_tempFullSoln
     use glide_thckADI, only: thckADI_init
@@ -129,10 +130,10 @@ contains
     ! scale parameters
     call glide_scale_params(model)
     ! set up coordinate systems
-    model%coordinates%ice_grid = coordsystem_new(0.d0, 0.d0, &
+    model%coordinates%ice_grid = horizCoord_new(0.d0, 0.d0, &
          model%numerics%dew, model%numerics%dns, &
          model%general%ewn, model%general%nsn)
-    model%coordinates%velo_grid = coordsystem_new(model%numerics%dew/2.,model%numerics%dns/2., &
+    model%coordinates%velo_grid = horizCoord_new(model%numerics%dew/2.,model%numerics%dns/2., &
          model%numerics%dew,model%numerics%dns, &
          model%general%ewn-1,model%general%nsn-1)
 
