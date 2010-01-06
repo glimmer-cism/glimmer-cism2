@@ -1,3 +1,11 @@
+2010-01-06 Magnus Hagdorn
+ * configure.in: detect whether fortran compiler supports allocatable
+   components, set preprocessor macros GC_DYNARRAY_ATTRIB and GC_DYNARRAY_CHECK
+ * libglide/glide_thckADI.F90: use new macros
+ * libglimmer/glimmer_slap.F90: ditto
+ * libglide/glide_tempFullSoln.F90: fix minor bug
+ * libglimmer/glimmer_mask.F90: need to use glimmer_global earlier
+
 2009-11-20 Magnus Hagdorn
  * m4macros/ax_f90_module_extension.m4: added new macro to detect f90 module
    extension

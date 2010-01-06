@@ -98,7 +98,7 @@ contains
   !> Initialises parameters for full temperature solution
   subroutine init_tempFullSoln(params,coords,thklim,periodic_ew)
 
-    use glimmer_vertcoord, only: initVertCoord,initVertCoord
+    use glimmer_vertcoord, only: initVertCoord
     use glimmer_coordinates, only : coordinates_type
     use glimmer_log,     only: write_log, GM_FATAL
 

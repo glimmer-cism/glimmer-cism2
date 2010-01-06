@@ -47,6 +47,8 @@
 module glimmer_mask
   !*FD masking ice thicknesses
 
+  use glimmer_global, only: dp, sp
+
   implicit none
 
   integer, parameter :: glimmer_mask_ocean          = -2
@@ -65,8 +67,6 @@ module glimmer_mask
 contains
 
   real(dp) function calc_ivol(mask,thck,dew,dns)
-
-    use glimmer_global, only: dp
 
     implicit none
     
@@ -90,8 +90,6 @@ contains
  
   real(dp) function calc_iarea(mask,thck,dew,dns)
 
-    use glimmer_global, only: dp
-
     implicit none
     
     integer, dimension(:,:),intent(in) :: mask
@@ -114,7 +112,6 @@ contains
 
   subroutine glimmer_set_mask(mask,thck,topg,eus,thklim)
 
-    use glimmer_global, only : dp,sp
     use physcon, only : rhoi, rhoo
 
     implicit none

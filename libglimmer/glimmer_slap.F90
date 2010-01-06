@@ -58,9 +58,9 @@ module glimmer_slap
      integer :: maxSize         !< Largest allowable number of elements
      integer :: numElements = 0 !< Actual number of elements
      integer :: rank            !< Rank of matrix (used for error checking)
-     integer, dimension(:),allocatable :: row !< Row index of elements
-     integer, dimension(:),allocatable :: col !< Column index of elements
-     real(dp),dimension(:),allocatable :: val !< Values of elements
+     integer, dimension(:), GC_DYNARRAY_ATTRIB :: row !< Row index of elements
+     integer, dimension(:), GC_DYNARRAY_ATTRIB :: col !< Column index of elements
+     real(dp),dimension(:), GC_DYNARRAY_ATTRIB :: val !< Values of elements
   end type slapMatrix_type
 
   private
@@ -81,9 +81,9 @@ contains
 
     ! Reallocate storage
 
-    if (allocated(matrix%row)) deallocate(matrix%row)
-    if (allocated(matrix%col)) deallocate(matrix%col)
-    if (allocated(matrix%val)) deallocate(matrix%val)
+    if (GC_DYNARRAY_CHECK(matrix%row)) deallocate(matrix%row)
+    if (GC_DYNARRAY_CHECK(matrix%col)) deallocate(matrix%col)
+    if (GC_DYNARRAY_CHECK(matrix%val)) deallocate(matrix%val)
 
     allocate(matrix%row(matrix%maxSize))
     allocate(matrix%col(matrix%maxSize))

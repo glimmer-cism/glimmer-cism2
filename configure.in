@@ -47,6 +47,21 @@ AX_F90_MODULE_EXTENSION
 F90_MODULE_EXTENSION=$ax_f90_modext
 AC_SUBST(F90_MODULE_EXTENSION)
 
+# checking whether allocatable components work
+AC_MSG_CHECKING([whether Fortran compiler supports allocatable components])
+AC_COMPILE_IFELSE([module test
+  type test_type
+  integer, allocatable, dimension(:) :: vec
+  end type test_type
+  end module test],
+  [AC_DEFINE(GC_DYNARRAY_ATTRIB,allocatable,[the attribute for dynamic array components])
+  AC_DEFINE(GC_DYNARRAY_CHECK,allocated,[the intrinsic procedure to check if memory for array has been reserved])
+  AC_MSG_RESULT(yes)],
+  [AC_DEFINE(GC_DYNARRAY_ATTRIB,pointer,[the attribute for dynamic array components])
+  AC_DEFINE(GC_DYNARRAY_CHECK,associated,[the intrinsic procedure to check if memory for array has been reserved])
+  AC_MSG_RESULT(no)]
+)
+
 # checking for f2003 command line parser
 AC_MSG_CHECKING([for f2003 command line parser])
 AC_LINK_IFELSE([AC_LANG_PROGRAM([],

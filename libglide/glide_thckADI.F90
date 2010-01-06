@@ -59,12 +59,12 @@ module glide_thckADI
      real(dp) :: dns
      real(dp) :: thklim
      integer  :: basal_mbal_flag
-     real(dp),dimension(:,:),allocatable :: dintflwa  
+     real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: dintflwa  
      !< Vertically-integrated value of Glen's A
-     real(dp),dimension(:,:),allocatable :: uflx  !< u flux 
-     real(dp),dimension(:,:),allocatable :: vflx  !< v flux
-     real(dp),dimension(:),  allocatable :: velo_dups
-     real(dp),dimension(:),  allocatable :: depth
+     real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: uflx  !< u flux 
+     real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: vflx  !< v flux
+     real(dp),dimension(:),  GC_DYNARRAY_ATTRIB :: velo_dups
+     real(dp),dimension(:),  GC_DYNARRAY_ATTRIB :: depth
   end type thckADI_type
 
 contains
@@ -96,11 +96,11 @@ contains
     params%thklim = thklim
     params%basal_mbal_flag = basal_mbal_flag
 
-    if (allocated(params%dintflwa)) deallocate(params%dintflwa)
-    if (allocated(params%uflx))     deallocate(params%uflx)
-    if (allocated(params%vflx))     deallocate(params%vflx)
-    if (allocated(params%velo_dups)) deallocate(params%velo_dups)
-    if (allocated(params%depth))    deallocate(params%depth)
+    if (GC_DYNARRAY_CHECK(params%dintflwa)) deallocate(params%dintflwa)
+    if (GC_DYNARRAY_CHECK(params%uflx))     deallocate(params%uflx)
+    if (GC_DYNARRAY_CHECK(params%vflx))     deallocate(params%vflx)
+    if (GC_DYNARRAY_CHECK(params%velo_dups)) deallocate(params%velo_dups)
+    if (GC_DYNARRAY_CHECK(params%depth))    deallocate(params%depth)
 
     allocate(params%dintflwa(ewn-1,nsn-1))
     allocate(params%uflx(ewn-1,nsn-1))
