@@ -75,8 +75,8 @@ contains
        end if
     end if
 
-    call closeall_in(model)
-    call closeall_out(model)
+    call closeall_in(model%funits%in_first)
+    call closeall_out(model%funits%out_first)
     
     call glide_deallocarr(model)
 

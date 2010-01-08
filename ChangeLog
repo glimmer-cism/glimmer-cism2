@@ -1,3 +1,14 @@
+2010-01-08 Magnus Hagdorn
+ * libglide/Makefile.am: remove file
+ * libglide/glide.F90: API changed
+ * libglide/glide_stop.F90: ditto
+ * libglimmer/ncdf_template.F90.in: ditto
+ * libglint/glint_initialise.F90: ditto
+ * libglide/glimmer_ncio.F90: moved to libglimmer
+ * libglimmer/glimmer_ncio.F90: change arguments so that instead of 
+   glide_global_type individual components are passed
+ * libglimmer/Makefile.am: add new file
+
 2010-01-06 Magnus Hagdorn
  * configure.in: detect whether fortran compiler supports allocatable
    components, set preprocessor macros GC_DYNARRAY_ATTRIB and GC_DYNARRAY_CHECK

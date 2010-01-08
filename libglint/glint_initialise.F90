@@ -102,7 +102,8 @@ contains
     call glint_io_createall(instance%model,data=instance)
 
     ! create instantaneous glint variables
-    call openall_out(instance%model,outfiles=instance%out_first)
+    call openall_out(instance%model%funits%out_first,instance%model%coordinates, &
+         outfiles=instance%out_first)
     call glint_mbal_io_createall(instance%model,data=instance,outfiles=instance%out_first)
 
     ! fill dimension variables
@@ -228,7 +229,7 @@ contains
     type(glint_instance),  intent(inout) :: instance    !*FD The instance being initialised.
 
     call glide_finalise(instance%model)
-    call closeall_out(instance%model,outfiles=instance%out_first)
+    call closeall_out(instance%model%funits%out_first,outfiles=instance%out_first)
     instance%out_first => null()
 
   end subroutine glint_i_end

@@ -150,7 +150,7 @@ contains
     call glide_load_sigma(model,dummyunit)
 
     ! open all input files
-    call openall_in(model)
+    call openall_in(model%funits%in_first,model%coordinates)
     ! and read first time slice
     call glide_io_readall(model,model)
     ! Write projection info to log
@@ -172,7 +172,7 @@ contains
     end select
 
     ! open all output files
-    call openall_out(model)
+    call openall_out(model%funits%out_first,model%coordinates)
     ! create glide variables
     call glide_io_createall(model)
 

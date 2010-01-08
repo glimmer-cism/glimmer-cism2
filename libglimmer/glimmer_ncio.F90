@@ -60,11 +60,12 @@ contains
   ! netCDF output
   !*****************************************************************************  
   !> open all netCDF files for output
-  subroutine openall_out(model,outfiles)
-    use glide_types
+  subroutine openall_out(out_list,coordinates,outfiles)
     use glimmer_ncdf
+    use glimmer_coordinates
     implicit none
-    type(glide_global_type) :: model
+    type(glimmer_nc_output), pointer :: out_list !< first element of the output file linked list
+    type(coordinates_type) :: coordinates       !< derived type holding glide coordinates
     type(glimmer_nc_output),pointer,optional :: outfiles
     
     ! local variables
@@ -73,25 +74,24 @@ contains
     if (present(outfiles)) then
        oc => outfiles
     else
-       oc=>model%funits%out_first
+       oc=>out_list
     end if
 
     do while(associated(oc))
        if (oc%append) then
-          call glimmer_nc_openappend(oc,model)
+          call glimmer_nc_openappend(oc)
        else
-          call glimmer_nc_createfile(oc,model)
+          call glimmer_nc_createfile(oc,coordinates)
        end if
        oc=>oc%next
     end do
   end subroutine openall_out
 
   !> close all netCDF files for output
-  subroutine closeall_out(model,outfiles)
-    use glide_types
+  subroutine closeall_out(out_list,outfiles)
     use glimmer_ncdf
     implicit none
-    type(glide_global_type) :: model
+    type(glimmer_nc_output), pointer :: out_list !< first element of the output file linked list
     type(glimmer_nc_output),pointer,optional :: outfiles
 
     ! local variables
@@ -100,27 +100,24 @@ contains
     if (present(outfiles)) then
        oc => outfiles
     else
-       oc=>model%funits%out_first
+       oc=>out_list
     end if
 
     do while(associated(oc))
        oc=>delete(oc)
     end do
-    if (.not.present(outfiles)) model%funits%out_first=>NULL()
+    if (.not.present(outfiles)) out_list=>NULL()
   end subroutine closeall_out
 
   !> open netCDF file for appending
-  subroutine glimmer_nc_openappend(outfile,model)
+  subroutine glimmer_nc_openappend(outfile)
     use glimmer_log
-    use glide_types
     use glimmer_map_CFproj
     use glimmer_map_types
     use glimmer_filenames
+    use glimmer_global, only : sp
     implicit none
-    type(glimmer_nc_output), pointer :: outfile
-    !*FD structure containg output netCDF descriptor
-    type(glide_global_type) :: model
-    !*FD the model instance
+    type(glimmer_nc_output), pointer :: outfile !< structure containg output netCDF descriptor
 
     ! local variables
     integer :: status,timedimid,ntime,timeid
@@ -154,17 +151,15 @@ contains
   end subroutine glimmer_nc_openappend
 
   !> create a new netCDF file
-  subroutine glimmer_nc_createfile(outfile,model)
+  subroutine glimmer_nc_createfile(outfile,coordinates)
     use glimmer_log
-    use glide_types
     use glimmer_map_CFproj
     use glimmer_map_types
     use glimmer_filenames
+    use glimmer_coordinates
     implicit none
-    type(glimmer_nc_output), pointer :: outfile
-    !*FD structure containg output netCDF descriptor
-    type(glide_global_type) :: model
-    !*FD the model instance
+    type(glimmer_nc_output), pointer :: outfile !< structure containg output netCDF descriptor
+    type(coordinates_type) :: coordinates      !< derived type holding glide coordinates
 
     ! local variables
     integer status
@@ -216,37 +211,28 @@ contains
     status = nf90_put_att(NCO%id, NCO%timevar, 'calendar', 'none')
 
     ! adding projection info
-    if (glimmap_allocated(model%coordinates%projection)) then
+    if (glimmap_allocated(coordinates%projection)) then
        status = nf90_def_var(NCO%id,glimmer_nc_mapvarname,NF90_CHAR,mapid)
        call nc_errorhandle(__FILE__,__LINE__,status)
-       call glimmap_CFPutProj(NCO%id,mapid,model%coordinates%projection)
+       call glimmap_CFPutProj(NCO%id,mapid,coordinates%projection)
     end if
 
     ! setting the size of the level dimension
-    NCO%nlevel = model%general%upn
+    NCO%nlevel = coordinates%sigma_grid%upn
   end subroutine glimmer_nc_createfile
 
   !> check if we should write to file
-  subroutine glimmer_nc_checkwrite(outfile,model,forcewrite,time)
+  subroutine glimmer_nc_checkwrite(outfile,forcewrite,time)
     use glimmer_log
-    use glide_types
     use glimmer_filenames
+    use glimmer_global, only : sp
     implicit none
-    type(glimmer_nc_output), pointer :: outfile    
-    type(glide_global_type) :: model
-    logical forcewrite
-    real(sp),optional :: time
+    type(glimmer_nc_output), pointer :: outfile !< data structure holding output file
+    logical                 :: forcewrite       !< set to True when file should be written
+    real(sp)                :: time             !< the next time at which output should be written
 
     character(len=msg_length) :: message
     integer status
-    real(sp) :: sub_time
-
-    ! Check for optional time argument
-    if (present(time)) then
-       sub_time=time
-    else
-       sub_time=model%numerics%time
-    end if
 
     ! check if we are still in define mode and if so leave it
     if (NCO%define_mode) then
@@ -254,8 +240,7 @@ contains
        call nc_errorhandle(__FILE__,__LINE__,status)
        NCO%define_mode = .FALSE.
     end if
-
-    if (sub_time.gt.NCO%processsed_time) then
+    if (time.gt.NCO%processsed_time) then
        if (NCO%just_processed) then
           ! finished writing during last time step, need to increase counter...
           
@@ -265,16 +250,16 @@ contains
           NCO%just_processed = .FALSE.
        end if
     end if
-    if (sub_time.ge.outfile%next_write .or. (forcewrite.and.sub_time.gt.outfile%next_write-outfile%freq)) then
-       if (sub_time.le.outfile%end_write .and. .not.NCO%just_processed) then
+    if (time.ge.outfile%next_write .or. (forcewrite.and.time.gt.outfile%next_write-outfile%freq)) then
+       if (time.le.outfile%end_write .and. .not.NCO%just_processed) then
           call write_log_div
-          write(message,*) 'Writing to file ', trim(process_path(NCO%filename)), ' at time ', sub_time
+          write(message,*) 'Writing to file ', trim(process_path(NCO%filename)), ' at time ', time
           call write_log(trim(message))
           ! increase next_write
           outfile%next_write=outfile%next_write+outfile%freq
-          NCO%processsed_time = sub_time
+          NCO%processsed_time = time
           ! write time
-          status = nf90_put_var(NCO%id,NCO%timevar,sub_time,(/outfile%timecounter/))
+          status = nf90_put_var(NCO%id,NCO%timevar,time,(/outfile%timecounter/))
           call nc_errorhandle(__FILE__,__LINE__,status)
           NCO%just_processed = .TRUE.         
        end if
@@ -285,52 +270,51 @@ contains
   ! netCDF input
   !*****************************************************************************  
   !> open all netCDF files for input
-  subroutine openall_in(model)
-    use glide_types
+  subroutine openall_in(in_list,coordinates)
     use glimmer_ncdf
+    use glimmer_coordinates
     implicit none
-    type(glide_global_type) :: model
+    type(glimmer_nc_input), pointer :: in_list   !< first element of the input file linked list
+    type(coordinates_type) :: coordinates       !< derived type holding glide coordinates
     
     ! local variables
     type(glimmer_nc_input), pointer :: ic
 
-    ic=>model%funits%in_first
+    ic=>in_list
     do while(associated(ic))
-       call glimmer_nc_openfile(ic,model)
+       call glimmer_nc_openfile(ic,coordinates)
        ic=>ic%next
     end do
   end subroutine openall_in
 
   !> close all netCDF files for input
-  subroutine closeall_in(model)
-    use glide_types
+  subroutine closeall_in(in_list)
     use glimmer_ncdf
     implicit none
-    type(glide_global_type) :: model
+    type(glimmer_nc_input), pointer :: in_list   !< first element of the input file linked list
     
     ! local variables
     type(glimmer_nc_input), pointer :: ic
 
-    ic=>model%funits%in_first
+    ic=>in_list
     do while(associated(ic))
        ic=>delete(ic)
     end do
-    model%funits%in_first=>NULL()
+    in_list=>NULL()
   end subroutine closeall_in
 
   !> open an existing netCDF file
-  subroutine glimmer_nc_openfile(infile,model)
-    use glide_types
+  subroutine glimmer_nc_openfile(infile,coordinates)
     use glimmer_map_cfproj
     use glimmer_map_types
     use glimmer_log
     use glimmer_paramets, only: len0
     use glimmer_filenames
+    use glimmer_coordinates
     implicit none
-    type(glimmer_nc_input), pointer :: infile
-    !*FD structure containg input netCDF descriptor
-    type(glide_global_type) :: model
-    !*FD the model instance
+    type(glimmer_nc_input), pointer :: infile !< structure containg input netCDF descriptor
+    type(coordinates_type) :: coordinates    !< derived type holding glide coordinates
+
 
     ! local variables
     integer dimsize, dimid, varid
@@ -350,7 +334,7 @@ contains
     call write_log('opening file '//trim(process_path(NCI%filename))//' for input')
 
     ! getting projection, if none defined already
-    if (.not.glimmap_allocated(model%coordinates%projection)) model%coordinates%projection = glimmap_CFGetProj(NCI%id)
+    if (.not.glimmap_allocated(coordinates%projection)) coordinates%projection = glimmap_CFGetProj(NCI%id)
 
     ! getting time dimension
     status = nf90_inq_dimid(NCI%id, 'time', NCI%timedim)
@@ -367,7 +351,7 @@ contains
     status = nf90_get_var(NCI%id,NCI%timevar,infile%times)
 
     ! setting the size of the level dimension
-    NCI%nlevel = model%general%upn
+    NCI%nlevel = coordinates%sigma_grid%upn
 
     ! checking if dimensions and grid spacing are the same as in the configuration file
     ! x1
@@ -375,18 +359,18 @@ contains
     call nc_errorhandle(__FILE__,__LINE__,status)
     status = nf90_inquire_dimension(NCI%id,dimid,len=dimsize)
     call nc_errorhandle(__FILE__,__LINE__,status)
-    if (dimsize.ne.model%general%ewn) then
+    if (dimsize.ne.coordinates%ice_grid%size(1)) then
        write(message,*) 'Dimension x1 of file '//trim(process_path(NCI%filename))//' does not match with config dimension: ',&
-            dimsize, model%general%ewn
+            dimsize, coordinates%ice_grid%size(1)
        call write_log(message,type=GM_FATAL)
     end if
     status = nf90_inq_varid(NCI%id,'x1',varid)
     call nc_errorhandle(__FILE__,__LINE__,status)
     status = nf90_get_var(NCI%id,varid,delta)
     call nc_errorhandle(__FILE__,__LINE__,status)
-    if (abs(delta(2)-delta(1) - model%numerics%dew*len0).gt.small) then
+    if (abs(delta(2)-delta(1) - coordinates%ice_grid%delta(1)*len0).gt.small) then
        write(message,*) 'deltax1 of file '//trim(process_path(NCI%filename))//' does not match with config deltax: ',&
-            delta(2)-delta(1),model%numerics%dew*len0
+            delta(2)-delta(1),coordinates%ice_grid%delta(1)*len0
        call write_log(message,type=GM_FATAL)
     end if
 
@@ -395,18 +379,18 @@ contains
     call nc_errorhandle(__FILE__,__LINE__,status)
     status = nf90_inquire_dimension(NCI%id,dimid,len=dimsize)
     call nc_errorhandle(__FILE__,__LINE__,status)
-    if (dimsize.ne.model%general%nsn) then
+    if (dimsize.ne.coordinates%ice_grid%size(2)) then
        write(message,*) 'Dimension y1 of file '//trim(process_path(NCI%filename))//' does not match with config dimension: ',&
-            dimsize, model%general%nsn
+            dimsize, coordinates%ice_grid%size(2)
        call write_log(message,type=GM_FATAL)
     end if
     status = nf90_inq_varid(NCI%id,'y1',varid)
     call nc_errorhandle(__FILE__,__LINE__,status)
     status = nf90_get_var(NCI%id,varid,delta)
     call nc_errorhandle(__FILE__,__LINE__,status)
-    if (abs(delta(2)-delta(1) - model%numerics%dns*len0).gt.small) then
+    if (abs(delta(2)-delta(1) - coordinates%ice_grid%delta(2)*len0).gt.small) then
        write(message,*) 'deltay1 of file '//trim(process_path(NCI%filename))//' does not match with config deltay: ',&
-            delta(2)-delta(1),model%numerics%dns*len0
+            delta(2)-delta(1),coordinates%ice_grid%delta(2)*len0
        call write_log(message,type=GM_FATAL)
     end if
       
@@ -420,10 +404,10 @@ contains
   if (status == NF90_NOERR) then
         status = nf90_inquire_dimension(NCI%id, dimid, len=dimsize)
         call nc_errorhandle(__FILE__, __LINE__, status)
-        if (dimsize.ne.model%general%upn .and. dimsize .ne. 1) then
+        if (dimsize.ne.coordinates%sigma_grid%upn .and. dimsize .ne. 1) then
             write(message,*) 'Dimension level of file '//trim(process_path(NCI%filename))//&
                 ' does not match with config dimension: ', &
-                dimsize, model%general%upn
+                dimsize, coordinates%sigma_grid%upn
             call write_log(message,type=GM_FATAL)
         end if
   else
@@ -433,38 +417,28 @@ contains
   end subroutine glimmer_nc_openfile
 
   !> check if we should read from file
-  subroutine glimmer_nc_checkread(infile,model,time)
+  subroutine glimmer_nc_checkread(infile,time)
     use glimmer_log
-    use glide_types
     use glimmer_filenames
+    use glimmer_global, only : sp
     implicit none
-    type(glimmer_nc_input), pointer :: infile
-    !*FD structure containg output netCDF descriptor
-    type(glide_global_type) :: model
-    !*FD the model instance
-    real(sp),optional :: time
-    !*FD Optional alternative time
+    type(glimmer_nc_input), pointer :: infile !< structure containg output netCDF descriptor
+    real(sp) :: time                          !< time
 
     character(len=msg_length) :: message
     real(sp) :: sub_time
-
-    if (present(time)) then
-       sub_time=time
-    else
-       sub_time=model%numerics%time
-    end if
 
     if (infile%current_time.le.infile%nt) then
        if (.not.NCI%just_processed) then
           call write_log_div
           write(message,*) 'Reading time slice ',infile%current_time,'(',infile%times(infile%current_time),') from file ', &
-               trim(process_path(NCI%filename)), ' at time ', sub_time
+               trim(process_path(NCI%filename)), ' at time ', time
           call write_log(message)
           NCI%just_processed = .TRUE.
-          NCI%processsed_time = sub_time
+          NCI%processsed_time = time
        end if
     end if
-    if (sub_time.gt.NCI%processsed_time) then
+    if (time.gt.NCI%processsed_time) then
        if (NCI%just_processed) then
           ! finished reading during last time step, need to increase counter...
           infile%current_time = infile%current_time + 1

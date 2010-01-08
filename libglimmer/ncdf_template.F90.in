@@ -100,6 +100,7 @@ contains
     real(sp),optional :: time
 
     ! local variables
+    real(sp) :: t
     type(glimmer_nc_output), pointer :: oc
     logical :: forcewrite=.false.
 
@@ -113,13 +114,19 @@ contains
        forcewrite = atend
     end if
 
+    if (present(time)) then
+       t = time
+    else
+       t = model%numerics%time
+    end if
+
     do while(associated(oc))
 #ifdef HAVE_AVG
        if (oc%do_averages) then
           call NAME_avg_accumulate(oc,data,model)
        end if
 #endif
-       call glimmer_nc_checkwrite(oc,model,forcewrite,time)
+       call glimmer_nc_checkwrite(oc,forcewrite,t)
        if (oc%nc%just_processed) then
           ! write standard variables
           call NAME_io_write(oc,data)
@@ -210,7 +217,7 @@ contains
 
     ic=>model%funits%in_first
     do while(associated(ic))
-       call glimmer_nc_checkread(ic,model)
+       call glimmer_nc_checkread(ic,model%numerics%time)
        if (ic%nc%just_processed) then
           call NAME_io_read(ic,data)
        end if
