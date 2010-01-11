@@ -44,25 +44,27 @@
 #include "config.inc"
 #endif
 
-module glide_deriv
+module glimmer_deriv_time
 
   use glimmer_global, only: dp, sp
 
   implicit none
 
-  type timederiv_params
+  !> work array for time derivatives
+  type timeders_type
      real(sp) :: oldtime = 0.0
-     real(dp),dimension(:,:,:),pointer :: olds      => null()
+     real(dp),dimension(:,:,:),GC_DYNARRAY_ATTRIB :: olds
      integer  :: nwhich  = 2
-  end type timederiv_params
+  end type timeders_type
 
 contains
 
+  !> initialise the time derivative structure
   subroutine timeders_init(params,ewn,nsn)
 
-    type(timederiv_params),intent(inout) :: params
-    integer,               intent(in)    :: ewn
-    integer,               intent(in)    :: nsn
+    type(timeders_type),intent(inout) :: params !< Derived-type containing work data
+    integer,               intent(in) :: ewn    !< the number of points along the x axis
+    integer,               intent(in) :: nsn    !< the number of points along the y axis
 
     allocate(params%olds(ewn,nsn,params%nwhich))
     params%olds = 0.0d0
@@ -71,20 +73,19 @@ contains
 
   !-----------------------------------------------------------------------------
 
+  !> Calculates the time-derivative of a field. 
   subroutine timeders(params,ipvr,opvr,time,which)
-
-    !*FD Calculates the time-derivative of a field. 
 
     use glimmer_global, only : dp, sp
     use glimmer_paramets, only : conv
 
     implicit none 
 
-    type(timederiv_params) :: params    !*FD Derived-type containing work data
-    real(dp), intent(out), dimension(:,:) :: opvr  !*FD Input field
-    real(dp), intent(in),  dimension(:,:) :: ipvr  !*FD Output (derivative) field
-    real(sp), intent(in)                  :: time  !*FD current time
-    integer,  intent(in)                  :: which !*FD selector for stored field
+    type(timeders_type) :: params                  !< Derived-type containing work data
+    real(dp), intent(out), dimension(:,:) :: opvr  !< Input field
+    real(dp), intent(in),  dimension(:,:) :: ipvr  !< Output (derivative) field
+    real(sp), intent(in)                  :: time  !< current time
+    integer,  intent(in)                  :: which !< selector for stored field
 
     real(sp) :: factor
 
@@ -106,12 +107,13 @@ contains
 
   !-----------------------------------------------------------------------------
 
+  !> cleanup time-derivative work data
   subroutine timeders_final(params)
 
-     type(timederiv_params) :: params   
+     type(timeders_type) :: params  !< Derived-type containing work data
 
      deallocate(params%olds)
 
   end subroutine timeders_final
 
-end module glide_deriv
+end module glimmer_deriv_time

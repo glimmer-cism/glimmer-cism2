@@ -1,3 +1,11 @@
+2010-01-11 Magnus Hagdorn
+ * libglide/Makefile.am: remove file
+ * libglide/glide_deriv.F90 moved to libglimmer/glimmer_deriv_time.F90
+ * libglimmer/glimmer_deriv_time.F90: rename module and derived type
+ * libglide/glide_types.F90: use new module and derived type names
+ * libglide/glide_velo.F90: ditto
+ * libglimmer/Makefile.am: add new file
+
 2010-01-08 Magnus Hagdorn
  * libglide/Makefile.am: remove file
  * libglide/glide.F90: API changed

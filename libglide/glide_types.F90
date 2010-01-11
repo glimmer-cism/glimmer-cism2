@@ -67,7 +67,7 @@ module glide_types
   use glimmer_coordinates, only : coordinates_type
   use glimmer_map_types, pi_dummy=>pi
   use glide_glenflow, only: glenflow_params
-  use glide_deriv, only: timederiv_params
+  use glimmer_deriv_time, only: timeders_type
   use glide_tempFullSoln, only: type_tempFullSoln
   use glide_thckADI, only: thckADI_type
   use glimmer_slap, only: slapMatrix_type
@@ -489,7 +489,7 @@ module glide_types
     type(profile_type)   :: profile
     type(glide_prof_type) :: glide_prof
     type(isos_type)      :: isos
-    type(timederiv_params) :: timederivs
+    type(timeders_type) :: timederivs
     type(type_tempFullSoln) :: tempFullSoln
     type(thckADI_type) :: thckADI
   end type glide_global_type
@@ -576,7 +576,7 @@ contains
     !*FD \end{itemize}
 
     use glimmer_log
-    use glide_deriv, only: timeders_init
+    use glimmer_deriv_time, only: timeders_init
     use glimmer_horizCoord, only : horizCoord_allocate
     implicit none
 
@@ -674,7 +674,7 @@ contains
   subroutine glide_deallocarr(model)
     !*FD deallocate model arrays
 
-    use glide_deriv, only: timeders_final
+    use glimmer_deriv_time, only: timeders_final
     implicit none
     type(glide_global_type),intent(inout) :: model
 

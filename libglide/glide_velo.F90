@@ -133,7 +133,7 @@ contains
 
     !*FD Calculates the ice temperature - full solution
 
-    use glide_deriv, only: timeders
+    use glimmer_deriv_time, only: timeders
     implicit none
 
     !------------------------------------------------------------------------------------
