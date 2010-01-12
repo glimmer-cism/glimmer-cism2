@@ -44,55 +44,45 @@
 #include "config.inc"
 #endif
 
+!> module defining derived types used for isostasy calculations
+!!
+!! \author Magnus Hagdorn
+!! \date 2006
+
 module isostasy_types
-  !*FD types for isostasy model
 
   use glimmer_global, only : dp
-  
+
+  !> Holds data used by isostatic adjustment calculations for an elastic lithosphere
   type isostasy_elastic
-     !*FD Holds data used by isostatic adjustment calculations
-     
-     real(kind=dp) :: d = 0.24e25                !*FD flexural rigidity
-     real(kind=dp) :: lr                         !*FD radius of relative stiffness
-     real(kind=dp) :: a                          !*FD radius of disk
-     real(kind=dp) :: c1,c2,cd3,cd4              !*FD coefficients
-     real(kind=dp), dimension(:,:), pointer :: w !*FD matrix operator for lithosphere deformation
-     integer :: wsize                            !*FD size of operator (0:rbel_wsize, 0:rbel_wsize), operator is axis symmetric
+     real(kind=dp) :: d = 0.24e25                           !< flexural rigidity
+     real(kind=dp) :: lr                                    !< radius of relative stiffness
+     real(kind=dp) :: a                                     !< radius of disk
+     real(kind=dp) :: c1,c2,cd3,cd4                         !< coefficients
+     real(kind=dp), dimension(:,:), GC_DYNARRAY_ATTRIB :: w !< matrix operator for lithosphere deformation
+     integer :: wsize                                       !< size of operator (0:rbel_wsize, 0:rbel_wsize), operator is axis symmetric
   end type isostasy_elastic
 
+  !> contains isostasy configuration
   type isos_type
-     !*FD contains isostasy configuration
-     logical :: do_isos = .False.    
-     !*FD set to .True. if isostatic adjustment should be handled
+     logical :: do_isos = .False.    !< set to .True. if isostatic adjustment should be handled
+     !> method for calculating equilibrium bedrock depression:
+     !!  - <tt>0</tt> local lithosphere, equilibrium bedrock depression is found using Archimedes' principle
+     !!  - <tt>1</tt> elastic lithosphere, flexural rigidity is taken into account
      integer :: lithosphere = 0      
-     !*FD method for calculating equilibrium bedrock depression:
-     !*FD \begin{description} 
-     !*FD \item[0] local lithosphere, equilibrium bedrock depression is found using Archimedes' principle
-     !*FD \item[1] elastic lithosphere, flexural rigidity is taken into account
-     !*FD \end{description}
+     !> method for approximating the mantle
+     !!  - <tt>0</tt> fluid mantle, isostatic adjustment happens instantaneously
+     !!  - <tt>1</tt> relaxing mantle, mantle is approximated by a half-space
      integer :: asthenosphere = 0
-     !*FD method for approximating the mantle
-     !*FD \begin{description} 
-     !*FD \item[0] fluid mantle, isostatic adjustment happens instantaneously
-     !*FD \item[1] relaxing mantle, mantle is approximated by a half-space
-     !*FD \end{description}
-     real :: relaxed_tau = 4000.
-     !*FD characteristic time constant of relaxing mantle
-     real :: period = 500.
-     !*FD lithosphere update period
-     real :: next_calc
-     !*FD when to upate lithosphere
-     logical :: new_load=.false.
-     !*FD set to true if there is a new surface load
-     type(isostasy_elastic) :: rbel
-     !*FD structure holding elastic lithosphere setup
+     real :: relaxed_tau = 4000. !< characteristic time constant of relaxing mantle
+     real :: period = 500. !< lithosphere update period
+     real :: next_calc !< when to upate lithosphere
+     logical :: new_load=.false. !< set to true if there is a new surface load
+     type(isostasy_elastic) :: rbel !< structure holding elastic lithosphere setup
 
-     real(dp),dimension(:,:),pointer :: relx => null()
-     !*FD The elevation of the relaxed topography, by \texttt{thck0}.
-     real(dp),dimension(:,:),pointer :: load => null()
-     !*FD the load imposed on lithosphere
-     real(dp),dimension(:,:),pointer :: load_factors => null()
-     !*FD temporary used for load calculation
+     real(dp),dimension(:,:), GC_DYNARRAY_ATTRIB :: relx => null() !< The elevation of the relaxed topography, by <tt>thck0</tt>.
+     real(dp),dimension(:,:), GC_DYNARRAY_ATTRIB :: load => null() !< the load imposed on lithosphere
+     real(dp),dimension(:,:), GC_DYNARRAY_ATTRIB :: load_factors => null() !< temporary used for load calculation
   end type isos_type  
 
 !MH!  !MAKE_RESTART
@@ -110,21 +100,22 @@ contains
 !MH!#undef RST_ISOSTASY_TYPES
 !MH!#endif
 
+  !> allocate data for isostasy calculations
    subroutine isos_allocate(isos, ewn, nsn)
-    !*FD allocate data for isostasy calculations
     implicit none
-    type(isos_type) :: isos                !*FD structure holding isostasy configuration
-    integer, intent(in) :: ewn, nsn        !*FD size of grid
+    type(isos_type) :: isos           !< structure holding isostasy configuration
+    integer, intent(in) :: ewn        !< size of grid in x direction
+    integer, intent(in) :: nsn        !< size of grid in y direction
 
     allocate(isos%relx(ewn,nsn))
     allocate(isos%load(ewn,nsn))
     allocate(isos%load_factors(ewn,nsn))
   end subroutine isos_allocate
 
+  !> deallocate data for isostasy calculations
   subroutine isos_deallocate(isos)
-    !*FD deallocate data for isostasy calculations
     implicit none
-    type(isos_type) :: isos                !*FD structure holding isostasy configuration
+    type(isos_type) :: isos                !< structure holding isostasy configuration
     
     deallocate(isos%relx)
     deallocate(isos%load)

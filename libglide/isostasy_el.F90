@@ -44,25 +44,28 @@
 #include "config.inc"
 #endif
 
-module isostasy_el
+!> handle an elastic lithosphere
+!!
+!! \author Magnus Hagdorn
+!! \date 2006
 
-  !*FD handle elastic lithosphere
+module isostasy_el
 
   use glimmer_global, only : dp
   use isostasy_types
 
-  real, private, parameter :: r_lr=6.0        ! influence of disk load at (0,0) is felt within a radius of rbel_r_lr*rbel_r
+  real, private, parameter :: r_lr=6.0        !< influence of disk load at (0,0) is felt within a radius of rbel_r_lr*rbel_r
   
   private :: init_rbel,rbel_ow, rbel_iw
 
 contains
   
+  !> initialise elastic lithosphere calculations
   subroutine init_elastic(rbel, deltax)
-    !*FD initialise elastic lithosphere calculations
     use physcon, only : pi
     implicit none
-    type(isostasy_elastic) :: rbel     !*FD structure holding elastic litho data    
-    real(kind=dp), intent(in) :: deltax        !*FD grid spacing
+    type(isostasy_elastic) :: rbel       !< structure holding elastic litho data    
+    real(kind=dp), intent(in) :: deltax  !< grid spacing
 
     ! local variables
     real :: a     ! radius of disk
@@ -112,12 +115,12 @@ contains
     !rbel%w=rbel%w/len0
   end subroutine init_elastic
 
+  !> calculate surface loading effect using elastic lithosphere approximation
   subroutine calc_elastic(rbel,load,load_factors)
-    !*FD calculate surface loading effect using elastic lithosphere approximation
     implicit none
-    type(isostasy_elastic) :: rbel                     !*FD structure holding elastic litho data
-    real(kind=dp), dimension(:,:), intent(out) :: load !*FD loading effect due to load_factors
-    real(kind=dp), dimension(:,:), intent(in)  :: load_factors !*FD load mass divided by mantle density
+    type(isostasy_elastic) :: rbel                     !< structure holding elastic litho data
+    real(kind=dp), dimension(:,:), intent(out) :: load !< loading effect due to load_factors
+    real(kind=dp), dimension(:,:), intent(in)  :: load_factors !< load mass divided by mantle density
 
     integer ewn,nsn
     integer i,j,n,m
@@ -137,10 +140,10 @@ contains
     end do
   end subroutine calc_elastic
 
+  !> clean-up data structure
   subroutine finalise_elastic(rbel)
-    !*FD clean-up data structure
     implicit none
-    type(isostasy_elastic) :: rbel     !*FD structure holding elastic litho data    
+    type(isostasy_elastic) :: rbel     !< structure holding elastic litho data    
 
     deallocate(rbel%w)
   end subroutine finalise_elastic
@@ -148,14 +151,14 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! private subroutines
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> initialise elastic lithosphere calculations
   subroutine init_rbel(rbel, a)
-    !*FD initialise elastic lithosphere calculations
     use glimmer_paramets, only: len0
     use physcon, only: rhom,grav
     use kelvin
     implicit none
-    type(isostasy_elastic) :: rbel     !*FD structure holding elastic litho data
-    real, intent(in) :: a             !*FD radius of disk
+    type(isostasy_elastic) :: rbel    !< structure holding elastic litho data
+    real, intent(in) :: a             !< radius of disk
 
     real dummy_a
 
@@ -173,24 +176,24 @@ contains
     
   end subroutine init_rbel
 
+  !> calculating deflection outside disk
   function rbel_ow(rbel,r)
     use kelvin
-    !*FD calculating deflection outside disk
     implicit none
     real :: rbel_ow
-    real, intent(in) :: r             !*FD radius, r should be scaled with lr
-    type(isostasy_elastic) :: rbel     !*FD structure holding elastic litho data
+    real, intent(in) :: r             !< radius, r should be scaled with lr
+    type(isostasy_elastic) :: rbel    !< structure holding elastic litho data
     
     rbel_ow = rbel%cd3*ker(r) + rbel%cd4*kei(r)
   end function rbel_ow
 
+  !> calculating deflection inside disk
   function rbel_iw(rbel,r)
     use kelvin
-    !*FD calculating deflection inside disk
     implicit none
     real :: rbel_iw
-    real, intent(in) :: r             !*FD radius, r should be scaled with lr
-    type(isostasy_elastic) :: rbel     !*FD structure holding elastic litho data
+    real, intent(in) :: r             !< radius, r should be scaled with lr
+    type(isostasy_elastic) :: rbel    !< structure holding elastic litho data
     
     rbel_iw = 1.0 + rbel%c1*ber(r) + rbel%c2*bei(r)
   end function rbel_iw

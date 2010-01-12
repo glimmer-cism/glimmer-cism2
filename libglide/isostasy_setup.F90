@@ -44,21 +44,23 @@
 #include "config.inc"
 #endif
 
+!> routines for setting up isostasy computations
+!!
+!! \author Magnus Hagdorn
+!! \date 2006
 module isostasy_setup
-
-  !*FD routines for setting up isostasy module
 
   use isostasy_types
   use glimmer_global, only : dp
 
 contains
-  
+
+  !> read isostasy configuration
   subroutine isos_readconfig(isos,config)
-    !*FD read isostasy configuration
     use glimmer_config
     implicit none
-    type(isos_type) :: isos                !*FD structure holding isostasy configuration
-    type(ConfigSection), pointer :: config !*FD structure holding sections of configuration file
+    type(isos_type) :: isos                !< structure holding isostasy configuration
+    type(ConfigSection), pointer :: config !< structure holding sections of configuration file
 
     ! local variables
     type(ConfigSection), pointer :: section
@@ -79,11 +81,11 @@ contains
     end if
   end subroutine isos_readconfig
 
+  !> print isostasy configuration to log
   subroutine isos_printconfig(isos)
-    !*FD print isostasy configuration to log
     use glimmer_log
     implicit none
-    type(isos_type) :: isos                !*FD structure holding isostasy configuration
+    type(isos_type) :: isos                !< structure holding isostasy configuration
 
     character(len=100) :: message
 

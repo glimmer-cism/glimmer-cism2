@@ -1,3 +1,10 @@
+2010-01-12 Magnus Hagdorn
+ * libglide/Makefile.am: bundle isostasy code into a convinience library
+ * libglide/isostasy.F90: convert doc strings to doxygen
+ * libglide/isostasy_el.F90: ditto
+ * libglide/isostasy_setup.F90: ditto
+ * libglide/isostasy_types.F90: ditto
+
 2010-01-11 Magnus Hagdorn
  * libglide/Makefile.am: remove file
  * libglide/glide_deriv.F90 moved to libglimmer/glimmer_deriv_time.F90

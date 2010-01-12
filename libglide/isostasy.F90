@@ -44,10 +44,12 @@
 #include "config.inc"
 #endif
 
+!> calculate isostatic adjustment due to changing surface loads
+!!
+!! \author Magnus Hagdorn
+!! \date 2006
 module isostasy
   
-  !*FD calculate isostatic adjustment due to changing surface loads
-
   use glimmer_global, only : dp
   use isostasy_setup
   use isostasy_types
@@ -56,8 +58,8 @@ module isostasy
   private :: relaxing_mantle
   
 contains
+  !> initialise isostasy calculations
   subroutine init_isostasy(model)
-    !*FD initialise isostasy calculations
     use glide_types
     use physcon,  only: scyr
     use glimmer_paramets, only: tim0
@@ -74,8 +76,8 @@ contains
 
   end subroutine init_isostasy
   
+  !> calculate surface load factors due to water and ice distribution
   subroutine isos_icewaterload(model)
-    !*FD calculate surface load factors due to water and ice distribution
     use physcon
     use glide_types
     implicit none
@@ -103,8 +105,8 @@ contains
     end do
   end subroutine isos_icewaterload
 
+  !> calculate isostatic adjustment due to changing surface loads
   subroutine isos_isostasy(model)
-    !*FD calculate isostatic adjustment due to changing surface loads
     use glide_types
     implicit none
     type(glide_global_type) :: model
@@ -128,8 +130,8 @@ contains
     use glide_types
     implicit none
     type(glide_global_type) :: model
-    real(kind=dp), dimension(:,:), intent(out) :: load !*FD loading effect due to load_factors
-    real(kind=dp), dimension(:,:), intent(in)  :: load_factors !*FD load mass divided by mantle density
+    real(kind=dp), dimension(:,:), intent(out) :: load !< loading effect due to load_factors
+    real(kind=dp), dimension(:,:), intent(in)  :: load_factors !< load mass divided by mantle density
 
     if (model%isos%lithosphere .eq. 0) then
        ! local lithosphere
@@ -139,9 +141,9 @@ contains
     end if
   end subroutine isos_lithosphere
 
+  !> Calculate the relaxed topography, assuming the isostatic depression
+  !! is the equilibrium state for the current topography.
   subroutine isos_relaxed(model)
-    !*FD Calculate the relaxed topography, assuming the isostatic depression
-    !*FD is the equilibrium state for the current topography.
     use glide_types
     implicit none
     type(glide_global_type) :: model
@@ -158,8 +160,8 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! private subroutines
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> approximate mantle with a relaxing half-space: dh/dt=-1/tau*(w-h)
   subroutine relaxing_mantle(model)
-    !*FD approximate mantle with a relaxing half-space: dh/dt=-1/tau*(w-h)
     use glide_types
     implicit none
     type(glide_global_type) :: model
