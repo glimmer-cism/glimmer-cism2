@@ -80,9 +80,9 @@ module isostasy_types
      logical :: new_load=.false. !< set to true if there is a new surface load
      type(isostasy_elastic) :: rbel !< structure holding elastic lithosphere setup
 
-     real(dp),dimension(:,:), GC_DYNARRAY_ATTRIB :: relx => null() !< The elevation of the relaxed topography, by <tt>thck0</tt>.
-     real(dp),dimension(:,:), GC_DYNARRAY_ATTRIB :: load => null() !< the load imposed on lithosphere
-     real(dp),dimension(:,:), GC_DYNARRAY_ATTRIB :: load_factors => null() !< temporary used for load calculation
+     real(dp),dimension(:,:), GC_DYNARRAY_ATTRIB :: relx !< The elevation of the relaxed topography, by <tt>thck0</tt>.
+     real(dp),dimension(:,:), GC_DYNARRAY_ATTRIB :: load !< the load imposed on lithosphere
+     real(dp),dimension(:,:), GC_DYNARRAY_ATTRIB :: load_factors !< temporary used for load calculation
   end type isos_type  
 
 !MH!  !MAKE_RESTART

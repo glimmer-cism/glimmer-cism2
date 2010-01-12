@@ -605,6 +605,7 @@ contains
     use glimmer_config
     use glide_types
     use glimmer_log
+    use glimmer_vertcoord, only : vertCoord_allocate
     implicit none
     type(ConfigSection), pointer :: section
     type(glide_global_type)  :: model
@@ -615,6 +616,8 @@ contains
     else
        model%options%which_sigma = 2
        call GetValue(section,'sigma_levels',model%numerics%sigma,model%general%upn)
+       call vertCoord_allocate(model%coordinates%sigma_grid,model%general%upn)
+       call GetValue(section,'sigma_levels',model%coordinates%sigma_grid%sigma,model%general%upn)
     end if
 
   end subroutine handle_sigma
