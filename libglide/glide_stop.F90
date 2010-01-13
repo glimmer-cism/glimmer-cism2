@@ -57,7 +57,7 @@ contains
     use glimmer_log
     use glide_types
     use glide_io
-    use glide_lithot_io
+    use lithot_io
     use glide_tempFullSoln, only: get_niter
     use profile
     implicit none
@@ -70,7 +70,7 @@ contains
        if (crash) then
           call glide_io_writeall(model,model,.true.)
           if (model%options%gthf.gt.0) then
-             call glide_lithot_io_writeall(model,model,.true.)
+             call lithot_io_writeall(model,model,.true.)
           end if
        end if
     end if

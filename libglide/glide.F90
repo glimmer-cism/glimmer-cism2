@@ -51,8 +51,8 @@ module glide
   use glide_stop
   use glide_nc_custom
   use glide_io
-  use glide_lithot_io
-  use glide_lithot
+  use lithot_io
+  use lithot
   use glide_profile
   use glimmer_config
   integer, private, parameter :: dummyunit=99
@@ -158,7 +158,7 @@ contains
 
     ! read lithot if required
     if (model%options%gthf.gt.0) then
-       call glide_lithot_io_readall(model,model)
+       call lithot_io_readall(model,model)
     end if
 
     ! handle relaxed/equilibrium topo
@@ -198,7 +198,7 @@ contains
          model%options%basal_mbal)
 
     if (model%options%gthf.gt.0) then
-       call glide_lithot_io_createall(model)
+       call lithot_io_createall(model)
        call init_lithot(model)
     end if
 
@@ -444,7 +444,7 @@ contains
     if (.not. nw) then
        call glide_io_writeall(model,model)
        if (model%options%gthf.gt.0) then
-          call glide_lithot_io_writeall(model,model)
+          call lithot_io_writeall(model,model)
        end if
     end if
 

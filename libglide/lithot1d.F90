@@ -46,7 +46,7 @@
 
 ! module for 1D temperature calculations in the upper lithosphere
 
-module glide_lithot1d
+module lithot1d
 
 contains
   subroutine init_lithot1d(model)
@@ -134,4 +134,4 @@ contains
     deallocate(model%lithot%supd)
   end subroutine finalise_lithot1d
 
-end module glide_lithot1d
+end module lithot1d

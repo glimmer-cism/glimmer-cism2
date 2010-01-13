@@ -8,7 +8,7 @@
 # setup for code generator
 [VARSET]
 # prefix of the generated module
-name:     glide_lithot
+name:     lithot
 # f90 type containing all necessary data
 datatype: glide_global_type   
 # module where type is defined

@@ -46,7 +46,7 @@
 
 ! module for 3D temperature calculations in the upper lithosphere
 
-module glide_lithot3d
+module lithot3d
 
 private
 public :: init_lithot3d, calc_lithot3d, finalise_lithot3d
@@ -236,4 +236,4 @@ contains
   end function linearise
 
 
-end module glide_lithot3d
+end module lithot3d

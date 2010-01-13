@@ -1,4 +1,14 @@
 2010-01-13 Magnus Hagdorn
+ * libglide/Makefile.am: rename lithot files and bundle them into a convinience
+   library
+ * libglide/glide.F90: rename modules
+ * libglide/glide_stop.F90: ditto
+ * libglide/lithot_vars.def: changed name to lithot
+ * libglide/glide_lithot1d.F90 renamed to libglide/lithot1d.F90
+ * libglide/glide_lithot3d.F90 renamed to libglide/lithot3d.F90
+ * libglide/glide_lithot.F90 renamed to libglide/lithot.F90
+
+2010-01-13 Magnus Hagdorn
  * libglide/glide.F90: use new API for calling isostasy module
  * libglide/glide_types.F90: ditto
  * libglide/isostasy.F90: remove glide_global_type from argument list and use

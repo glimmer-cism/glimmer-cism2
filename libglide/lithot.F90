@@ -46,7 +46,7 @@
 
 ! module for temperature calculations in the upper lithosphere
 
-module glide_lithot
+module lithot
 
 
 contains  
@@ -55,8 +55,8 @@ contains
     use glide_setup
     use glimmer_paramets, only: tim0
     use glimmer_log
-    use glide_lithot1d
-    use glide_lithot3d
+    use lithot1d
+    use lithot3d
     implicit none
     type(glide_global_type),intent(inout) :: model       !*FD model instance
 
@@ -130,8 +130,8 @@ contains
   subroutine calc_lithot(model)
     use glide_types
     use glimmer_log
-    use glide_lithot1d
-    use glide_lithot3d
+    use lithot1d
+    use lithot3d
     implicit none
     type(glide_global_type),intent(inout) :: model       !*FD model instance
 
@@ -161,9 +161,9 @@ contains
 
   subroutine finalise_lithot(model)
     use glide_types
-    use glide_lithot1d
+    use lithot1d
     use glimmer_log
-    use glide_lithot3d
+    use lithot3d
     implicit none
     type(glide_global_type),intent(inout) :: model       !*FD model instance
 
@@ -179,4 +179,4 @@ contains
     end if
   end subroutine finalise_lithot
 
-end module glide_lithot
+end module lithot
