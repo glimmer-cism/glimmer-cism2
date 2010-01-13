@@ -163,12 +163,12 @@ contains
 
     ! handle relaxed/equilibrium topo
     ! Initialise isostasy first
-    call init_isostasy(model)
+    call init_isostasy(model%isos,model%numerics%tstart)
     select case(model%options%whichrelaxed)
     case(1) ! Supplied topography is relaxed
        model%isos%relx = model%geometry%topg
     case(2) ! Supplied topography is in equilibrium
-       call isos_relaxed(model)
+       call isos_relaxed(model%isos,model%geometry%topg,model%geometry%thck,model%climate%eus)
     end select
 
     ! open all output files
@@ -531,8 +531,7 @@ contains
     if (model%isos%do_isos) then
        if (model%numerics%time.ge.model%isos%next_calc) then
           model%isos%next_calc = model%isos%next_calc + model%isos%period
-          call isos_icewaterload(model)
-          model%isos%new_load = .true.
+          call isos_icewaterload(model%isos,model%geometry%topg,model%geometry%thck,model%climate%eus)
        end if
     end if
 #ifdef PROFILING
@@ -559,7 +558,7 @@ contains
     call glide_prof_start(model,model%glide_prof%isos)
 #endif
     if (model%isos%do_isos) then
-       call isos_isostasy(model)
+       call isos_isostasy(model%isos,model%geometry%topg,model%numerics%dt)
     end if
 #ifdef PROFILING
     call glide_prof_stop(model,model%glide_prof%isos)

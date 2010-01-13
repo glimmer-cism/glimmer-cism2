@@ -667,7 +667,7 @@ contains
     endif
 
     ! allocate isostasy grids
-    call isos_allocate(model%isos,ewn,nsn)
+    call isos_allocate(model%isos,model%coordinates)
 
   end subroutine glide_allocarr
 

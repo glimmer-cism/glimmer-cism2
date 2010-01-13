@@ -1,4 +1,12 @@
 2010-01-13 Magnus Hagdorn
+ * libglide/glide.F90: use new API for calling isostasy module
+ * libglide/glide_types.F90: ditto
+ * libglide/isostasy.F90: remove glide_global_type from argument list and use
+   isostasy module and the individual fields instead
+ * libglide/isostasy_types.F90: isostasy module now has a copy of the coordinate
+   system
+
+2010-01-13 Magnus Hagdorn
  * example-drivers/EISMINT-3/src/eismint3_types.F90: use new macros to support
    allocatable arrays as components in derived types
  * example-drivers/eis/src/eis_ela.F90: ditto

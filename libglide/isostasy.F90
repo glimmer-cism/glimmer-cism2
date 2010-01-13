@@ -50,7 +50,7 @@
 !! \date 2006
 module isostasy
   
-  use glimmer_global, only : dp
+  use glimmer_global, only : dp,sp
   use isostasy_setup
   use isostasy_types
   use isostasy_el
@@ -59,101 +59,105 @@ module isostasy
   
 contains
   !> initialise isostasy calculations
-  subroutine init_isostasy(model)
-    use glide_types
+  subroutine init_isostasy(isos,tstart)
     use physcon,  only: scyr
     use glimmer_paramets, only: tim0
     implicit none
-    type(glide_global_type) :: model
+    type(isos_type) :: isos !< structure holding isostasy configuration
+    real(sp), intent(in) :: tstart !< time when first isostasy computation should be done
 
-    if (model%isos%lithosphere .eq. 1) then
-       call init_elastic(model%isos%rbel,model%numerics%dew)
+    if (isos%lithosphere .eq. 1) then
+       call init_elastic(isos%rbel,isos%hCoord%delta(1))
     end if
-    model%isos%next_calc = model%numerics%tstart
+    isos%next_calc = tstart
 
     ! scale tau
-    model%isos%relaxed_tau = model%isos%relaxed_tau * scyr / tim0
+    isos%relaxed_tau = isos%relaxed_tau * scyr / tim0
 
   end subroutine init_isostasy
   
   !> calculate surface load factors due to water and ice distribution
-  subroutine isos_icewaterload(model)
+  subroutine isos_icewaterload(isos,topg,thck,eus)
     use physcon
-    use glide_types
     implicit none
-    type(glide_global_type) :: model
+    type(isos_type) :: isos !< structure holding isostasy configuration
+    real(dp), dimension(:,:), intent(in) :: topg !< bedrock topography
+    real(dp), dimension(:,:), intent(in) :: thck !< ice thicknesses
+    real(sp), intent(in) :: eus                  !< the current eustatic sealevel
 
     real(kind=dp) :: ice_mass, water_depth, water_mass
     integer :: ew,ns
   
-     do ns=1,model%general%nsn
-       do ew=1,model%general%ewn
-          ice_mass = rhoi * model%geometry%thck(ew,ns)
-          if (model%geometry%topg(ew,ns)-model%climate%eus.lt.0) then             ! check if we are below sea level
-             water_depth = model%climate%eus - model%geometry%topg(ew,ns)
+     do ns=1,isos%hCoord%size(1)
+       do ew=1,isos%hCoord%size(2)
+          ice_mass = rhoi * thck(ew,ns)
+          if (topg(ew,ns)-eus.lt.0) then             ! check if we are below sea level
+             water_depth = eus - topg(ew,ns)
              water_mass = rhoo * water_depth
              ! Just the water load due to changes in sea-level
-             model%isos%load_factors(ew,ns) = rhoo* model%climate%eus/rhom
+             isos%load_factors(ew,ns) = rhoo* eus/rhom
              ! Check if ice is not floating
              if ( ice_mass .gt. water_mass ) then
-                model%isos%load_factors(ew,ns) = model%isos%load_factors(ew,ns) + (ice_mass - water_mass)/rhom
+                isos%load_factors(ew,ns) = isos%load_factors(ew,ns) + (ice_mass - water_mass)/rhom
              end if
           else                                       ! bedrock is above sea level
-             model%isos%load_factors(ew,ns) = ice_mass/rhom
+             isos%load_factors(ew,ns) = ice_mass/rhom
           end if
        end do
     end do
+    isos%new_load = .true.
   end subroutine isos_icewaterload
 
   !> calculate isostatic adjustment due to changing surface loads
-  subroutine isos_isostasy(model)
-    use glide_types
+  subroutine isos_isostasy(isos,topg,dt)
     implicit none
-    type(glide_global_type) :: model
+    type(isos_type) :: isos !< structure holding isostasy configuration
+    real(dp), dimension(:,:), intent(inout) :: topg !< bedrock topography
+    real(dp), intent(in) :: dt !< current time step
 
     ! update load if necessary
-    if (model%isos%new_load) then
-       call isos_lithosphere(model,model%isos%load,model%isos%load_factors)
+    if (isos%new_load) then
+       call isos_lithosphere(isos)
        ! update bed rock with (non-viscous) fluid mantle
-       if (model%isos%asthenosphere .eq. 0) then
-          model%geometry%topg = model%isos%relx - model%isos%load
+       if (isos%asthenosphere .eq. 0) then
+          topg = isos%relx - isos%load
        end if
-       model%isos%new_load = .false.
+       isos%new_load = .false.
     end if
     ! update bed rock with relaxing mantle
-    if (model%isos%asthenosphere .eq. 1) then
-       call relaxing_mantle(model)
+    if (isos%asthenosphere .eq. 1) then
+       call relaxing_mantle(isos,topg,dt)
     end if
   end subroutine isos_isostasy
 
-  subroutine isos_lithosphere(model,load,load_factors)
-    use glide_types
+  !> compute isostatic load
+  subroutine isos_lithosphere(isos)
     implicit none
-    type(glide_global_type) :: model
-    real(kind=dp), dimension(:,:), intent(out) :: load !< loading effect due to load_factors
-    real(kind=dp), dimension(:,:), intent(in)  :: load_factors !< load mass divided by mantle density
+    type(isos_type) :: isos !< structure holding isostasy configuration
 
-    if (model%isos%lithosphere .eq. 0) then
+    if (isos%lithosphere .eq. 0) then
        ! local lithosphere
-       load = load_factors
-    else if (model%isos%lithosphere .eq. 1) then
-       call calc_elastic(model%isos%rbel,load,load_factors)
+       isos%load = isos%load_factors
+    else if (isos%lithosphere .eq. 1) then
+       call calc_elastic(isos%rbel,isos%load,isos%load_factors)
     end if
   end subroutine isos_lithosphere
 
   !> Calculate the relaxed topography, assuming the isostatic depression
   !! is the equilibrium state for the current topography.
-  subroutine isos_relaxed(model)
-    use glide_types
+  subroutine isos_relaxed(isos,topg,thck,eus)
     implicit none
-    type(glide_global_type) :: model
+    type(isos_type) :: isos !< structure holding isostasy configuration    
+    real(dp), dimension(:,:), intent(in) :: topg !< bedrock topography
+    real(dp), dimension(:,:), intent(in) :: thck !< ice thicknesses
+    real(sp), intent(in) :: eus                  !< the current eustatic sealevel
 
     ! Calculate the load
-    call isos_icewaterload(model)
+    call isos_icewaterload(isos,topg,thck,eus)
     ! Apply lithosphere model
-    call isos_lithosphere(model,model%isos%load,model%isos%load_factors)
+    call isos_lithosphere(isos)
     ! Add to present topography to get relaxed topography
-    model%isos%relx = model%geometry%topg + model%isos%load
+    isos%relx = topg + isos%load
 
   end subroutine isos_relaxed
 
@@ -161,20 +165,21 @@ contains
   ! private subroutines
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> approximate mantle with a relaxing half-space: dh/dt=-1/tau*(w-h)
-  subroutine relaxing_mantle(model)
-    use glide_types
+  subroutine relaxing_mantle(isos,topg,dt)
     implicit none
-    type(glide_global_type) :: model
+    type(isos_type) :: isos !< structure holding isostasy configuration
+    real(dp), dimension(:,:), intent(inout) :: topg !< bedrock topography
+    real(dp), intent(in) :: dt !< current time step
     
     integer :: ew,ns
     real(kind=dp) :: ft1, ft2
 
-    ft1 = exp(-model%numerics%dt/model%isos%relaxed_tau)
+    ft1 = exp(-dt/isos%relaxed_tau)
     ft2 = 1. - ft1
     
-    do ns=1,model%general%nsn
-       do ew=1,model%general%ewn
-          model%geometry%topg(ew,ns) = ft2*(model%isos%relx(ew,ns)-model%isos%load(ew,ns)) + ft1*model%geometry%topg(ew,ns)
+    do ns=1,isos%hCoord%size(1)
+       do ew=1,isos%hCoord%size(2)
+          topg(ew,ns) = ft2*(isos%relx(ew,ns)-isos%load(ew,ns)) + ft1*topg(ew,ns)
        end do
     end do
   end subroutine relaxing_mantle

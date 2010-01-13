@@ -52,6 +52,7 @@
 module isostasy_types
 
   use glimmer_global, only : dp
+  use glimmer_coordinates, only : horizCoord_type
 
   !> Holds data used by isostatic adjustment calculations for an elastic lithosphere
   type isostasy_elastic
@@ -83,6 +84,8 @@ module isostasy_types
      real(dp),dimension(:,:), GC_DYNARRAY_ATTRIB :: relx !< The elevation of the relaxed topography, by <tt>thck0</tt>.
      real(dp),dimension(:,:), GC_DYNARRAY_ATTRIB :: load !< the load imposed on lithosphere
      real(dp),dimension(:,:), GC_DYNARRAY_ATTRIB :: load_factors !< temporary used for load calculation
+
+     type(horizCoord_type):: hCoord      !< the horizontal coordinate system
   end type isos_type  
 
 !MH!  !MAKE_RESTART
@@ -101,15 +104,18 @@ contains
 !MH!#endif
 
   !> allocate data for isostasy calculations
-   subroutine isos_allocate(isos, ewn, nsn)
+   subroutine isos_allocate(isos, coords)
+    use glimmer_coordinates, only : coordinates_type
+    use glimmer_horizcoord, only : horizCoord_allocate
     implicit none
     type(isos_type) :: isos           !< structure holding isostasy configuration
-    integer, intent(in) :: ewn        !< size of grid in x direction
-    integer, intent(in) :: nsn        !< size of grid in y direction
+    type(coordinates_type), intent(in)  :: coords  !< the glide coordinate systems
 
-    allocate(isos%relx(ewn,nsn))
-    allocate(isos%load(ewn,nsn))
-    allocate(isos%load_factors(ewn,nsn))
+    isos%hCoord = coords%ice_grid
+
+    call horizCoord_allocate(isos%hCoord,isos%relx)
+    call horizCoord_allocate(isos%hCoord,isos%load)
+    call horizCoord_allocate(isos%hCoord,isos%load_factors)
   end subroutine isos_allocate
 
   !> deallocate data for isostasy calculations
