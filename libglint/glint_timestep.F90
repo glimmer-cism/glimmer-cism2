@@ -115,13 +115,13 @@ contains
     ! Internal variables
     ! ------------------------------------------------------------------------  
 
-    real(rk),dimension(:,:),pointer :: upscale_temp => null() ! temporary array for upscaling
-    real(rk),dimension(:,:),pointer :: routing_temp => null() ! temporary array for flow routing
-    real(rk),dimension(:,:),pointer :: accum_temp   => null() ! temporary array for accumulation
-    real(rk),dimension(:,:),pointer :: ablat_temp   => null() ! temporary array for ablation
-    integer, dimension(:,:),pointer :: fudge_mask   => null() ! temporary array for fudging
-    real(sp),dimension(:,:),pointer :: thck_temp    => null() ! temporary array for volume calcs
-    real(sp),dimension(:,:),pointer :: calve_temp   => null() ! temporary array for calving flux
+    real(rk),dimension(:,:),GC_DYNARRAY_ATTRIB :: upscale_temp ! temporary array for upscaling
+    real(rk),dimension(:,:),GC_DYNARRAY_ATTRIB :: routing_temp ! temporary array for flow routing
+    real(rk),dimension(:,:),GC_DYNARRAY_ATTRIB :: accum_temp   ! temporary array for accumulation
+    real(rk),dimension(:,:),GC_DYNARRAY_ATTRIB :: ablat_temp   ! temporary array for ablation
+    integer, dimension(:,:),GC_DYNARRAY_ATTRIB :: fudge_mask   ! temporary array for fudging
+    real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: thck_temp    ! temporary array for volume calcs
+    real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: calve_temp   ! temporary array for calving flux
     real(rk) :: start_volume,end_volume,flux_fudge
     integer :: i
 
@@ -293,7 +293,6 @@ contains
           endwhere
           
           deallocate(fudge_mask)
-          fudge_mask => null()
 
        endif
 
@@ -314,7 +313,6 @@ contains
                g_water_in,     &
                instance%out_mask)
           deallocate(upscale_temp)
-          upscale_temp => null()
        endif
 
        ! Now water output (i.e. ablation) - and do routing
@@ -342,8 +340,6 @@ contains
                g_water_out,    &
                instance%out_mask)
           deallocate(upscale_temp,routing_temp)
-          upscale_temp => null()
-          routing_temp => null()
 
        endif
 
@@ -384,23 +380,19 @@ contains
 
     ! Tidy up ----------------------------------------------------------------
 
-    if (associated(accum_temp)) then 
+    if (GC_DYNARRAY_CHECK(accum_temp)) then 
        deallocate(accum_temp)
-       accum_temp => null()
     end if
 
-    if (associated(ablat_temp)) then
+    if (GC_DYNARRAY_CHECK(ablat_temp)) then
        deallocate(ablat_temp)
-       ablat_temp => null()
     end if
 
-    if (associated(calve_temp)) then
+    if (GC_DYNARRAY_CHECK(calve_temp)) then
        deallocate(calve_temp)
-       calve_temp => null()
     end if
 
     deallocate(thck_temp)
-    thck_temp => null()
 
   end subroutine glint_i_tstep
 

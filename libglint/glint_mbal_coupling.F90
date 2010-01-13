@@ -52,24 +52,24 @@ module glint_mbal_coupling
   !*FD Module to handle the accumulation of inputs and calculation of mass-balance
 
   type glint_mbc
-     real(dp),dimension(:,:),pointer :: prcp_save  => null() !*FD used to accumulate precip
-     real(dp),dimension(:,:),pointer :: ablt_save  => null() !*FD used to accumulate ablation
-     real(dp),dimension(:,:),pointer :: acab_save  => null() !*FD used to accumulate mass-balance
-     real(dp),dimension(:,:),pointer :: artm_save  => null() !*FD used to average air-temperature
-     real(sp),dimension(:,:),pointer :: snowd      => null() !*FD Keeps track of snow depth
-     real(sp),dimension(:,:),pointer :: siced      => null() !*FD Keeps track of superimposed ice depth 
-     real(sp),dimension(:,:),pointer :: prcp       => null() !*FD Instantaneous precip
-     real(sp),dimension(:,:),pointer :: ablt       => null() !*FD Instantaneous ablation
-     real(sp),dimension(:,:),pointer :: acab       => null() !*FD Instantaneous mass-balance
-     real(sp),dimension(:,:),pointer :: artm       => null() !*FD Instantaneous air temperature
-     real(sp),dimension(:,:),pointer :: xwind      => null() !*FD Instantaneous x-wind
-     real(sp),dimension(:,:),pointer :: ywind      => null() !*FD Instantaneous y-wind
-     real(sp),dimension(:,:),pointer :: humidity   => null() !*FD Instantaneous humidity
-     real(sp),dimension(:,:),pointer :: SWdown     => null() !*FD Instantaneous sw down
-     real(sp),dimension(:,:),pointer :: LWdown     => null() !*FD Instantaneous lw down
-     real(sp),dimension(:,:),pointer :: Psurf      => null() !*FD Instantaneous psurf
-     real(sp),dimension(:,:),pointer :: snowd_save => null() !*FD Saves snow depth
-     real(sp),dimension(:,:),pointer :: siced_save => null() !*FD Saves superimposed ice depth 
+     real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: prcp_save  !*FD used to accumulate precip
+     real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: ablt_save  !*FD used to accumulate ablation
+     real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: acab_save  !*FD used to accumulate mass-balance
+     real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: artm_save  !*FD used to average air-temperature
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: snowd      !*FD Keeps track of snow depth
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: siced      !*FD Keeps track of superimposed ice depth 
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: prcp       !*FD Instantaneous precip
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: ablt       !*FD Instantaneous ablation
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: acab       !*FD Instantaneous mass-balance
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: artm       !*FD Instantaneous air temperature
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: xwind      !*FD Instantaneous x-wind
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: ywind      !*FD Instantaneous y-wind
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: humidity   !*FD Instantaneous humidity
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: SWdown     !*FD Instantaneous sw down
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: LWdown     !*FD Instantaneous lw down
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: Psurf      !*FD Instantaneous psurf
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: snowd_save !*FD Saves snow depth
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: siced_save !*FD Saves superimposed ice depth 
      integer :: av_count =0 !*FD Counter for averaging temperature input
      logical :: new_accum=.true.
      integer :: start_time !*FD the time we started averaging (hours)
@@ -106,24 +106,24 @@ contains
 
     ! Deallocate if necessary
 
-    if (associated(params%prcp_save))  deallocate(params%prcp_save)
-    if (associated(params%ablt_save))  deallocate(params%ablt_save)
-    if (associated(params%acab_save))  deallocate(params%acab_save)
-    if (associated(params%artm_save))  deallocate(params%artm_save)
-    if (associated(params%snowd))      deallocate(params%snowd)
-    if (associated(params%siced))      deallocate(params%siced)
-    if (associated(params%prcp))       deallocate(params%prcp)
-    if (associated(params%ablt))       deallocate(params%ablt)
-    if (associated(params%acab))       deallocate(params%acab)
-    if (associated(params%artm))       deallocate(params%artm)
-    if (associated(params%xwind))      deallocate(params%xwind)
-    if (associated(params%ywind))      deallocate(params%ywind)
-    if (associated(params%humidity))   deallocate(params%humidity)
-    if (associated(params%SWdown))     deallocate(params%SWdown)
-    if (associated(params%LWdown))     deallocate(params%LWdown)
-    if (associated(params%Psurf))      deallocate(params%Psurf)
-    if (associated(params%snowd_save)) deallocate(params%snowd_save)
-    if (associated(params%siced_save)) deallocate(params%siced_save)
+    if (GC_DYNARRAY_CHECK(params%prcp_save))  deallocate(params%prcp_save)
+    if (GC_DYNARRAY_CHECK(params%ablt_save))  deallocate(params%ablt_save)
+    if (GC_DYNARRAY_CHECK(params%acab_save))  deallocate(params%acab_save)
+    if (GC_DYNARRAY_CHECK(params%artm_save))  deallocate(params%artm_save)
+    if (GC_DYNARRAY_CHECK(params%snowd))      deallocate(params%snowd)
+    if (GC_DYNARRAY_CHECK(params%siced))      deallocate(params%siced)
+    if (GC_DYNARRAY_CHECK(params%prcp))       deallocate(params%prcp)
+    if (GC_DYNARRAY_CHECK(params%ablt))       deallocate(params%ablt)
+    if (GC_DYNARRAY_CHECK(params%acab))       deallocate(params%acab)
+    if (GC_DYNARRAY_CHECK(params%artm))       deallocate(params%artm)
+    if (GC_DYNARRAY_CHECK(params%xwind))      deallocate(params%xwind)
+    if (GC_DYNARRAY_CHECK(params%ywind))      deallocate(params%ywind)
+    if (GC_DYNARRAY_CHECK(params%humidity))   deallocate(params%humidity)
+    if (GC_DYNARRAY_CHECK(params%SWdown))     deallocate(params%SWdown)
+    if (GC_DYNARRAY_CHECK(params%LWdown))     deallocate(params%LWdown)
+    if (GC_DYNARRAY_CHECK(params%Psurf))      deallocate(params%Psurf)
+    if (GC_DYNARRAY_CHECK(params%snowd_save)) deallocate(params%snowd_save)
+    if (GC_DYNARRAY_CHECK(params%siced_save)) deallocate(params%siced_save)
 
     ! Allocate arrays and zero
 

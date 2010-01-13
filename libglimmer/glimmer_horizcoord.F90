@@ -268,7 +268,7 @@ contains
   subroutine horizCoord_allocate_d(coord, field)
     implicit none
     type(horizCoord_type), intent(in) :: coord !< coordinate system
-    real(kind=dp), dimension(:,:), pointer :: field !< unallocated field
+    real(kind=dp), dimension(:,:), GC_DYNARRAY_ATTRIB :: field !< unallocated field
 
     allocate(field(coord%size(1),coord%size(2)))
     field = 0.d0
@@ -278,7 +278,7 @@ contains
   subroutine horizCoord_allocate_s(coord, field)
     implicit none
     type(horizCoord_type), intent(in) :: coord !< coordinate system
-    real(kind=sp), dimension(:,:), pointer :: field !< unallocated field
+    real(kind=sp), dimension(:,:), GC_DYNARRAY_ATTRIB :: field !< unallocated field
 
     allocate(field(coord%size(1),coord%size(2)))
     field = 0.e0
@@ -288,7 +288,7 @@ contains
   subroutine horizCoord_allocate_i(coord, field)
     implicit none
     type(horizCoord_type), intent(in) :: coord !< coordinate system
-    integer, dimension(:,:), pointer :: field !< unallocated field
+    integer, dimension(:,:), GC_DYNARRAY_ATTRIB :: field !< unallocated field
 
     allocate(field(coord%size(1),coord%size(2)))
     field = 0
@@ -298,7 +298,7 @@ contains
   subroutine horizCoord_allocate_l(coord, field)
     implicit none
     type(horizCoord_type), intent(in) :: coord !< coordinate system
-    logical, dimension(:,:), pointer :: field !< unallocated field
+    logical, dimension(:,:), GC_DYNARRAY_ATTRIB :: field !< unallocated field
 
     allocate(field(coord%size(1),coord%size(2)))
     field = .FALSE.
@@ -309,7 +309,7 @@ contains
     implicit none
     type(horizCoord_type), intent(in) :: coord !< coordinate system
     integer, intent(in) :: nup !< the number of vertical points
-    real(kind=dp), dimension(:,:,:), pointer :: field !< unallocated field
+    real(kind=dp), dimension(:,:,:), GC_DYNARRAY_ATTRIB :: field !< unallocated field
 
     allocate(field(nup,coord%size(1),coord%size(2)))
     field = 0.d0
@@ -320,7 +320,7 @@ contains
     implicit none
     type(horizCoord_type), intent(in) :: coord !< coordinate system
     integer, intent(in) :: nup !< the number of vertical points
-    real(kind=sp), dimension(:,:,:), pointer :: field !< unallocated field
+    real(kind=sp), dimension(:,:,:), GC_DYNARRAY_ATTRIB :: field !< unallocated field
 
     allocate(field(nup,coord%size(1),coord%size(2)))
     field = 0.d0
@@ -331,7 +331,7 @@ contains
     implicit none
     type(horizCoord_type), intent(in) :: coord !< coordinate system
     integer, intent(in) :: nup !< the number of vertical points
-    integer, dimension(:,:,:), pointer :: field !< unallocated field
+    integer, dimension(:,:,:), GC_DYNARRAY_ATTRIB :: field !< unallocated field
 
     allocate(field(nup,coord%size(1),coord%size(2)))
     field = 0.d0

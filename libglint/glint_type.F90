@@ -80,24 +80,24 @@ module glint_type
 
      ! Climate inputs from global model --------------------------
 
-     real(sp),dimension(:,:),pointer :: artm        => null() !*FD Annual mean air temperature
-     real(sp),dimension(:,:),pointer :: arng        => null() !*FD Annual air temperature half-range
-     real(sp),dimension(:,:),pointer :: prcp        => null() !*FD Precipitation (mm or m)
-     real(sp),dimension(:,:),pointer :: snowd       => null() !*FD Snow depth (m)
-     real(sp),dimension(:,:),pointer :: siced       => null() !*FD Superimposed ice depth (m)
-     real(rk),dimension(:,:),pointer :: xwind       => null() !*FD $x$-component of surface winds (m/s)
-     real(rk),dimension(:,:),pointer :: ywind       => null() !*FD $y$-component of surface winds (m/s)
-     real(rk),dimension(:,:),pointer :: humid       => null() !*FD Surface humidity (%)
-     real(rk),dimension(:,:),pointer :: lwdown      => null() !*FD Downwelling longwave (W/m^2)
-     real(rk),dimension(:,:),pointer :: swdown      => null() !*FD Downwelling shortwave (W/m^2)
-     real(rk),dimension(:,:),pointer :: airpress    => null() !*FD Surface air pressure (Pa)
-     real(dp),dimension(:,:),pointer :: global_orog => null() !*FD Global orography (m)
-     real(sp),dimension(:,:),pointer :: local_orog  => null() !*FD Local orography (m)
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: artm        !*FD Annual mean air temperature
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: arng        !*FD Annual air temperature half-range
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: prcp        !*FD Precipitation (mm or m)
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: snowd       !*FD Snow depth (m)
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: siced       !*FD Superimposed ice depth (m)
+     real(rk),dimension(:,:),GC_DYNARRAY_ATTRIB :: xwind       !*FD $x$-component of surface winds (m/s)
+     real(rk),dimension(:,:),GC_DYNARRAY_ATTRIB :: ywind       !*FD $y$-component of surface winds (m/s)
+     real(rk),dimension(:,:),GC_DYNARRAY_ATTRIB :: humid       !*FD Surface humidity (%)
+     real(rk),dimension(:,:),GC_DYNARRAY_ATTRIB :: lwdown      !*FD Downwelling longwave (W/m^2)
+     real(rk),dimension(:,:),GC_DYNARRAY_ATTRIB :: swdown      !*FD Downwelling shortwave (W/m^2)
+     real(rk),dimension(:,:),GC_DYNARRAY_ATTRIB :: airpress    !*FD Surface air pressure (Pa)
+     real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: global_orog !*FD Global orography (m)
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: local_orog  !*FD Local orography (m)
 
      ! Locally calculated climate/mass-balance fields ------------
 
-     real(sp),dimension(:,:),pointer :: ablt => null() !*FD Annual ablation.
-     real(sp),dimension(:,:),pointer :: acab => null() !*FD Annual mass-balance.
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: ablt !*FD Annual ablation.
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: acab !*FD Annual mass-balance.
 
      ! Arrays to accumulate mass-balance quantities --------------
 
@@ -105,14 +105,14 @@ module glint_type
 
      ! Fractional coverage information ---------------------------
 
-     real(rk) ,dimension(:,:),pointer :: frac_coverage => null() 
+     real(rk) ,dimension(:,:),GC_DYNARRAY_ATTRIB :: frac_coverage 
      !*FD Fractional coverage of each global gridbox by the projected grid.
-     real(rk) ,dimension(:,:),pointer :: frac_cov_orog => null() 
+     real(rk) ,dimension(:,:),GC_DYNARRAY_ATTRIB :: frac_cov_orog 
      !*FD Fractional coverage of each global gridbox by the projected grid (orography).
 
      ! Output masking --------------------------------------------
 
-     integer, dimension(:,:),pointer :: out_mask => null() 
+     integer, dimension(:,:),GC_DYNARRAY_ATTRIB :: out_mask 
 
      !*FD Array indicating whether a point should be considered or ignored 
      !*FD when upscaling data for output. 1 means use, 0 means ignore.
@@ -216,33 +216,33 @@ contains
     ! First deallocate if necessary
     ! Downscaled global arrays
 
-    if (associated(instance%artm))          deallocate(instance%artm)
-    if (associated(instance%arng))          deallocate(instance%arng)
-    if (associated(instance%prcp))          deallocate(instance%prcp)
-    if (associated(instance%snowd))         deallocate(instance%snowd)
-    if (associated(instance%siced))         deallocate(instance%siced)
-    if (associated(instance%xwind))         deallocate(instance%xwind)
-    if (associated(instance%ywind))         deallocate(instance%ywind)
-    if (associated(instance%humid))         deallocate(instance%humid)
-    if (associated(instance%lwdown))        deallocate(instance%lwdown)
-    if (associated(instance%swdown))        deallocate(instance%swdown)
-    if (associated(instance%airpress))      deallocate(instance%airpress)
-    if (associated(instance%global_orog))   deallocate(instance%global_orog) 
-    if (associated(instance%local_orog))    deallocate(instance%local_orog)
+    if (GC_DYNARRAY_CHECK(instance%artm))          deallocate(instance%artm)
+    if (GC_DYNARRAY_CHECK(instance%arng))          deallocate(instance%arng)
+    if (GC_DYNARRAY_CHECK(instance%prcp))          deallocate(instance%prcp)
+    if (GC_DYNARRAY_CHECK(instance%snowd))         deallocate(instance%snowd)
+    if (GC_DYNARRAY_CHECK(instance%siced))         deallocate(instance%siced)
+    if (GC_DYNARRAY_CHECK(instance%xwind))         deallocate(instance%xwind)
+    if (GC_DYNARRAY_CHECK(instance%ywind))         deallocate(instance%ywind)
+    if (GC_DYNARRAY_CHECK(instance%humid))         deallocate(instance%humid)
+    if (GC_DYNARRAY_CHECK(instance%lwdown))        deallocate(instance%lwdown)
+    if (GC_DYNARRAY_CHECK(instance%swdown))        deallocate(instance%swdown)
+    if (GC_DYNARRAY_CHECK(instance%airpress))      deallocate(instance%airpress)
+    if (GC_DYNARRAY_CHECK(instance%global_orog))   deallocate(instance%global_orog) 
+    if (GC_DYNARRAY_CHECK(instance%local_orog))    deallocate(instance%local_orog)
 
     ! Local climate arrays
 
-    if (associated(instance%ablt))          deallocate(instance%ablt)
-    if (associated(instance%acab))          deallocate(instance%acab)
+    if (GC_DYNARRAY_CHECK(instance%ablt))          deallocate(instance%ablt)
+    if (GC_DYNARRAY_CHECK(instance%acab))          deallocate(instance%acab)
 
     ! Fractional coverage
 
-    if (associated(instance%frac_coverage)) deallocate(instance%frac_coverage)
-    if (associated(instance%frac_cov_orog)) deallocate(instance%frac_cov_orog)
+    if (GC_DYNARRAY_CHECK(instance%frac_coverage)) deallocate(instance%frac_coverage)
+    if (GC_DYNARRAY_CHECK(instance%frac_cov_orog)) deallocate(instance%frac_cov_orog)
 
     ! Output mask
 
-    if (associated(instance%out_mask))      deallocate(instance%out_mask)
+    if (GC_DYNARRAY_CHECK(instance%out_mask))      deallocate(instance%out_mask)
 
     ! Then reallocate and zero...
     ! Global input fields
@@ -456,7 +456,7 @@ contains
 
     ! Internal variables -------------------------------------------------------------------------------
 
-    real(rk),dimension(:,:),pointer :: temp => null()
+    real(rk),dimension(:,:),GC_DYNARRAY_ATTRIB :: temp
 
     ! --------------------------------------------------------------------------------------------------
     ! Orography
@@ -521,7 +521,6 @@ contains
     endwhere
 
     deallocate(temp)
-    temp => null()
 
   end subroutine get_i_upscaled_fields
 

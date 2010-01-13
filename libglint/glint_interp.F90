@@ -64,20 +64,20 @@ module glint_interp
      !*FD of the global grid-boxes within which the given
      !*FD local grid point lies.
 
-     real(rk),dimension(:,:),pointer :: llats => null() !*FD The latitude of each point in x-y space.
-     real(rk),dimension(:,:),pointer :: llons => null() !*FD The longitude of each point in x-y space.
+     real(rk),dimension(:,:),GC_DYNARRAY_ATTRIB :: llats !*FD The latitude of each point in x-y space.
+     real(rk),dimension(:,:),GC_DYNARRAY_ATTRIB :: llons !*FD The longitude of each point in x-y space.
 
-     integer, dimension(:,:,:),pointer :: xloc => null() !*FD The x-locations of the corner points of the
+     integer, dimension(:,:,:),GC_DYNARRAY_ATTRIB :: xloc !*FD The x-locations of the corner points of the
                                                          !*FD interpolation domain.
-     integer, dimension(:,:,:),pointer :: yloc => null() !*FD The y-locations of the corner points of the
+     integer, dimension(:,:,:),GC_DYNARRAY_ATTRIB :: yloc !*FD The y-locations of the corner points of the
                                                          !*FD interpolation domain.
-     integer, dimension(:,:), pointer :: xin => null() !*FD x-locations of global cell the point is in
-     integer, dimension(:,:), pointer :: yin => null() !*FD y-locations of global cell the point is in
+     integer, dimension(:,:), GC_DYNARRAY_ATTRIB :: xin !*FD x-locations of global cell the point is in
+     integer, dimension(:,:), GC_DYNARRAY_ATTRIB :: yin !*FD y-locations of global cell the point is in
 
-     real(rk),dimension(:,:),  pointer :: xfrac => null()
-     real(rk),dimension(:,:),  pointer :: yfrac => null()
-     real(rk),dimension(:,:),pointer :: sintheta => NULL()  !*FD sines of grid angle relative to north.
-     real(rk),dimension(:,:),pointer :: costheta => NULL()  !*FD coses of grid angle relative to north.
+     real(rk),dimension(:,:),  GC_DYNARRAY_ATTRIB :: xfrac
+     real(rk),dimension(:,:),  GC_DYNARRAY_ATTRIB :: yfrac
+     real(rk),dimension(:,:),GC_DYNARRAY_ATTRIB :: sintheta  !*FD sines of grid angle relative to north.
+     real(rk),dimension(:,:),GC_DYNARRAY_ATTRIB :: costheta  !*FD coses of grid angle relative to north.
      type(mpinterp) :: mpint !*FD Parameters for mean-preserving interpolation
      logical :: use_mpint = .false. !*FD set true if we're using mean-preserving interpolation
 
@@ -88,11 +88,11 @@ module glint_interp
      !*FD Derived type containing indexing information
      !*FD for upscaling by areal averaging.
 
-     integer, dimension(:,:),pointer :: gboxx => null() !*FD $x$-indicies of global grid-box 
+     integer, dimension(:,:),GC_DYNARRAY_ATTRIB :: gboxx !*FD $x$-indicies of global grid-box 
                                                         !*FD containing given local grid-box.
-     integer, dimension(:,:),pointer :: gboxy => null() !*FD $y$-indicies of global grid-box 
+     integer, dimension(:,:),GC_DYNARRAY_ATTRIB :: gboxy !*FD $y$-indicies of global grid-box 
                                                         !*FD containing given local grid-box.
-     integer, dimension(:,:),pointer :: gboxn => null() !*FD Number of local grid-boxes 
+     integer, dimension(:,:),GC_DYNARRAY_ATTRIB :: gboxn !*FD Number of local grid-boxes 
                                                         !*FD contained in each global box.
      logical                         :: set = .false.   !*FD Set if the type has been initialised.
   end type upscale
@@ -139,9 +139,8 @@ contains
     real(rk) :: llat,llon
     integer :: i,j
     type(upscale) :: ups
-    integer,dimension(:,:),pointer :: upsm
+    integer,dimension(:,:),GC_DYNARRAY_ATTRIB :: upsm
 
-    upsm => null()
     ! Allocate arrays
 
     allocate(downs%xloc(lgrid%size(1),lgrid%size(2),4))
@@ -841,9 +840,9 @@ contains
 
     ! Beginning of code
 
-    if (associated(ups%gboxx)) deallocate(ups%gboxx)
-    if (associated(ups%gboxy)) deallocate(ups%gboxy)
-    if (associated(ups%gboxn)) deallocate(ups%gboxn)
+    if (GC_DYNARRAY_CHECK(ups%gboxx)) deallocate(ups%gboxx)
+    if (GC_DYNARRAY_CHECK(ups%gboxy)) deallocate(ups%gboxy)
+    if (GC_DYNARRAY_CHECK(ups%gboxn)) deallocate(ups%gboxn)
 
     allocate(ups%gboxx(lgrid%size(1),lgrid%size(2)))
     allocate(ups%gboxy(lgrid%size(1),lgrid%size(2)))     
@@ -907,9 +906,9 @@ contains
             __FILE__,__LINE__)
     endif
 
-    if (associated(out%gboxx)) deallocate(out%gboxx)
-    if (associated(out%gboxy)) deallocate(out%gboxy)
-    if (associated(out%gboxn)) deallocate(out%gboxn)
+    if (GC_DYNARRAY_CHECK(out%gboxx)) deallocate(out%gboxx)
+    if (GC_DYNARRAY_CHECK(out%gboxy)) deallocate(out%gboxy)
+    if (GC_DYNARRAY_CHECK(out%gboxn)) deallocate(out%gboxn)
 
     allocate(out%gboxx(size(in%gboxx,1),size(in%gboxx,2)))
     allocate(out%gboxy(size(in%gboxy,1),size(in%gboxy,2)))

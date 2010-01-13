@@ -67,7 +67,7 @@ contains
     ! local variables
     type(ConfigSection), pointer :: section
     real(rk) :: lonc,latc,efalse,nfalse,stdp1,stdp2,scale_factor,cpx,cpy
-    real(rk),dimension(:),pointer :: std_par
+    real(rk),dimension(:),GC_DYNARRAY_ATTRIB :: std_par
     character(10) :: ptype
     logical :: stdp,scfac
     integer :: ptval,ptold
@@ -75,7 +75,6 @@ contains
     ptype   = ''
     lonc    = 0.0 ; latc   = 0.0
     efalse  = 0.0 ; nfalse = 0.0
-    std_par => null()
     scale_factor = 0.0
     stdp1=0.0
     stdp2=0.0
@@ -105,7 +104,7 @@ contains
        end if
  
        ! Deal with presence or not of standard parallel(s)
-       if (associated(std_par)) then
+       if (GC_DYNARRAY_CHECK(std_par)) then
           stdp = .true.
           select case (size(std_par))
           case(1)

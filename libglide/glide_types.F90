@@ -82,10 +82,10 @@ module glide_types
     integer :: nsn = 0  !*FD The number of grid-points in the N-S direction.
     integer :: upn = 1  !*FD The number of vertical levels in the model.
 
-    real(sp), dimension(:),pointer :: x0 => null() !original x0 grid 
-    real(sp), dimension(:),pointer :: y0 => null() !original y0 grid
-    real(sp), dimension(:),pointer :: x1 => null() !original x1 grid
-    real(sp), dimension(:),pointer :: y1 => null() !original y1 grid
+    real(sp), dimension(:),GC_DYNARRAY_ATTRIB :: x0 !original x0 grid 
+    real(sp), dimension(:),GC_DYNARRAY_ATTRIB :: y0 !original y0 grid
+    real(sp), dimension(:),GC_DYNARRAY_ATTRIB :: x1 !original x1 grid
+    real(sp), dimension(:),GC_DYNARRAY_ATTRIB :: y1 !original y1 grid
   end type glide_general
      
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -211,29 +211,29 @@ module glide_types
     !*FD Holds fields and other information relating to the
     !*FD geometry of the ice sheet and bedrock.
 
-    real, dimension(:,:), pointer :: temporary0 => null()
+    real, dimension(:,:), GC_DYNARRAY_ATTRIB :: temporary0
     !*FD temporary array used for masking velocity grid
-    real, dimension(:,:), pointer :: temporary1 => null()
+    real, dimension(:,:), GC_DYNARRAY_ATTRIB :: temporary1
     !*FD temporary array used for masking temperature grid
 
-    real(dp),dimension(:,:),pointer :: thck => null()
+    real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: thck
     !*FD The thickness of the ice, divided by \texttt{thk0}.
 
-    real(dp),dimension(:,:),pointer :: usrf => null()
+    real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: usrf
     !*FD The elevation of the upper ice surface, divided by \texttt{thk0}.
 
-    real(dp),dimension(:,:),pointer :: lsrf => null() 
+    real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: lsrf 
     !*FD The elevation of the lower ice surface, divided by \texttt{thk0}.
 
-    real(dp),dimension(:,:),pointer :: topg => null() 
+    real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: topg 
     !*FD The elevation of the topography, divided by \texttt{thk0}.
 
-    integer, dimension(:,:),pointer :: mask => null()
+    integer, dimension(:,:),GC_DYNARRAY_ATTRIB :: mask
     !*FD Set to zero for all points where $\mathtt{thck}=0$, otherwise non-zero.
     !*FD the non-zero points are numbered in sequence from the bottom left to the 
     !*FD top right, going along the rows.
 
-    integer, dimension(:,:),pointer :: thkmask => null()
+    integer, dimension(:,:),GC_DYNARRAY_ATTRIB :: thkmask
     !*FD see glimmer_mask.f90 for possible values
 
     integer :: totpts = 0
@@ -250,13 +250,13 @@ module glide_types
     !*FD Holds the horizontal and temporal derivatives of the thickness and
     !*FD upper surface elevation, as well as the thickness on the staggered grid.
 
-    real(dp),dimension(:,:),pointer :: dthckdew => null() !*FD E-W derivative of thickness.
-    real(dp),dimension(:,:),pointer :: dusrfdew => null() !*FD E-W derivative of upper surface elevation.
-    real(dp),dimension(:,:),pointer :: dthckdns => null() !*FD N-S derivative of thickness.
-    real(dp),dimension(:,:),pointer :: dusrfdns => null() !*FD N-S derivative of upper surface elevation.
-    real(dp),dimension(:,:),pointer :: dthckdtm => null() !*FD Temporal derivative of thickness.
-    real(dp),dimension(:,:),pointer :: dusrfdtm => null() !*FD Temporal derivative of upper surface elevation.
-    real(dp),dimension(:,:),pointer :: stagthck => null() !*FD Thickness averaged onto the staggered grid.
+    real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: dthckdew !*FD E-W derivative of thickness.
+    real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: dusrfdew !*FD E-W derivative of upper surface elevation.
+    real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: dthckdns !*FD N-S derivative of thickness.
+    real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: dusrfdns !*FD N-S derivative of upper surface elevation.
+    real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: dthckdtm !*FD Temporal derivative of thickness.
+    real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: dusrfdtm !*FD Temporal derivative of upper surface elevation.
+    real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: stagthck !*FD Thickness averaged onto the staggered grid.
 
   end type glide_geomderv
 
@@ -267,34 +267,34 @@ module glide_types
     !*FD Holds the velocity fields in 2D and 3D. At least some of these fields
     !*FD are stored on the displaced grid.
 
-    real(dp),dimension(:,:,:),pointer :: uvel  => null() !*FD 3D $x$-velocity.
-    real(dp),dimension(:,:,:),pointer :: vvel  => null() !*FD 3D $y$-velocity.
-    real(dp),dimension(:,:,:),pointer :: wvel  => null() !*FD 3D $z$-velocity.
-    real(dp),dimension(:,:,:),pointer :: wgrd  => null() !*FD 3D grid vertical velocity.
-    real(dp),dimension(:,:)  ,pointer :: uflx  => null() !*FD 
-    real(dp),dimension(:,:)  ,pointer :: vflx  => null() !*FD 
-    real(dp),dimension(:,:)  ,pointer :: diffu => null() !*FD 
-    real(dp),dimension(:,:)  ,pointer :: total_diffu => null() !*FD total diffusivity
-    real(dp),dimension(:,:)  ,pointer :: ubas  => null() !*FD 
-    real(dp),dimension(:,:)  ,pointer :: ubas_tavg  => null()
-    real(dp),dimension(:,:)  ,pointer :: vbas  => null() !*FD 
-    real(dp),dimension(:,:)  ,pointer :: vbas_tavg  => null() 
-    real(dp),dimension(:,:)  ,pointer :: bed_softness => null() !*FD bed softness parameter
-    real(dp),dimension(:,:)  ,pointer :: btrc  => null() !*FD  basal traction
-    real(dp),dimension(:,:)  ,pointer :: tau_x => null() !*FD basal shear stress, x-dir
-    real(dp),dimension(:,:)  ,pointer :: tau_y => null() !*FD basal shear stress, y-dir
+    real(dp),dimension(:,:,:),GC_DYNARRAY_ATTRIB :: uvel  !*FD 3D $x$-velocity.
+    real(dp),dimension(:,:,:),GC_DYNARRAY_ATTRIB :: vvel  !*FD 3D $y$-velocity.
+    real(dp),dimension(:,:,:),GC_DYNARRAY_ATTRIB :: wvel  !*FD 3D $z$-velocity.
+    real(dp),dimension(:,:,:),GC_DYNARRAY_ATTRIB :: wgrd  !*FD 3D grid vertical velocity.
+    real(dp),dimension(:,:)  ,GC_DYNARRAY_ATTRIB :: uflx  !*FD 
+    real(dp),dimension(:,:)  ,GC_DYNARRAY_ATTRIB :: vflx  !*FD 
+    real(dp),dimension(:,:)  ,GC_DYNARRAY_ATTRIB :: diffu !*FD 
+    real(dp),dimension(:,:)  ,GC_DYNARRAY_ATTRIB :: total_diffu !*FD total diffusivity
+    real(dp),dimension(:,:)  ,GC_DYNARRAY_ATTRIB :: ubas  !*FD 
+    real(dp),dimension(:,:)  ,GC_DYNARRAY_ATTRIB :: ubas_tavg 
+    real(dp),dimension(:,:)  ,GC_DYNARRAY_ATTRIB :: vbas  !*FD 
+    real(dp),dimension(:,:)  ,GC_DYNARRAY_ATTRIB :: vbas_tavg  
+    real(dp),dimension(:,:)  ,GC_DYNARRAY_ATTRIB :: bed_softness !*FD bed softness parameter
+    real(dp),dimension(:,:)  ,GC_DYNARRAY_ATTRIB :: btrc  !*FD  basal traction
+    real(dp),dimension(:,:)  ,GC_DYNARRAY_ATTRIB :: tau_x !*FD basal shear stress, x-dir
+    real(dp),dimension(:,:)  ,GC_DYNARRAY_ATTRIB :: tau_y !*FD basal shear stress, y-dir
   end type glide_velocity
 
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   type glide_climate
      !*FD Holds fields used to drive the model
-     real(sp),dimension(:,:),pointer :: acab     => null() !*FD Annual mass balance.
-     real(sp),dimension(:,:),pointer :: acab_tavg     => null() !*FD Annual mass balance (time average).
-     real(sp),dimension(:,:),pointer :: artm     => null() !*FD Annual mean air temperature
-     real(sp),dimension(:,:),pointer :: lati     => null() !*FD Latitudes of model grid points
-     real(sp),dimension(:,:),pointer :: loni     => null() !*FD Longitudes of model grid points
-     real(sp),dimension(:,:),pointer :: calving  => null() !*FD Calving flux (scaled as mass balance, thickness, etc)
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: acab     !*FD Annual mass balance.
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: acab_tavg     !*FD Annual mass balance (time average).
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: artm     !*FD Annual mean air temperature
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: lati     !*FD Latitudes of model grid points
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: loni     !*FD Longitudes of model grid points
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: calving  !*FD Calving flux (scaled as mass balance, thickness, etc)
      real(sp) :: eus = 0.                                  !*FD eustatic sea level
   end type glide_climate
 
@@ -302,16 +302,16 @@ module glide_types
 
     !*FD Holds fields relating to temperature.
 
-    real(dp),dimension(:,:,:),pointer :: temp => null() !*FD Three-dimensional temperature field.
-    real(dp),dimension(:,:),  pointer :: bheatflx => null() !*FD basal heat flux
-    real(dp),dimension(:,:,:),pointer :: flwa => null() !*FD Glenn's $A$.
-    real(dp),dimension(:,:),  pointer :: bwat => null() !*FD Basal water depth
-    real(dp),dimension(:,:),  pointer :: stagbwat => null() !*FD Basal water depth in velo grid
-    real(dp),dimension(:,:),  pointer :: stagbtemp => null() !*FD Basal temperature on velo grid
-    real(dp),dimension(:,:),  pointer :: bmlt => null() !*FD Basal melt-rate
-    real(dp),dimension(:,:),  pointer :: bmlt_tavg => null() !*FD Basal melt-rate
-    real(dp),dimension(:,:),  pointer :: bpmp => null() !*FD Basal pressure melting point
-    real(dp),dimension(:,:),  pointer :: stagbpmp => null() !*FD Basal pressure melting point on velo grid
+    real(dp),dimension(:,:,:),GC_DYNARRAY_ATTRIB :: temp !*FD Three-dimensional temperature field.
+    real(dp),dimension(:,:),  GC_DYNARRAY_ATTRIB :: bheatflx !*FD basal heat flux
+    real(dp),dimension(:,:,:),GC_DYNARRAY_ATTRIB :: flwa !*FD Glenn's $A$.
+    real(dp),dimension(:,:),  GC_DYNARRAY_ATTRIB :: bwat !*FD Basal water depth
+    real(dp),dimension(:,:),  GC_DYNARRAY_ATTRIB :: stagbwat !*FD Basal water depth in velo grid
+    real(dp),dimension(:,:),  GC_DYNARRAY_ATTRIB :: stagbtemp !*FD Basal temperature on velo grid
+    real(dp),dimension(:,:),  GC_DYNARRAY_ATTRIB :: bmlt !*FD Basal melt-rate
+    real(dp),dimension(:,:),  GC_DYNARRAY_ATTRIB :: bmlt_tavg !*FD Basal melt-rate
+    real(dp),dimension(:,:),  GC_DYNARRAY_ATTRIB :: bpmp !*FD Basal pressure melting point
+    real(dp),dimension(:,:),  GC_DYNARRAY_ATTRIB :: stagbpmp !*FD Basal pressure melting point on velo grid
     
     real(sp) :: perturb = 0.0    !*FD
     real(sp) :: grid    = 0.0    !*FD
@@ -323,25 +323,25 @@ module glide_types
   type glide_lithot_type
      !*FD holds variables for temperature calculations in the lithosphere
 
-     real(dp),dimension(:,:,:),pointer :: temp => null()    !*FD Three-dimensional temperature field.
-     logical, dimension(:,:), pointer :: mask => null()     !*FD whether the point has been ice covered at some time
+     real(dp),dimension(:,:,:),GC_DYNARRAY_ATTRIB :: temp    !*FD Three-dimensional temperature field.
+     logical, dimension(:,:), GC_DYNARRAY_ATTRIB :: mask     !*FD whether the point has been ice covered at some time
 
      integer :: num_dim = 1                                 !*FD either 1 or 3 for 1D/3D calculations
 
      ! The sparse matrix and linearised arrays
      type(sparse_matrix_type) :: fd_coeff, fd_coeff_slap
      integer :: all_bar_top
-     real(dp), dimension(:), pointer :: rhs
-     real(dp), dimension(:), pointer :: answer
-     real(dp), dimension(:), pointer :: supd,diag,subd
+     real(dp), dimension(:), GC_DYNARRAY_ATTRIB :: rhs
+     real(dp), dimension(:), GC_DYNARRAY_ATTRIB :: answer
+     real(dp), dimension(:), GC_DYNARRAY_ATTRIB :: supd,diag,subd
 
      ! work arrays for solver
-     real(dp), dimension(:), pointer :: rwork
-     integer, dimension(:), pointer :: iwork
+     real(dp), dimension(:), GC_DYNARRAY_ATTRIB :: rwork
+     integer, dimension(:), GC_DYNARRAY_ATTRIB :: iwork
      integer mxnelt
 
-     real(dp), dimension(:), pointer :: deltaz => null()    !*FD array holding grid spacing in z
-     real(dp), dimension(:,:), pointer :: zfactors => null()!*FD array holding factors for finite differences of vertical diffu
+     real(dp), dimension(:), GC_DYNARRAY_ATTRIB :: deltaz    !*FD array holding grid spacing in z
+     real(dp), dimension(:,:), GC_DYNARRAY_ATTRIB :: zfactors!*FD array holding factors for finite differences of vertical diffu
      real(dp) :: xfactor,yfactor !*FD factors for finite differences of horizontal diffu
 
 
@@ -395,7 +395,7 @@ module glide_types
     
     ! Vertical coordinate ---------------------------------------------------
                                                                
-    real(dp),dimension(:),pointer :: sigma => null() !*FD Sigma values for 
+    real(dp),dimension(:),GC_DYNARRAY_ATTRIB :: sigma !*FD Sigma values for 
                                                      !*FD vertical spacing of 
                                                      !*FD model levels
     integer :: profile_period = 100            !*FD profile frequency
@@ -405,14 +405,14 @@ module glide_types
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   type glide_velowk
-    real(dp),dimension(:),  pointer :: depth    => null()
-    real(dp),dimension(:),  pointer :: dupsw    => null()
-    real(dp),dimension(:),  pointer :: depthw   => null()
-    real(dp),dimension(:),  pointer :: suvel    => null()
-    real(dp),dimension(:),  pointer :: svvel    => null()
-    real(dp),dimension(:,:),pointer :: fslip    => null()
-    real(dp),dimension(:,:),pointer :: dintflwa => null()
-    real(dp),dimension(:),  pointer :: dups     => null()
+    real(dp),dimension(:),  GC_DYNARRAY_ATTRIB :: depth   
+    real(dp),dimension(:),  GC_DYNARRAY_ATTRIB :: dupsw   
+    real(dp),dimension(:),  GC_DYNARRAY_ATTRIB :: depthw  
+    real(dp),dimension(:),  GC_DYNARRAY_ATTRIB :: suvel   
+    real(dp),dimension(:),  GC_DYNARRAY_ATTRIB :: svvel   
+    real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: fslip   
+    real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: dintflwa
+    real(dp),dimension(:),  GC_DYNARRAY_ATTRIB :: dups    
     type(glenflow_params) :: glenflow
     real(dp),dimension(4) :: c    = 0.0
     real(dp) :: watwd  = 3.0d0
@@ -437,9 +437,9 @@ module glide_types
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   type glide_thckwk
-     real(dp),dimension(:,:),  pointer :: oldthck   => null()
-     real(dp),dimension(:,:),  pointer :: oldthck2  => null()
-     real(dp),dimension(:,:),pointer :: float => null()
+     real(dp),dimension(:,:),  GC_DYNARRAY_ATTRIB :: oldthck  
+     real(dp),dimension(:,:),  GC_DYNARRAY_ATTRIB :: oldthck2 
+     real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: float
 
   end type glide_thckwk
 
@@ -658,7 +658,7 @@ contains
     call horizCoord_allocate(model%coordinates%ice_grid, model%thckwk%float)
 
     ! If we already have sigma, don't reallocate
-    if (associated(model%numerics%sigma)) then
+    if (GC_DYNARRAY_CHECK(model%numerics%sigma)) then
        if (size(model%numerics%sigma)/=upn) then
           call write_log('Wrong number of sigma levels given',GM_FATAL)
        end if

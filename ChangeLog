@@ -1,3 +1,18 @@
+2010-01-13 Magnus Hagdorn
+ * example-drivers/EISMINT-3/src/eismint3_types.F90: use new macros to support
+   allocatable arrays as components in derived types
+ * example-drivers/eis/src/eis_ela.F90: ditto
+ * libglide/glide_setup.F90: ditto
+ * libglide/glide_types.F90: ditto
+ * libglimmer/glimmer_config.F90: ditto
+ * libglimmer/glimmer_horizcoord.F90: ditto
+ * libglimmer/glimmer_vertcoord.F90: ditto
+ * libglint/glint_interp.F90: ditto
+ * libglint/glint_mbal_coupling.F90: ditto
+ * libglint/glint_timestep.F90: ditto
+ * libglint/glint_type.F90: ditto
+ * tests/EISMINT/src/simple_forcing.F90: ditto
+
 2010-01-12 Magnus Hagdorn
  * libglide/glide_setup.F90: also need to setup sigma coordinates when they are
    specified in the configuration file

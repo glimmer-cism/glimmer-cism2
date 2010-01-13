@@ -491,7 +491,7 @@ contains
     implicit none
     type(ConfigSection), pointer :: section     !< the section from which the value is loaded
     character(len=*),intent(in) :: name         !< the name of the key
-    real(kind=dp), pointer, dimension(:) :: val !< on exit this will hold the values
+    real(kind=dp), GC_DYNARRAY_ATTRIB, dimension(:) :: val !< on exit this will hold the values
     integer,intent(in), optional :: numval      !< maximum number of values to be read
 
     ! local variables
@@ -531,7 +531,7 @@ contains
        i=i+1
     end do
     if (i.ge.1) then
-       if (associated(val)) then
+       if (GC_DYNARRAY_CHECK(val)) then
           deallocate(val)
        end if
        allocate(val(i))
@@ -549,7 +549,7 @@ contains
     implicit none
     type(ConfigSection), pointer :: section !< the section from which the value is loaded
     character(len=*),intent(in) :: name     !< the name of the key
-    real, pointer, dimension(:) :: val      !< on exit this will hold the values
+    real, GC_DYNARRAY_ATTRIB, dimension(:) :: val      !< on exit this will hold the values
     integer,intent(in), optional :: numval  !< maximum number of values to be read
 
     ! local variables
@@ -590,7 +590,7 @@ contains
     end do
 
     if (i.ge.1) then
-       if (associated(val)) then
+       if (GC_DYNARRAY_CHECK(val)) then
           deallocate(val)
        end if
        allocate(val(i))
@@ -609,7 +609,7 @@ contains
     implicit none
     type(ConfigSection), pointer :: section !< the section from which the value is loaded
     character(len=*),intent(in) :: name     !< the name of the key
-    integer, pointer, dimension(:) :: val   !< on exit this will hold the value
+    integer, GC_DYNARRAY_ATTRIB, dimension(:) :: val   !< on exit this will hold the value
     integer,intent(in), optional :: numval  !< maximum number of values to be read
 
     ! local variables
@@ -650,7 +650,7 @@ contains
     end do
 
     if (i.ge.1) then
-       if (associated(val)) then
+       if (GC_DYNARRAY_CHECK(val)) then
           deallocate(val)
        end if
        allocate(val(i))
@@ -668,7 +668,7 @@ contains
     implicit none
     type(ConfigSection), pointer :: section         !< the section from which the value is loaded
     character(len=*),intent(in) :: name             !< the name of the key
-    character(len=80), pointer, dimension(:) :: val !< on exit this will hold the values
+    character(len=80), GC_DYNARRAY_ATTRIB, dimension(:) :: val !< on exit this will hold the values
     integer,intent(in), optional :: numval          !< maximum number of values to be read
 
     ! local variables
@@ -708,7 +708,7 @@ contains
     end do
 
     if (i.ge.1) then
-       if (associated(val)) then
+       if (GC_DYNARRAY_CHECK(val)) then
           deallocate(val)
        end if
        allocate(val(i))

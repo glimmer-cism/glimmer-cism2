@@ -185,7 +185,7 @@ contains
     real(dp),dimension(:,:),intent(inout) :: thck    !*FD Ice thickness (scaled)
     real(dp),dimension(:,:),intent(in)    :: relx    !*FD Relaxed topography (scaled)
     real(dp),dimension(:,:),intent(in)    :: topg    !*FD Present bedrock topography (scaled)
-    integer, dimension(:,:),pointer       :: mask    !*FD grid type mask
+    integer, dimension(:,:),intent(in)    :: mask    !*FD grid type mask
     real(dp)                              :: mlimit  !*FD Lower limit on topography elevation for
                                                      !*FD ice to be present (scaled). Used with 
                                                      !*FD $\mathtt{which}=0$.
@@ -526,7 +526,7 @@ contains
     implicit none
     type(ConfigSection), pointer :: section
     type(glide_global_type)  :: model
-    real, pointer, dimension(:) :: temp => NULL()
+    real, GC_DYNARRAY_ATTRIB, dimension(:) :: temp
     integer :: loglevel
 
     loglevel = GM_levels-GM_ERROR
@@ -540,7 +540,7 @@ contains
     call GetValue(section,'flow_factor',model%paramets%fiddle)
     call GetValue(section,'hydro_time',model%paramets%hydtim)
     call GetValue(section,'basal_tract',temp,5)
-    if (associated(temp)) then
+    if (GC_DYNARRAY_CHECK(temp)) then
        model%paramets%btrac_const=temp(1)
        deallocate(temp)
     end if
@@ -617,7 +617,7 @@ contains
        model%options%which_sigma = 2
        call GetValue(section,'sigma_levels',model%numerics%sigma,model%general%upn)
        call vertCoord_allocate(model%coordinates%sigma_grid,model%general%upn)
-       call GetValue(section,'sigma_levels',model%coordinates%sigma_grid%sigma,model%general%upn)
+       call GetValue(section,'sigma_levels',model%coordinates%sigma_grid%sigma,model%coordinates%sigma_grid%upn)
     end if
 
   end subroutine handle_sigma

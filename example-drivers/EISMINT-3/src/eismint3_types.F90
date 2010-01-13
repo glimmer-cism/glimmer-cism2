@@ -52,16 +52,16 @@ module eismint3_types
   implicit none
 
   type eismint3_climate
-     real(sp),dimension(:,:),pointer :: prcp !*FD Annual accumulation
-     real(sp),dimension(:,:),pointer :: acab !*FD Mass-balance
-     real(sp),dimension(:,:),pointer :: artm !*FD Surface temp
-     real(sp),dimension(:,:),pointer :: arng !*FD Surface temp half-range
-     real(sp),dimension(:,:),pointer :: usrf !*FD Surface elevation
-     real(sp),dimension(:,:),pointer :: ablt !*FD Ablation
-     real(sp),dimension(:,:),pointer :: presusurf !*FD Present-day upper-surface elevation
-     real(sp),dimension(:,:),pointer :: presartm  !*FD Present-day surface temperature
-     real(sp),dimension(:,:),pointer :: presprcp  !*FD Present-day precip (water-equivalent)
-     logical,dimension(:,:),pointer :: landsea !*FD Land-sea mask
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: prcp !*FD Annual accumulation
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: acab !*FD Mass-balance
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: artm !*FD Surface temp
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: arng !*FD Surface temp half-range
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: usrf !*FD Surface elevation
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: ablt !*FD Ablation
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: presusurf !*FD Present-day upper-surface elevation
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: presartm  !*FD Present-day surface temperature
+     real(sp),dimension(:,:),GC_DYNARRAY_ATTRIB :: presprcp  !*FD Present-day precip (water-equivalent)
+     logical,dimension(:,:),GC_DYNARRAY_ATTRIB :: landsea !*FD Land-sea mask
      type(glimmer_pdd_params) :: pdd_scheme
      integer :: loadthk=0 !*FD Load thickness from file or start from scratch
      real(sp) :: pfac=1.0533 !*FD Precip enhancement factor (default is supposed EISMINT value)

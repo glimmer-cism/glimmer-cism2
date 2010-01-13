@@ -58,13 +58,13 @@ module glimmer_vertcoord
 
   !> derived type describing sigma coordinate system
   type vertCoord_type
-     integer                           :: upn  =  0       !< the number of sigma levels
-     real(dp),dimension(:),    pointer :: sigma => null() !< the sigma levels
-     real(dp),dimension(:),    pointer :: dupa => null()  !< factors used for FD computations on non-regular grid
-     real(dp),dimension(:),    pointer :: dupb => null()  !< factors used for FD computations on non-regular grid
-     real(dp),dimension(:),    pointer :: dupc => null()  !< factors used for FD computations on non-regular grid
-     real(dp),dimension(:,:),  pointer :: dups => null()  !< factors used for FD computations on non-regular grid
-     real(dp)                          :: dupn =  0.0     !< thickness of bottom sigma level
+     integer                           :: upn  =  0        !< the number of sigma levels
+     real(dp),dimension(:),    GC_DYNARRAY_ATTRIB :: sigma !< the sigma levels
+     real(dp),dimension(:),    GC_DYNARRAY_ATTRIB :: dupa  !< factors used for FD computations on non-regular grid
+     real(dp),dimension(:),    GC_DYNARRAY_ATTRIB :: dupb  !< factors used for FD computations on non-regular grid
+     real(dp),dimension(:),    GC_DYNARRAY_ATTRIB :: dupc  !< factors used for FD computations on non-regular grid
+     real(dp),dimension(:,:),  GC_DYNARRAY_ATTRIB :: dups  !< factors used for FD computations on non-regular grid
+     real(dp)                          :: dupn =  0.0      !< thickness of bottom sigma level
   end type vertCoord_type
 
   !> generic interface for initialising a vertical coordsystem

@@ -67,7 +67,7 @@ module eis_ela
      character(len=fname_length) :: fname=''     !*FD name of file containing ELA ts
      character(len=fname_length) :: ew_fname=''  !*FD name of file containing longitude dependance of ELA field
      type(glimmer_tseries) :: ela_ts             !*FD ELA time series 
-     real,dimension(:,:),pointer :: ela => null()!*FD ELA field
+     real,dimension(:,:),GC_DYNARRAY_ATTRIB :: ela!*FD ELA field
   end type eis_ela_type
 
   private :: ela_lat, calc_mb

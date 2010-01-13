@@ -121,22 +121,20 @@ contains
 
     ! local variables
     type(ConfigSection), pointer :: section
-    real(kind=sp), dimension(:), pointer :: dummy
+    real(kind=sp), dimension(:), GC_DYNARRAY_ATTRIB :: dummy
 
     call GetSection(config,section,'EISMINT-1 fixed margin')
     if (associated(section)) then
        climate%eismint_type = 1
-       dummy=>NULL()
        call GetValue(section,'temperature',dummy,2)
        climate%airt = (/-34.15, 8.e-8/)
-       if (associated(dummy)) then
+       if (GC_DYNARRAY_CHECK(dummy)) then
           climate%airt = dummy
           deallocate(dummy)
-          dummy=>NULL()
        end if
        call GetValue(section,'massbalance',dummy,1)
        climate%nmsb = (/0.3, 0.0, 0.0/)
-       if (associated(dummy)) then
+       if (GC_DYNARRAY_CHECK(dummy)) then
           climate%nmsb(1) = dummy(1)
        end if
        call GetValue(section,'period',climate%period)
@@ -146,18 +144,15 @@ contains
     call GetSection(config,section,'EISMINT-1 moving margin')
     if (associated(section)) then
        climate%eismint_type = 2
-       dummy=>NULL()
        call GetValue(section,'temperature',dummy,2)
-       if (associated(dummy)) then
+       if (GC_DYNARRAY_CHECK(dummy)) then
           climate%airt = dummy
           deallocate(dummy)
-          dummy=>NULL()
        end if
        call GetValue(section,'massbalance',dummy,3)
-       if (associated(dummy)) then
+       if (GC_DYNARRAY_CHECK(dummy)) then
           climate%nmsb = dummy
           deallocate(dummy)
-          dummy=>NULL()
        end if
        call GetValue(section,'period',climate%period)
        climate%mb_amplitude = 100000.
@@ -167,20 +162,17 @@ contains
     call GetSection(config,section,'EISMINT-2')
     if (associated(section)) then
        climate%eismint_type = 3
-       dummy=>NULL()
        call GetValue(section,'temperature',dummy,2)
-       if (associated(dummy)) then
+       if (GC_DYNARRAY_CHECK(dummy)) then
           climate%airt = dummy
           deallocate(dummy)
-          dummy=>NULL()
        else
           climate%airt = (/-35., 1.67e-5/)
        end if
        call GetValue(section,'massbalance',dummy,3)
-       if (associated(dummy)) then
+       if (GC_DYNARRAY_CHECK(dummy)) then
           climate%nmsb = dummy
           deallocate(dummy)
-          dummy=>NULL()
        end if
        return
     end if    
