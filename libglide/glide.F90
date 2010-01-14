@@ -144,7 +144,7 @@ contains
     model%velocity%bed_softness = model%velowk%btrac_const
 
     ! set uniform basal heat flux
-    model%temper%bheatflx = model%paramets%geot
+    model%temper%bheatflx = model%lithot%geot
 
     ! load sigma file
     call glide_load_sigma(model,dummyunit)

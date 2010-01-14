@@ -323,6 +323,8 @@ module glide_types
   type glide_lithot_type
      !*FD holds variables for temperature calculations in the lithosphere
 
+     real(dp) :: geot   = -5.0d-2  ! W m^{-2}
+
      real(dp),dimension(:,:,:),GC_DYNARRAY_ATTRIB :: temp    !*FD Three-dimensional temperature field.
      logical, dimension(:,:), GC_DYNARRAY_ATTRIB :: mask     !*FD whether the point has been ice covered at some time
 
@@ -450,7 +452,6 @@ module glide_types
     real(dp) :: btrac_const = 0.d0 ! m yr^{-1} Pa^{-1} (gets scaled during init)
     real(dp) :: btrac_slope = 0.0d0 ! Pa^{-1} (gets scaled during init)
     real(dp) :: btrac_max = 0.d0  !  m yr^{-1} Pa^{-1} (gets scaled during init)
-    real(dp) :: geot   = -5.0d-2  ! W m^{-2}
     real(dp) :: fiddle = 3.0d0    ! -
     real(dp) :: hydtim = 1000.0d0 ! yr^{-1} converted to s^{-1} and scaled, 
                                   ! 0 if no drainage = 0.0d0 * tim0 / scyr

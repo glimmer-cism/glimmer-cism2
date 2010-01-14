@@ -536,7 +536,7 @@ contains
     call GetValue(section,'ice_limit',model%numerics%thklim)
     call GetValue(section,'marine_limit',model%numerics%mlimit)
     call GetValue(section,'calving_fraction',model%numerics%calving_fraction)
-    call GetValue(section,'geothermal',model%paramets%geot)
+    call GetValue(section,'geothermal',model%lithot%geot)
     call GetValue(section,'flow_factor',model%paramets%fiddle)
     call GetValue(section,'hydro_time',model%paramets%hydtim)
     call GetValue(section,'basal_tract',temp,5)
@@ -567,7 +567,7 @@ contains
        write(message,*) 'ice fraction lost due to calving :', model%numerics%calving_fraction
        call write_log(message)
     end if
-    write(message,*) 'geothermal heat flux  : ',model%paramets%geot
+    write(message,*) 'geothermal heat flux  : ',model%lithot%geot
     call write_log(message)
     write(message,*) 'flow enhancement      : ',model%paramets%fiddle
     call write_log(message)

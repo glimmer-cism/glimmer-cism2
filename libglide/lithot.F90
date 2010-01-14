@@ -92,7 +92,7 @@ contains
 
     if (model%options%hotstart.ne.1) then
        ! set initial temp distribution to thermal gradient
-       factor = model%paramets%geot/model%lithot%con_r
+       factor = model%lithot%geot/model%lithot%con_r
        do k=1,model%lithot%nlayer
           model%lithot%temp(:,:,k) = model%lithot%surft+model%lithot%deltaz(k)*factor
        end do

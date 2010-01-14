@@ -1,3 +1,10 @@
+2010-01-14 Magnus Hagdorn
+ * libglide/glide_types.F90: move definition of geothermal heatflux parameter to
+   lithot derived type
+ * libglide/glide.F90: correctly resolve geothermal heatflux parameter
+ * libglide/glide_setup.F90: ditto
+ * libglide/lithot.F90: ditto
+
 2010-01-13 Magnus Hagdorn
  * libglide/Makefile.am: rename lithot files and bundle them into a convinience
    library
