@@ -63,6 +63,7 @@ module glide_types
   use glimmer_global
   use glimmer_ncdf
   use isostasy_types
+  use lithot_types
   use profile
   use glimmer_coordinates, only : coordinates_type
   use glimmer_map_types, pi_dummy=>pi
@@ -181,12 +182,6 @@ module glide_types
     !*FD \begin{description}
     !*FD \item[0] no periodic EW boundary conditions
     !*FD \item[1] periodic EW boundary conditions
-    !*FD \end{description}
-
-    integer :: gthf = 0
-    !*FD \begin{description}
-    !*FD \item[0] no geothermal heat flux calculations
-    !*FD \item[1] calculate gthf using 3d diffusion
     !*FD \end{description}
 
     integer :: which_sigma = 0
@@ -320,48 +315,6 @@ module glide_types
     logical  :: newtemps = .false. !*FD new temperatures
   end type glide_temper
 
-  type glide_lithot_type
-     !*FD holds variables for temperature calculations in the lithosphere
-
-     real(dp) :: geot   = -5.0d-2  ! W m^{-2}
-
-     real(dp),dimension(:,:,:),GC_DYNARRAY_ATTRIB :: temp    !*FD Three-dimensional temperature field.
-     logical, dimension(:,:), GC_DYNARRAY_ATTRIB :: mask     !*FD whether the point has been ice covered at some time
-
-     integer :: num_dim = 1                                 !*FD either 1 or 3 for 1D/3D calculations
-
-     ! The sparse matrix and linearised arrays
-     type(sparse_matrix_type) :: fd_coeff, fd_coeff_slap
-     integer :: all_bar_top
-     real(dp), dimension(:), GC_DYNARRAY_ATTRIB :: rhs
-     real(dp), dimension(:), GC_DYNARRAY_ATTRIB :: answer
-     real(dp), dimension(:), GC_DYNARRAY_ATTRIB :: supd,diag,subd
-
-     ! work arrays for solver
-     real(dp), dimension(:), GC_DYNARRAY_ATTRIB :: rwork
-     integer, dimension(:), GC_DYNARRAY_ATTRIB :: iwork
-     integer mxnelt
-
-     real(dp), dimension(:), GC_DYNARRAY_ATTRIB :: deltaz    !*FD array holding grid spacing in z
-     real(dp), dimension(:,:), GC_DYNARRAY_ATTRIB :: zfactors!*FD array holding factors for finite differences of vertical diffu
-     real(dp) :: xfactor,yfactor !*FD factors for finite differences of horizontal diffu
-
-
-     real :: surft = 2.         !*FD surface temperature, used for calculating initial temperature distribution
-     real :: mart  = 2.         !*FD sea floor temperature 
-     integer :: nlayer = 20     !*FD number of layers in lithosphere
-     real :: rock_base = -5000. !*FD depth below sea-level at which geothermal heat gradient is applied
-     
-     integer :: numt = 0        !*FD number time steps for spinning up GTHF calculations
-
-     real(dp) :: rho_r = 3300.0d0 !*FD The density of lithosphere (kg m$^{-3}$)
-     real(dp) :: shc_r = 1000.0d0 !*FD specific heat capcity of lithosphere (J kg$^{-1}$ K$^{-1}$)
-     real(dp) :: con_r = 3.3d0    !*FD thermal conductivity of lithosphere (W m$^{-1}$ K$^{-1}$)
-
-     real(dp) :: diffu = 0. !*FD diffusion coefficient
-
-  end type glide_lithot_type
-
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   type glide_funits
@@ -480,7 +433,7 @@ module glide_types
     type(glide_velocity) :: velocity
     type(glide_climate)  :: climate
     type(glide_temper)   :: temper
-    type(glide_lithot_type) :: lithot
+    type(lithot_type)    :: lithot
     type(glide_funits)   :: funits
     type(glide_numerics) :: numerics
     type(glide_velowk)   :: velowk
@@ -608,9 +561,6 @@ contains
     call horizCoord_allocate(model%coordinates%ice_grid, model%temper%bmlt_tavg)
     call horizCoord_allocate(model%coordinates%velo_grid, model%temper%stagbpmp)
 
-    allocate(model%lithot%temp(1:ewn,1:nsn,model%lithot%nlayer)); model%lithot%temp = 0.0
-    call horizCoord_allocate(model%coordinates%ice_grid, model%lithot%mask)
-
     call horizCoord_allocate(model%coordinates%velo_grid, upn, model%velocity%uvel)
     call horizCoord_allocate(model%coordinates%velo_grid, upn, model%velocity%vvel)
     call horizCoord_allocate(model%coordinates%ice_grid, upn, model%velocity%wvel)
@@ -669,6 +619,8 @@ contains
 
     ! allocate isostasy grids
     call isos_allocate(model%isos,model%coordinates)
+    ! allocate geothermal heat flux grids
+    call lithot_allocate(model%lithot,model%coordinates)
 
   end subroutine glide_allocarr
 
@@ -694,9 +646,6 @@ contains
     deallocate(model%temper%bmlt_tavg)
     deallocate(model%temper%bpmp)
     deallocate(model%temper%stagbpmp)
-
-    deallocate(model%lithot%temp)
-    deallocate(model%lithot%mask)
 
     deallocate(model%velocity%uvel)
     deallocate(model%velocity%vvel)
@@ -744,8 +693,10 @@ contains
     deallocate(model%thckwk%float)
     deallocate(model%numerics%sigma)
     
-    ! allocate isostasy grids
+    ! deallocate isostasy grids
     call isos_deallocate(model%isos)
+    ! deallocate geothermal heat flux grids
+    call lithot_deallocate(model%lithot)
 
   end subroutine glide_deallocarr
 

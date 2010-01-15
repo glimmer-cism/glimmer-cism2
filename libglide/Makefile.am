@@ -23,7 +23,7 @@ libglide_la_SOURCES = glide.F90 glide_setup.F90 glide_types.F90 glide_temp.F90 \
 libglide_la_LIBADD = libisostasy.la liblithot.la
 
 libisostasy_la_SOURCES = isostasy.F90 isostasy_el.F90 isostasy_setup.F90 isostasy_types.F90 
-liblithot_la_SOURCES = lithot.F90 lithot3d.F90  lithot1d.F90 
+liblithot_la_SOURCES = lithot.F90 lithot_setup.F90 lithot_types.F90 lithot1d.F90 
 
 test_setup_SOURCES = test_setup.F90
 test_setup_LDADD = libglide.la ../libglimmer/libglimmer.la ../libglimmer/libglimmer-IO.la $(NETCDF_LDFLAGS) $(HDF5_LDFLAGS) $(NETCDF_LIBS)

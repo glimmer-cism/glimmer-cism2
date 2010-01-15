@@ -48,6 +48,7 @@
 
 module lithot
 
+  use lithot_setup
 
 contains  
   subroutine init_lithot(model)
@@ -56,7 +57,6 @@ contains
     use glimmer_paramets, only: tim0
     use glimmer_log
     use lithot1d
-    use lithot3d
     implicit none
     type(glide_global_type),intent(inout) :: model       !*FD model instance
 
@@ -101,8 +101,6 @@ contains
 
     if (model%lithot%num_dim.eq.1) then
        call init_lithot1d(model)
-    else if (model%lithot%num_dim.eq.3) then
-       call init_lithot3d(model)
     else
        call write_log('Wrong number of dimensions.',GM_FATAL,__FILE__,__LINE__)
     end if
@@ -131,14 +129,11 @@ contains
     use glide_types
     use glimmer_log
     use lithot1d
-    use lithot3d
     implicit none
     type(glide_global_type),intent(inout) :: model       !*FD model instance
 
     if (model%lithot%num_dim.eq.1) then
        call calc_lithot1d(model)
-    else if (model%lithot%num_dim.eq.3) then
-       call calc_lithot3d(model)
     else
        call write_log('Wrong number of dimensions.',GM_FATAL,__FILE__,__LINE__)
     end if
@@ -163,7 +158,6 @@ contains
     use glide_types
     use lithot1d
     use glimmer_log
-    use lithot3d
     implicit none
     type(glide_global_type),intent(inout) :: model       !*FD model instance
 
@@ -172,8 +166,6 @@ contains
 
     if (model%lithot%num_dim.eq.1) then
        call finalise_lithot1d(model)
-    else if (model%lithot%num_dim.eq.3) then
-       call finalise_lithot3d(model)
     else
        call write_log('Wrong number of dimensions.',GM_FATAL,__FILE__,__LINE__)
     end if

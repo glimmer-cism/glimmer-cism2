@@ -63,6 +63,7 @@ contains
     !*FD read glide configuration from file and print it to the log
     use glide_setup
     use isostasy
+    use lithot, only : lithot_readconfig,lithot_printconfig
     use glimmer_ncparams
     use glimmer_config
     use glimmer_map_init
@@ -81,6 +82,9 @@ contains
     ! read isostasy configuration file
     call isos_readconfig(model%isos,config)
     call isos_printconfig(model%isos)
+    ! read gthf configuration
+    call lithot_readconfig(model%lithot,config)
+    call lithot_printconfig(model%lithot)
     ! read mapping from config file
     ! **** Use of dew and dns here is an ugly fudge that
     ! **** allows the use of old [GLINT projection] config section
@@ -157,7 +161,7 @@ contains
     call glimmap_printproj(model%coordinates%projection)
 
     ! read lithot if required
-    if (model%options%gthf.gt.0) then
+    if (model%lithot%do_lithot) then
        call lithot_io_readall(model,model)
     end if
 
@@ -197,7 +201,7 @@ contains
          model%numerics%thklim, &
          model%options%basal_mbal)
 
-    if (model%options%gthf.gt.0) then
+    if (model%lithot%do_lithot) then
        call lithot_io_createall(model)
        call init_lithot(model)
     end if
@@ -300,7 +304,7 @@ contains
     ! ------------------------------------------------------------------------ 
     ! calculate geothermal heat flux
     ! ------------------------------------------------------------------------ 
-    if (model%options%gthf.gt.0) then
+    if (model%lithot%do_lithot) then
        call calc_lithot(model)
     end if
 
@@ -443,7 +447,7 @@ contains
 
     if (.not. nw) then
        call glide_io_writeall(model,model)
-       if (model%options%gthf.gt.0) then
+       if (model%lithot%do_lithot) then
           call lithot_io_writeall(model,model)
        end if
     end if

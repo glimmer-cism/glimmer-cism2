@@ -87,12 +87,6 @@ contains
     if (associated(section)) then
        call handle_parameters(section, model)
     end if
-    ! read GTHF 
-    call GetSection(config,section,'GTHF')
-    if (associated(section)) then
-       model%options%gthf = 1
-       call handle_gthf(section, model)
-    end if
   end subroutine glide_readconfig
 
   subroutine glide_printconfig(model)
@@ -107,7 +101,6 @@ contains
     call print_time(model)
     call print_options(model)
     call print_parameters(model)
-    call print_gthf(model)
   end subroutine glide_printconfig
     
   subroutine glide_scale_params(model)
@@ -641,58 +634,5 @@ contains
     call write_log('')
     
   end subroutine print_sigma
-
-  ! geothermal heat flux calculations
-  subroutine handle_gthf(section, model)
-    use glimmer_config
-    use glide_types
-    implicit none
-    type(ConfigSection), pointer :: section
-    type(glide_global_type)  :: model
-
-    call GetValue(section,'num_dim',model%lithot%num_dim)
-    call GetValue(section,'nlayer',model%lithot%nlayer)
-    call GetValue(section,'surft',model%lithot%surft)
-    call GetValue(section,'rock_base',model%lithot%rock_base)
-    call GetValue(section,'numt',model%lithot%numt)
-    call GetValue(section,'rho',model%lithot%rho_r)
-    call GetValue(section,'shc',model%lithot%shc_r)
-    call GetValue(section,'con',model%lithot%con_r)
-  end subroutine handle_gthf
-
-  subroutine print_gthf(model)
-    use glide_types
-    use glimmer_log
-    implicit none
-    type(glide_global_type)  :: model
-    character(len=100) :: message
-    
-    if (model%options%gthf.gt.0) then
-       call write_log('GTHF configuration')
-       call write_log('------------------')
-       if (model%lithot%num_dim.eq.1) then
-          call write_log('solve 1D diffusion equation')
-       else if (model%lithot%num_dim.eq.3) then          
-          call write_log('solve 3D diffusion equation')
-       else
-          call write_log('Wrong number of dimensions.',GM_FATAL,__FILE__,__LINE__)
-       end if
-       write(message,*) 'number of layers                     : ',model%lithot%nlayer
-       call write_log(message)
-       write(message,*) 'initial surface temperature          : ',model%lithot%surft
-       call write_log(message)
-       write(message,*) 'rock base                            : ',model%lithot%rock_base
-       call write_log(message)
-       write(message,*) 'density of rock layer                : ',model%lithot%rho_r
-       call write_log(message)
-       write(message,*) 'specific heat capacity of rock layer : ',model%lithot%shc_r
-       call write_log(message)
-       write(message,*) 'thermal conductivity of rock layer   : ',model%lithot%con_r
-       call write_log(message)
-       write(message,*) 'number of time steps for spin-up     : ',model%lithot%numt
-       call write_log(message)
-       call write_log('')
-    end if
-  end subroutine print_gthf
 
 end module glide_setup

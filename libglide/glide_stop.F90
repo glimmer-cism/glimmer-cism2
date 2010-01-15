@@ -69,7 +69,7 @@ contains
     if (present(crash)) then
        if (crash) then
           call glide_io_writeall(model,model,.true.)
-          if (model%options%gthf.gt.0) then
+          if (model%lithot%do_lithot) then
              call lithot_io_writeall(model,model,.true.)
           end if
        end if
