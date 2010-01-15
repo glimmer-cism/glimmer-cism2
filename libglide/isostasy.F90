@@ -88,8 +88,8 @@ contains
     real(kind=dp) :: ice_mass, water_depth, water_mass
     integer :: ew,ns
   
-     do ns=1,isos%hCoord%size(1)
-       do ew=1,isos%hCoord%size(2)
+     do ns=1,isos%hCoord%size(2)
+       do ew=1,isos%hCoord%size(1)
           ice_mass = rhoi * thck(ew,ns)
           if (topg(ew,ns)-eus.lt.0) then             ! check if we are below sea level
              water_depth = eus - topg(ew,ns)
@@ -177,8 +177,8 @@ contains
     ft1 = exp(-dt/isos%relaxed_tau)
     ft2 = 1. - ft1
     
-    do ns=1,isos%hCoord%size(1)
-       do ew=1,isos%hCoord%size(2)
+    do ns=1,isos%hCoord%size(2)
+       do ew=1,isos%hCoord%size(1)
           topg(ew,ns) = ft2*(isos%relx(ew,ns)-isos%load(ew,ns)) + ft1*topg(ew,ns)
        end do
     end do

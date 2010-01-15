@@ -1,4 +1,7 @@
 2010-01-14 Magnus Hagdorn
+ * libglide/isostasy.F90: fix bugs were I mixed up array bounds
+
+2010-01-14 Magnus Hagdorn
  * libglide/glide_types.F90: move definition of geothermal heatflux parameter to
    lithot derived type
  * libglide/glide.F90: correctly resolve geothermal heatflux parameter
