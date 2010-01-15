@@ -1,4 +1,10 @@
-2010-01-14 Magnus Hagdorn
+2010-01-15 Magnus Hagdorn
+ * example-drivers/EISMINT-3/src/Makefile.am: reorder libraries
+ * example-drivers/eis/src/Makefile.am: ditto
+ * tests/EISMINT/src/Makefile.am: ditto
+ * tests/exact-isothermal/src/Makefile.am: ditto
+
+2010-01-15 Magnus Hagdorn
  * libglide/isostasy.F90: fix bugs were I mixed up array bounds
 
 2010-01-14 Magnus Hagdorn
