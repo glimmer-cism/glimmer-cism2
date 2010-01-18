@@ -90,7 +90,7 @@ program simple_glide
 
   call simple_massbalance(climate,model,time)
   call simple_surftemp(climate,model,time)
-  call spinup_lithot(model)
+  call spinup_lithot(model,model%lithot)
 
   do while(time.le.model%numerics%tend)
      call glide_tstep_p1(model,time)

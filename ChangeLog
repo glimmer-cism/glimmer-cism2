@@ -1,4 +1,11 @@
 2010-01-18 Magnus Hagdorn
+ * example-drivers/eis/src/eis_glide.F90: API change
+ * libglide/glide.F90: ditto
+ * tests/EISMINT/src/simple_glide.F90: ditto
+ * libglide/lithot.F90: pass lithot_type in addition to glide_global_type
+ * libglide/lithot1d.F90:ditto
+
+2010-01-18 Magnus Hagdorn
  * configure.in: change version to 1.7.1, since trunk will become
    version 1.8 eventually
  * glimmer-cism-config.in: remove some unused variables

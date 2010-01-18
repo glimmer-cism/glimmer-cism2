@@ -44,94 +44,101 @@
 #include "config.inc"
 #endif
 
-! module for 1D temperature calculations in the upper lithosphere
+!> module for 1D temperature calculations in the upper lithosphere
+!!
+!! \author Magnus Hagdorn
+!! \date 2006
 
 module lithot1d
 
+  use lithot_types, only : lithot_type
+
 contains
-  subroutine init_lithot1d(model)
-    use glide_types
+  !> initialise 1D geothermal heat flux
+  subroutine init_lithot1d(litho)
     implicit none
-    type(glide_global_type),intent(inout) :: model       !*FD model instance
+    type(lithot_type) :: litho            !< structure holding bedrock temperature configuration    
 
     ! allocate memory for 1D code
-    allocate(model%lithot%rhs(model%lithot%nlayer))
-    allocate(model%lithot%subd(model%lithot%nlayer))
-    allocate(model%lithot%diag(model%lithot%nlayer))
-    allocate(model%lithot%supd(model%lithot%nlayer))
+    allocate(litho%rhs(litho%nlayer))
+    allocate(litho%subd(litho%nlayer))
+    allocate(litho%diag(litho%nlayer))
+    allocate(litho%supd(litho%nlayer))
     
     ! setup coefficient matrix
-    model%lithot%subd(:) =    - model%lithot%zfactors(1,:)
-    model%lithot%diag(:) = 1. + model%lithot%zfactors(2,:)
-    model%lithot%supd(:) =    - model%lithot%zfactors(3,:)
+    litho%subd(:) =    - litho%zfactors(1,:)
+    litho%diag(:) = 1. + litho%zfactors(2,:)
+    litho%supd(:) =    - litho%zfactors(3,:)
     ! and the boundary conditions
     ! top face
     ! simply match air temperature where no ice and basal temperature where ice
-    model%lithot%subd(1) = 0.
-    model%lithot%diag(1) = 1.
-    model%lithot%supd(1) = 0.
+    litho%subd(1) = 0.
+    litho%diag(1) = 1.
+    litho%supd(1) = 0.
     ! bottom face
     ! keep constant
-    model%lithot%subd(model%lithot%nlayer) = 0.
-    model%lithot%diag(model%lithot%nlayer) = 1.
-    model%lithot%supd(model%lithot%nlayer) = 0.
+    litho%subd(litho%nlayer) = 0.
+    litho%diag(litho%nlayer) = 1.
+    litho%supd(litho%nlayer) = 0.
   end subroutine init_lithot1d
 
-  subroutine calc_lithot1d(model)
+  !> compute 1D geothermal heat flux
+  subroutine calc_lithot1d(model,litho)
     use glide_types
     use glimmer_utils
     use glimmer_mask
     implicit none
     type(glide_global_type),intent(inout) :: model       !*FD model instance
+    type(lithot_type) :: litho            !< structure holding bedrock temperature configuration    
 
     integer i,j,k
 
     ! loop over grid
-    do j=1,model%general%nsn
-       do i=1,model%general%ewn
+    do j=1,litho%hCoord%size(2)
+       do i=1,litho%hCoord%size(1)
           ! calculate RHS for upper BC
           if (is_ground(model%geometry%thkmask(i,j)) .and. .not. is_thin(model%geometry%thkmask(i,j)) ) then
-             model%lithot%rhs(1) = model%temper%temp(model%general%upn,i,j) ! ice basal temperature
-             model%lithot%mask(i,j) = .true.
+             litho%rhs(1) = model%temper%temp(model%general%upn,i,j) ! ice basal temperature
+             litho%mask(i,j) = .true.
           else
-             if (model%lithot%mask(i,j)) then
+             if (litho%mask(i,j)) then
                 if (is_ocean(model%geometry%thkmask(i,j))) then
-                   model%lithot%rhs(1) = model%lithot%mart
+                   litho%rhs(1) = litho%mart
                 else if (is_land(model%geometry%thkmask(i,j))) then
-                   model%lithot%rhs(1) = model%climate%artm(i,j) ! air temperature outside ice sheet
+                   litho%rhs(1) = model%climate%artm(i,j) ! air temperature outside ice sheet
                 end if
              end if
           end if
 
-          if (model%lithot%mask(i,j)) then
+          if (litho%mask(i,j)) then
              ! calculate RHS for rest
-             do k=2,model%lithot%nlayer-1
-                model%lithot%rhs(k) = - model%lithot%subd(k)*model%lithot%temp(i,j,k-1) &
-                     + (2.-model%lithot%diag(k))*model%lithot%temp(i,j,k) &
-                     - model%lithot%supd(k)*model%lithot%temp(i,j,k+1)
+             do k=2,litho%nlayer-1
+                litho%rhs(k) = - litho%subd(k)*litho%temp(i,j,k-1) &
+                     + (2.-litho%diag(k))*litho%temp(i,j,k) &
+                     - litho%supd(k)*litho%temp(i,j,k+1)
              end do
-             model%lithot%rhs(model%lithot%nlayer) = model%lithot%temp(i,j,model%lithot%nlayer)
+             litho%rhs(litho%nlayer) = litho%temp(i,j,litho%nlayer)
 
              ! solve tri-diagonal matrix eqn
-             call tridiag(model%lithot%subd(1:), &
-                  model%lithot%diag(:), &
-                  model%lithot%supd(:model%lithot%nlayer), &
-                  model%lithot%temp(i,j,:) ,                 &
-                  model%lithot%rhs(:))
+             call tridiag(litho%subd(1:), &
+                  litho%diag(:), &
+                  litho%supd(:litho%nlayer), &
+                  litho%temp(i,j,:) ,                 &
+                  litho%rhs(:))
           end if
        end do
     end do
   end subroutine calc_lithot1d
 
-  subroutine finalise_lithot1d(model)
-    use glide_types
+  !> deallocate memory for 1D geothermal heat flux computations
+  subroutine finalise_lithot1d(litho)
     implicit none
-    type(glide_global_type),intent(inout) :: model       !*FD model instance
+    type(lithot_type) :: litho            !< structure holding bedrock temperature configuration    
 
-    deallocate(model%lithot%rhs)
-    deallocate(model%lithot%subd)
-    deallocate(model%lithot%diag)
-    deallocate(model%lithot%supd)
+    deallocate(litho%rhs)
+    deallocate(litho%subd)
+    deallocate(litho%diag)
+    deallocate(litho%supd)
   end subroutine finalise_lithot1d
 
 end module lithot1d

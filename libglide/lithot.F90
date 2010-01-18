@@ -44,14 +44,20 @@
 #include "config.inc"
 #endif
 
-! module for temperature calculations in the upper lithosphere
+!> module for temperature calculations in the upper lithosphere
+!!
+!! \author Magnus Hagdorn
+!! \date 2006
 
 module lithot
 
+  use glimmer_global, only : dp,sp
+  use lithot_types
   use lithot_setup
 
 contains  
-  subroutine init_lithot(model)
+  !> initialise geothermal heat flux computations
+  subroutine init_lithot(model,litho)
     use glide_types
     use glide_setup
     use glimmer_paramets, only: tim0
@@ -59,113 +65,121 @@ contains
     use lithot1d
     implicit none
     type(glide_global_type),intent(inout) :: model       !*FD model instance
+    type(lithot_type) :: litho            !< structure holding bedrock temperature configuration    
 
     ! local variables
     integer k
     real(kind=dp) :: factor
 
     ! allocate memory for common arrays
-    allocate(model%lithot%deltaz(model%lithot%nlayer)); model%lithot%deltaz = 0.0
-    allocate(model%lithot%zfactors(3,model%lithot%nlayer)); model%lithot%zfactors = 0.0    
+    allocate(litho%deltaz(litho%nlayer)); litho%deltaz = 0.0
+    allocate(litho%zfactors(3,litho%nlayer)); litho%zfactors = 0.0    
 
     ! set up vertical grid
-    do k=1,model%lithot%nlayer
-       model%lithot%deltaz(k) = (1-glide_calc_sigma(real(model%lithot%nlayer-k)/real(model%lithot%nlayer-1),2.)) &
-            *model%lithot%rock_base
+    do k=1,litho%nlayer
+       litho%deltaz(k) = (1-glide_calc_sigma(real(litho%nlayer-k)/real(litho%nlayer-1),2.)) &
+            *litho%rock_base
     end do
 
     ! calculate diffusion coefficient
-    model%lithot%diffu = model%lithot%con_r/(model%lithot%rho_r*model%lithot%shc_r)
+    litho%diffu = litho%con_r/(litho%rho_r*litho%shc_r)
 
     ! set up factors for vertical finite differences
-    do k=2,model%lithot%nlayer-1
-       model%lithot%zfactors(1,k) =  model%lithot%diffu*tim0*model%numerics%dt / &
-            ((model%lithot%deltaz(k)-model%lithot%deltaz(k-1)) * (model%lithot%deltaz(k+1)-model%lithot%deltaz(k-1)))
-       model%lithot%zfactors(2,k) = model%lithot%diffu*tim0*model%numerics%dt / &
-            ((model%lithot%deltaz(k+1)-model%lithot%deltaz(k)) * (model%lithot%deltaz(k)-model%lithot%deltaz(k-1)))
-       model%lithot%zfactors(3,k) = model%lithot%diffu*tim0*model%numerics%dt / &
-            ((model%lithot%deltaz(k+1)-model%lithot%deltaz(k)) * (model%lithot%deltaz(k+1)-model%lithot%deltaz(k-1)))
+    do k=2,litho%nlayer-1
+       litho%zfactors(1,k) =  litho%diffu*tim0*model%numerics%dt / &
+            ((litho%deltaz(k)-litho%deltaz(k-1)) * (litho%deltaz(k+1)-litho%deltaz(k-1)))
+       litho%zfactors(2,k) = litho%diffu*tim0*model%numerics%dt / &
+            ((litho%deltaz(k+1)-litho%deltaz(k)) * (litho%deltaz(k)-litho%deltaz(k-1)))
+       litho%zfactors(3,k) = litho%diffu*tim0*model%numerics%dt / &
+            ((litho%deltaz(k+1)-litho%deltaz(k)) * (litho%deltaz(k+1)-litho%deltaz(k-1)))
     end do
-    k = model%lithot%nlayer
-    model%lithot%zfactors(:,k) = 0.5*model%lithot%diffu*tim0*model%numerics%dt / &
-         (model%lithot%deltaz(k)-model%lithot%deltaz(k-1))**2
+    k = litho%nlayer
+    litho%zfactors(:,k) = 0.5*litho%diffu*tim0*model%numerics%dt / &
+         (litho%deltaz(k)-litho%deltaz(k-1))**2
 
     if (model%options%hotstart.ne.1) then
        ! set initial temp distribution to thermal gradient
-       factor = model%lithot%geot/model%lithot%con_r
-       do k=1,model%lithot%nlayer
-          model%lithot%temp(:,:,k) = model%lithot%surft+model%lithot%deltaz(k)*factor
+       factor = litho%geot/litho%con_r
+       do k=1,litho%nlayer
+          litho%temp(:,:,k) = litho%surft+litho%deltaz(k)*factor
        end do
     end if
 
 
     if (model%lithot%num_dim.eq.1) then
-       call init_lithot1d(model)
+       call init_lithot1d(litho)
     else
        call write_log('Wrong number of dimensions.',GM_FATAL,__FILE__,__LINE__)
     end if
   end subroutine init_lithot    
 
-  subroutine spinup_lithot(model)
+  !> spinup geothermal heat flux computations
+  subroutine spinup_lithot(model,litho)
     use glide_types
     use glimmer_log
     use glimmer_mask
     implicit none
     type(glide_global_type),intent(inout) :: model       !*FD model instance
+    type(lithot_type) :: litho            !< structure holding bedrock temperature configuration    
 
     integer t
 
-    if (model%options%hotstart.ne.1 .and. model%lithot%numt .gt. 0) then
+    if (model%options%hotstart.ne.1 .and. litho%numt .gt. 0) then
        call write_log('Spinning up GTHF calculations',type=GM_INFO)
 
-       do t=1,model%lithot%numt
-          call calc_lithot(model)
+       do t=1,litho%numt
+          call calc_lithot(model,litho)
        end do
 
     end if
   end subroutine spinup_lithot
 
-  subroutine calc_lithot(model)
+  !> compute temperature in the lithosphere
+  subroutine calc_lithot(model,litho)
     use glide_types
     use glimmer_log
     use lithot1d
     implicit none
     type(glide_global_type),intent(inout) :: model       !*FD model instance
+    type(lithot_type) :: litho            !< structure holding bedrock temperature configuration    
 
-    if (model%lithot%num_dim.eq.1) then
-       call calc_lithot1d(model)
+    if (litho%num_dim.eq.1) then
+       call calc_lithot1d(model,litho)
     else
        call write_log('Wrong number of dimensions.',GM_FATAL,__FILE__,__LINE__)
     end if
       
-    call calc_geoth(model)
+    call calc_geoth(model,litho)
 
   end subroutine calc_lithot
 
-  subroutine calc_geoth(model)
-    !*FD calculate geothermal heat flux
+  !> calculate geothermal heat flux
+  subroutine calc_geoth(model,litho)
     use glide_types
     implicit none
     type(glide_global_type),intent(inout) :: model       !*FD model instance
+    type(lithot_type) :: litho            !< structure holding bedrock temperature configuration    
 
     real(dp) factor
 
-    factor = model%lithot%con_r/(model%lithot%deltaz(2)-model%lithot%deltaz(1))
-    model%temper%bheatflx(:,:) = factor*(model%lithot%temp(:,:,2)-model%lithot%temp(:,:,1))
+    factor = litho%con_r/(litho%deltaz(2)-litho%deltaz(1))
+    model%temper%bheatflx(:,:) = factor*(litho%temp(:,:,2)-litho%temp(:,:,1))
   end subroutine calc_geoth
 
-  subroutine finalise_lithot(model)
+  !> clean up lithot module
+  subroutine finalise_lithot(model,litho)
     use glide_types
     use lithot1d
     use glimmer_log
     implicit none
     type(glide_global_type),intent(inout) :: model       !*FD model instance
+    type(lithot_type) :: litho            !< structure holding bedrock temperature configuration    
 
-    deallocate(model%lithot%deltaz)
-    deallocate(model%lithot%zfactors)
+    deallocate(litho%deltaz)
+    deallocate(litho%zfactors)
 
-    if (model%lithot%num_dim.eq.1) then
-       call finalise_lithot1d(model)
+    if (litho%num_dim.eq.1) then
+       call finalise_lithot1d(litho)
     else
        call write_log('Wrong number of dimensions.',GM_FATAL,__FILE__,__LINE__)
     end if
