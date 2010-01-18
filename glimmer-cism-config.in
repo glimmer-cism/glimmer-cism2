@@ -1,8 +1,5 @@
 #!/bin/sh
 
-glimmer_libs="@glimmer_libs@"
-glimmer_fcflags="@glimmer_fcflags@"
-
 prefix=@prefix@
 exec_prefix=@exec_prefix@
 exec_prefix_set=no
