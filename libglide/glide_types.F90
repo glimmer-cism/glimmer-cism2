@@ -628,6 +628,7 @@ contains
     !*FD deallocate model arrays
 
     use glimmer_deriv_time, only: timeders_final
+    use glide_tempFullSoln, only: destroy_tempFullSoln
     implicit none
     type(glide_global_type),intent(inout) :: model
 
@@ -697,6 +698,8 @@ contains
     call isos_deallocate(model%isos)
     ! deallocate geothermal heat flux grids
     call lithot_deallocate(model%lithot)
+    ! deallocate temperature work arrays
+    call destroy_tempFullSoln(model%tempFullSoln)
 
   end subroutine glide_deallocarr
 

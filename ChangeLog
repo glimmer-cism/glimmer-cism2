@@ -1,4 +1,13 @@
 2010-01-19 Magnus Hagdorn
+ * libglide/Makefile.am: add flag to find glimmer_memory.inc
+ * libglide/glide_temp.F90: convert doc to doxygen
+ * libglide/glide_tempFullSoln.F90: handle temperature work arrays, simplify
+   API
+ * libglide/glide_types.F90: de-allocate memory of temperature work arrays
+ * libglimmer/glimmer_vertcoord.F90: move temperature specific work arrays
+   to temperature code
+
+2010-01-19 Magnus Hagdorn
  * libglide/glide_glenflow.F90: convert doc to doxygen
 
 2010-01-18 Magnus Hagdorn

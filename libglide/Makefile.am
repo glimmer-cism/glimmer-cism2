@@ -28,7 +28,7 @@ liblithot_la_SOURCES = lithot.F90 lithot_setup.F90 lithot_types.F90 lithot1d.F90
 test_setup_SOURCES = test_setup.F90
 test_setup_LDADD = libglide.la ../libglimmer/libglimmer.la ../libglimmer/libglimmer-IO.la $(NETCDF_LDFLAGS) $(HDF5_LDFLAGS) $(NETCDF_LIBS)
 
-AM_FCFLAGS = $(F90_MODFLAG)../libglimmer $(F90_MODFLAG)../libglimmer-solve
+AM_FCFLAGS = $(F90_MODFLAG)../libglimmer $(F90_MODFLAG)../libglimmer-solve -I$(top_srcdir)/libglimmer
 
 #AM_FCFLAGS = $(NETCDF_FCFLAGS)
 #LDADD = $(NETCDF_LDFLAGS) $(HDF5_LDFLAGS) $(NETCDF_LIBS)

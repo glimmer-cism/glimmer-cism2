@@ -60,11 +60,6 @@ module glimmer_vertcoord
   type vertCoord_type
      integer                           :: upn  =  0        !< the number of sigma levels
      real(dp),dimension(:),    GC_DYNARRAY_ATTRIB :: sigma !< the sigma levels
-     real(dp),dimension(:),    GC_DYNARRAY_ATTRIB :: dupa  !< factors used for FD computations on non-regular grid
-     real(dp),dimension(:),    GC_DYNARRAY_ATTRIB :: dupb  !< factors used for FD computations on non-regular grid
-     real(dp),dimension(:),    GC_DYNARRAY_ATTRIB :: dupc  !< factors used for FD computations on non-regular grid
-     real(dp),dimension(:,:),  GC_DYNARRAY_ATTRIB :: dups  !< factors used for FD computations on non-regular grid
-     real(dp)                          :: dupn =  0.0      !< thickness of bottom sigma level
   end type vertCoord_type
 
   !> generic interface for initialising a vertical coordsystem
@@ -72,8 +67,6 @@ module glimmer_vertcoord
      module procedure initVertCoord_upn, initVertCoord_file, initVertCoord_array, initVertCoord_vertCoord
   end interface
 
-  private :: initFDFactors
-  
 contains
 
   !> allocate memory for vertCoord_type
@@ -88,10 +81,6 @@ contains
 
     params%upn = upn
     GLIMMER_ALLOC1D(params%sigma,params%upn)
-    GLIMMER_ALLOC1D(params%dupa,params%upn)
-    GLIMMER_ALLOC1D(params%dupb,params%upn)
-    GLIMMER_ALLOC1D(params%dupc,params%upn)
-    GLIMMER_ALLOC2D(params%dups,params%upn,3)
   end subroutine vertCoord_allocate
 
   !> deallocate memory of vertCoord_type
@@ -104,10 +93,6 @@ contains
     integer merr
 
     GLIMMER_DEALLOC(params%sigma)
-    GLIMMER_DEALLOC(params%dupa)
-    GLIMMER_DEALLOC(params%dupb)
-    GLIMMER_DEALLOC(params%dupc)
-    GLIMMER_DEALLOC(params%dups)
   end subroutine vertCoord_destroy
 
   !> print to verticalCoord_type to log
@@ -144,8 +129,6 @@ contains
     do up=1,upn
        params%sigma(up) = calc_sigma(real(up-1,kind=dp)/real(upn-1,kind=dp),2.d0)
     end do
-
-    call initFDFactors(params)
 
   contains
     !> compute sigma level
@@ -213,8 +196,6 @@ contains
 
     params%sigma(:) = sigma(:)
 
-    call initFDFactors(params)
-
   end subroutine initVertCoord_array
 
   !> initialise vertical coordinate type from another vertical coord type
@@ -227,47 +208,6 @@ contains
 
     params%sigma(:) = vertCoord%sigma(:)
 
-    call initFDFactors(params)
-
   end subroutine initVertCoord_vertCoord
-
-  !> compute finite difference factors
-  subroutine initFDFactors(params)
-    implicit none
-    type(vertCoord_type) :: params !< the vertical coordinate type
-
-    integer up
-
-    params%dupa = (/ &
-         0.0d0,      &
-         0.0d0,      &
-         ((params%sigma(up)   - params%sigma(up-1)) / &
-         ((params%sigma(up-2) - params%sigma(up-1)) * (params%sigma(up-2) - params%sigma(up))), &
-         up=3,params%upn)  &
-         /)
-
-    params%dupb = (/ &
-         0.0d0,      &
-         0.0d0,      &
-         ((params%sigma(up)   - params%sigma(up-2)) / &
-         ((params%sigma(up-1) - params%sigma(up-2)) * (params%sigma(up-1) - params%sigma(up))), &
-         up=3,params%upn)  &
-         /)
-
-    params%dupc = (/ &
-         (params%sigma(2) - params%sigma(1)) / 2.0d0, &
-         ((params%sigma(up+1) - params%sigma(up-1)) / 2.0d0, up=2,params%upn-1), &
-         (params%sigma(params%upn) - params%sigma(params%upn-1)) / 2.0d0  &
-         /)
-
-    params%dups = 0.0d0
-    do up = 2, params%upn-1
-       params%dups(up,1) = 1.d0/((params%sigma(up+1) - params%sigma(up-1)) * (params%sigma(up)   - params%sigma(up-1)))
-       params%dups(up,2) = 1.d0/((params%sigma(up+1) - params%sigma(up-1)) * (params%sigma(up+1) - params%sigma(up)))
-       params%dups(up,3) = 1.d0/( params%sigma(up+1) - params%sigma(up-1))
-    end do
-
-    params%dupn = params%sigma(params%upn) - params%sigma(params%upn-1)
-  end subroutine initFDFactors
 
 end module glimmer_vertcoord

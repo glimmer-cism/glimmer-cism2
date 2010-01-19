@@ -44,13 +44,16 @@
 #include "config.inc"
 #endif
 
+!> temperature computation
+!!
+!! \author Ian Rutt
+
 module glide_temp
 
 contains
 
+  !> Sets ice column temperature to surface temperature
   subroutine calcTemp_asSurfTemp(temp,artm)
-
-    !*FD Sets ice column temperature to surface temperature
 
     use glimmer_log, only: write_log, GM_FATAL
     use glimmer_global, only: dp,sp
@@ -83,10 +86,9 @@ contains
 
   !------------------------------------------------------------------------------------
 
+  !> Sets ice column temperature to surface temperature at top
+  !! and zero at bottom, correcting for pressure melting point
   subroutine calcTemp_VerticalProfile(temp,artm,sigma,thck,bwat)
-
-    !*FD Sets ice column temperature to surface temperature at top
-    !*FD and zero at bottom, correcting for pressure melting point
 
     use glimmer_log, only: write_log, GM_FATAL
     use glimmer_global, only: dp,sp

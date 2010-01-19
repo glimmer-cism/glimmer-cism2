@@ -43,6 +43,7 @@
 #ifdef HAVE_CONFIG_H
 #include "config.inc"
 #endif
+#include <glimmer_memory.inc>
 
 ! some macros used to disable parts of the temperature equation
 ! vertical diffusion
@@ -70,6 +71,10 @@
 #define STRAIN_HEAT 1.
 #endif
 
+!> compute thermal evolution of ice sheet
+!!
+!! \author Ian Rutt
+
 module glide_tempFullSoln
 
   use glimmer_vertcoord, only: vertCoord_type
@@ -88,10 +93,16 @@ module glide_tempFullSoln
      real(dp)             :: thklim      !< Thickness threshold for calculation
      integer              :: periodic_ew !< Set to indicate periodic BCs
      integer              :: niter = 0   !< Maximum number of iterations
+
+     real(dp),dimension(:),    GC_DYNARRAY_ATTRIB :: dupa  !< factors used for FD computations on non-regular grid
+     real(dp),dimension(:),    GC_DYNARRAY_ATTRIB :: dupb  !< factors used for FD computations on non-regular grid
+     real(dp),dimension(:),    GC_DYNARRAY_ATTRIB :: dupc  !< fadupactors used for FD computations on non-regular grid
+     real(dp),dimension(:,:),  GC_DYNARRAY_ATTRIB :: dups  !< factors used for FD computations on non-regular grid
+     real(dp)                          :: dupn =  0.0      !< thickness of bottom sigma level
   end type type_tempFullSoln
 
   private
-  public :: type_tempFullSoln, init_tempFullSoln, tstep_tempFullSoln, get_niter
+  public :: type_tempFullSoln, init_tempFullSoln, destroy_tempFullSoln, tstep_tempFullSoln, get_niter
 
 contains
 
@@ -100,14 +111,16 @@ contains
 
     use glimmer_vertcoord, only: initVertCoord
     use glimmer_coordinates, only : coordinates_type
-    use glimmer_log,     only: write_log, GM_FATAL
-
+    use glimmer_log,     only: write_log, GM_FATAL, glimmer_allocErr
     implicit none
 
     type(type_tempFullSoln),intent(out) :: params  !< Temperature model parameters
     type(coordinates_type), intent(in)  :: coords  !< the glide coordinate systems
     real(dp),               intent(in)  :: thklim  !< Thickness threshold for calculation
     integer,                intent(in)  :: periodic_ew !< Set to indicate periodic BCs
+
+    ! local variables
+    integer merr
 
     if (VERT_DIFF.eq.0.)   call write_log('Vertical diffusion is switched off')
     if (HORIZ_ADV.eq.0.)   call write_log('Horizontal advection is switched off')
@@ -117,6 +130,12 @@ contains
     params%hCoord = coords%ice_grid
     call initVertCoord(params%zCoord,coords%sigma_grid)
 
+    ! allocate memory for work arrays
+    GLIMMER_ALLOC1D(params%dupa,params%zCoord%upn)
+    GLIMMER_ALLOC1D(params%dupb,params%zCoord%upn)
+    GLIMMER_ALLOC1D(params%dupc,params%zCoord%upn)
+    GLIMMER_ALLOC2D(params%dups,params%zCoord%upn,3)    
+
     params%thklim = thklim
 
     if (periodic_ew==0.or.periodic_ew==1) then
@@ -125,7 +144,25 @@ contains
        call write_log('Unsupported value of periodic_ew in init_tempFullSoln',GM_FATAL)
     end if
 
+    ! compute finite difference factors
+    call initFDFactors(params)
+
   end subroutine init_tempFullSoln
+
+  !> deallocate memory for full temperature solution
+  subroutine destroy_tempFullSoln(params)
+    use glimmer_log,     only: glimmer_deallocErr
+    implicit none
+    type(type_tempFullSoln),intent(inout) :: params  !< Temperature model parameters
+    
+    ! local variables
+    integer merr
+
+    GLIMMER_DEALLOC(params%dupa)
+    GLIMMER_DEALLOC(params%dupb)
+    GLIMMER_DEALLOC(params%dupc)
+    GLIMMER_DEALLOC(params%dups)
+  end subroutine destroy_tempFullSoln
 
   !------------------------------------------------------------------------------------
 
@@ -297,7 +334,7 @@ contains
                      hadv_v(:,ew,ns),                        &
                      params%zCoord%upn)
 
-                call findvtri(params%zCoord,     &
+                call findvtri(params,            &
                      thck(ew,ns),                &
                      subd,                       &
                      diag,                       &
@@ -309,13 +346,13 @@ contains
                      cons2)
 
                 if (iter==0) then
-                   call findvtri_init(initadvt,     &
+                   call findvtri_init(params,       &
+                        initadvt,                   &
                         dissip,                     &
                         inittemp,                   &
                         bheatflx,                   &
                         dusrfdew,                   &
                         dusrfdns,                   &
-                        params%zCoord,              &
                         ew,                         &
                         ns,                         &
                         subd,                       &
@@ -386,8 +423,8 @@ contains
 
     ! Calculate basal melt rate --------------------------------------------------
 
-    call calcbmlt(dissip,                 &
-         params%zCoord,                   &
+    call calcbmlt(params, &
+         dissip,                 &
          temp,                            &
          thck,                            &
          stagthck,                        &
@@ -398,10 +435,6 @@ contains
          bheatflx,                        &
          bmlt,                            &
          is_float(thkmask),               &
-         params%hCoord%size(2),                      &
-         params%hCoord%size(1),                      &
-         params%thklim,                   &
-         params%periodic_ew,              &
          f3)
 
     ! Output some information ----------------------------------------
@@ -414,6 +447,7 @@ contains
 
   !-------------------------------------------------------------------
 
+  !> accessor to the maximum number of iterations
   integer function get_niter(params)
 
     implicit none
@@ -548,14 +582,15 @@ contains
 
   !-------------------------------------------------------------------------
 
-  subroutine findvtri(zCoord,thck,subd,diag,supd,diagadvt,weff,float,cons1,cons2)
+  subroutine findvtri(params,thck,subd,diag,supd,diagadvt,weff,float,cons1,cons2)
 
     use glimmer_vertcoord, only: vertCoord_type
     use glimmer_global,    only: dp
 
     implicit none
 
-    type(vertCoord_type),   intent(in)  :: zCoord
+    
+    type(type_tempFullSoln),intent(in)  :: params  !< Temperature model parameters
     real(dp),               intent(in)  :: thck
     real(dp), dimension(:), intent(in)  :: weff
     real(dp), dimension(:), intent(in)  :: diagadvt
@@ -571,11 +606,11 @@ contains
     diff_factor = VERT_DIFF * cons1 / thck**2
     adv_factor  = VERT_ADV  * cons2 / thck
     
-    subd(2:zCoord%upn-1) =   adv_factor  * weff(2:zCoord%upn-1) * zCoord%dups(2:zCoord%upn-1,3)
-    supd(2:zCoord%upn-1) = - subd(2:zCoord%upn-1) - diff_factor * zCoord%dups(2:zCoord%upn-1,2)
-    subd(2:zCoord%upn-1) =   subd(2:zCoord%upn-1) - diff_factor * zCoord%dups(2:zCoord%upn-1,1)
+    subd(2:params%zCoord%upn-1) =   adv_factor  * weff(2:params%zCoord%upn-1) * params%dups(2:params%zCoord%upn-1,3)
+    supd(2:params%zCoord%upn-1) = - subd(2:params%zCoord%upn-1) - diff_factor * params%dups(2:params%zCoord%upn-1,2)
+    subd(2:params%zCoord%upn-1) =   subd(2:params%zCoord%upn-1) - diff_factor * params%dups(2:params%zCoord%upn-1,1)
 
-    diag(2:zCoord%upn-1) = 1.0d0 - subd(2:zCoord%upn-1) - supd(2:zCoord%upn-1) + diagadvt(2:zCoord%upn-1)
+    diag(2:params%zCoord%upn-1) = 1.0d0 - subd(2:params%zCoord%upn-1) - supd(2:params%zCoord%upn-1) + diagadvt(2:params%zCoord%upn-1)
 
     ! Upper surface: hold temperature constant
 
@@ -588,37 +623,36 @@ contains
     ! for floating ice, temperature held constant
 
     if (float) then
-       supd(zCoord%upn) = 0.0d0
-       subd(zCoord%upn) = 0.0d0
-       diag(zCoord%upn) = 1.0d0
+       supd(params%zCoord%upn) = 0.0d0
+       subd(params%zCoord%upn) = 0.0d0
+       diag(params%zCoord%upn) = 1.0d0
     else 
-       supd(zCoord%upn) = 0.0d0 
-       subd(zCoord%upn) = -0.5*diff_factor/(zCoord%dupn**2)
-       diag(zCoord%upn) = 1.0d0 - subd(zCoord%upn) + diagadvt(zCoord%upn)
+       supd(params%zCoord%upn) = 0.0d0 
+       subd(params%zCoord%upn) = -0.5*diff_factor/(params%dupn**2)
+       diag(params%zCoord%upn) = 1.0d0 - subd(params%zCoord%upn) + diagadvt(params%zCoord%upn)
     end if
 
   end subroutine findvtri
 
   !-------------------------------------------------------------------------
 
-  subroutine findvtri_init(initadvt,dissip,inittemp,bheatflx,dusrfdew,dusrfdns, &
-       zCoord,ew,ns,subd,diag,supd,weff,ubas,vbas,temp,thck,float, &
+  !> called during first iteration to set inittemp
+  subroutine findvtri_init(params,initadvt,dissip,inittemp,bheatflx,dusrfdew,dusrfdns, &
+       ew,ns,subd,diag,supd,weff,ubas,vbas,temp,thck,float, &
        cons3,cons4,slidef1,slidef2)
-
-    !*FD called during first iteration to set inittemp
 
     use glimmer_global, only: dp
     use glimmer_pmpt,   only: pmpt
 
     implicit none
 
+    type(type_tempFullSoln),      intent(in) :: params   !< temperature model parameters
     real(dp),dimension(:,:,:),intent(in)  :: initadvt
     real(dp),dimension(:,:,:),intent(in)  :: dissip
     real(dp),dimension(:,:,:),intent(out) :: inittemp
     real(dp),dimension(:,:),  intent(in)  :: bheatflx
     real(dp),dimension(:,:),  intent(in)  :: dusrfdew
     real(dp),dimension(:,:),  intent(in)  :: dusrfdns
-    type(vertCoord_type),     intent(in)  :: zCoord
     integer,                  intent(in)  :: ew
     integer,                  intent(in)  :: ns
     real(dp),dimension(:),    intent(in)  :: temp
@@ -641,15 +675,15 @@ contains
     integer  :: slide_count
 
     ! Main body points
-    inittemp(2:zCoord%upn-1,ew,ns) = temp(2:zCoord%upn-1) * (2.0d0 - diag(2:zCoord%upn-1)) &
-         - temp(1:zCoord%upn-2) * subd(2:zCoord%upn-1)         &
-         - temp(3:zCoord%upn)   * supd(2:zCoord%upn-1)         & 
-         - initadvt(2:zCoord%upn-1,ew,ns)               &
-         + dissip(2:zCoord%upn-1,ew,ns)
+    inittemp(2:params%zCoord%upn-1,ew,ns) = temp(2:params%zCoord%upn-1) * (2.0d0 - diag(2:params%zCoord%upn-1)) &
+         - temp(1:params%zCoord%upn-2) * subd(2:params%zCoord%upn-1)         &
+         - temp(3:params%zCoord%upn)   * supd(2:params%zCoord%upn-1)         & 
+         - initadvt(2:params%zCoord%upn-1,ew,ns)               &
+         + dissip(2:params%zCoord%upn-1,ew,ns)
     
     ! Basal boundary points
     if (float) then
-       inittemp(zCoord%upn,ew,ns) = pmpt(thck)
+       inittemp(params%zCoord%upn,ew,ns) = pmpt(thck)
     else 
        ! sliding contribution to basal heat flux
        slterm = 0.
@@ -670,14 +704,14 @@ contains
           slterm = 0.
        end if
 
-       inittemp(zCoord%upn,ew,ns) = temp(zCoord%upn) * (2.0d0 - diag(zCoord%upn)) &
-            - temp(zCoord%upn-1) * subd(zCoord%upn)                        &
-            - 0.5 * cons3 * bheatflx(ew,ns) / (thck * zCoord%dupn) &  ! geothermal heat flux (diff)
-            - slidef1 * slterm / zCoord%dupn                 &        ! sliding heat flux    (diff)
-            - cons4 * bheatflx(ew,ns) * weff(zCoord%upn)            &        ! geothermal heat flux (adv)
-            - slidef2 * thck * slterm * weff(zCoord%upn)            &        ! sliding heat flux    (adv)
-            - initadvt(zCoord%upn,ew,ns)                            &
-            + dissip(zCoord%upn,ew,ns)
+       inittemp(params%zCoord%upn,ew,ns) = temp(params%zCoord%upn) * (2.0d0 - diag(params%zCoord%upn)) &
+            - temp(params%zCoord%upn-1) * subd(params%zCoord%upn)                        &
+            - 0.5 * cons3 * bheatflx(ew,ns) / (thck * params%dupn) &  ! geothermal heat flux (diff)
+            - slidef1 * slterm / params%dupn                 &        ! sliding heat flux    (diff)
+            - cons4 * bheatflx(ew,ns) * weff(params%zCoord%upn)            &        ! geothermal heat flux (adv)
+            - slidef2 * thck * slterm * weff(params%zCoord%upn)            &        ! sliding heat flux    (adv)
+            - initadvt(params%zCoord%upn,ew,ns)                            &
+            + dissip(params%zCoord%upn,ew,ns)
 
     end if
 
@@ -685,9 +719,8 @@ contains
 
   !-------------------------------------------------------------------------
 
+  !> RHS of temperature tri-diag system for a single column
   subroutine findvtri_rhs(zCoord,inittemp,artm,iteradvt,rhsd,float)
-
-    !*FD RHS of temperature tri-diag system for a single column
 
     use glimmer_global, only: dp, sp 
 
@@ -716,7 +749,8 @@ contains
 
   !-----------------------------------------------------------------------
 
-  subroutine finddisp(dissip,thck,stagthck,dusrfdew,dusrfdns,flwa,ewn,nsn,c1,thklim)
+  !> find dissipation term at H-pts by averaging quantities from u-pts
+ subroutine finddisp(dissip,thck,stagthck,dusrfdew,dusrfdns,flwa,ewn,nsn,c1,thklim)
 
     use glimmer_global, only: dp
     use physcon,        only: gn
@@ -738,7 +772,6 @@ contains
 
     real(dp) :: c2
 
-    ! find dissipation term at H-pts by averaging quantities from u-pts
 
     dissip = 0.0d0
     
@@ -761,8 +794,8 @@ contains
 
   !-----------------------------------------------------------------------------------
 
-  subroutine calcbmlt(dissip,zCoord,temp,thck,stagthck,dusrfdew,dusrfdns,ubas,vbas,bheatflx, &
-       bmlt,floater,nsn,ewn,thklim,periodic_ew,f3)
+  subroutine calcbmlt(params,dissip,temp,thck,stagthck,dusrfdew,dusrfdns,ubas,vbas,bheatflx, &
+       bmlt,floater,f3)
 
     use glimmer_global,   only: dp
     use glimmer_paramets, only: thk0, tim0, vel0, len0
@@ -771,8 +804,8 @@ contains
 
     implicit none 
 
+    type(type_tempFullSoln),intent(in) :: params  !< Temperature model parameters
     real(dp), dimension(:,:,:),   intent(in)  :: dissip
-    type(vertCoord_type),         intent(in)  :: zCoord
     real(dp), dimension(:,0:,0:), intent(in)  :: temp
     real(dp), dimension(:,:),     intent(in)  :: thck
     real(dp), dimension(:,:),     intent(in)  :: stagthck
@@ -783,14 +816,10 @@ contains
     real(dp), dimension(:,:),     intent(in)  :: bheatflx
     real(dp), dimension(:,:),     intent(out) :: bmlt
     logical,  dimension(:,:),     intent(in)  :: floater
-    integer,                      intent(in)  :: nsn
-    integer,                      intent(in)  :: ewn
-    real(dp),                     intent(in)  :: thklim
-    integer,                      intent(in)  :: periodic_ew
     real(dp),                     intent(in)  :: f3
     
 
-    real(dp), dimension(zCoord%upn) :: pmptemp
+    real(dp), dimension(params%zCoord%upn) :: pmptemp
     real(dp) :: slterm, newmlt
 
     integer :: ewp, nsp,up,ew,ns
@@ -799,13 +828,13 @@ contains
     real(dp),parameter :: f2 = tim0 / (thk0 * lhci * rhoi)
     real(dp),parameter :: f4 = tim0 * thk0**2 * vel0 * grav * rhoi / (4.0d0 * thk0 * len0 * rhoi * lhci)
 
-    do ns = 2, nsn-1
-       do ew = 2, ewn-1
-          if (thck(ew,ns) > thklim .and. .not. floater(ew,ns)) then
+    do ns = 2, params%hCoord%size(2)-1
+       do ew = 2, params%hCoord%size(1)-1
+          if (thck(ew,ns) > params%thklim .and. .not. floater(ew,ns)) then
 
-             call calcpmpt(pmptemp,thck(ew,ns),zCoord%sigma)
+             call calcpmpt(pmptemp,thck(ew,ns),params%zCoord%sigma)
 
-             if (abs(temp(zCoord%upn,ew,ns)-pmptemp(zCoord%upn)) .lt. 0.001) then
+             if (abs(temp(params%zCoord%upn,ew,ns)-pmptemp(params%zCoord%upn)) .lt. 0.001) then
 
                 slterm = 0.0d0
 
@@ -818,26 +847,26 @@ contains
 
                 bmlt(ew,ns) = 0.0d0
                 newmlt = f4 * slterm - f2 * bheatflx(ew,ns) &
-                     + f3 * zCoord%dupc(zCoord%upn) * thck(ew,ns) * dissip(zCoord%upn,ew,ns)
+                     + f3 * params%dupc(params%zCoord%upn) * thck(ew,ns) * dissip(params%zCoord%upn,ew,ns)
 
-                up = zCoord%upn - 1
+                up = params%zCoord%upn - 1
 
                 do while (abs(temp(up,ew,ns)-pmptemp(up)) .lt. 0.001 .and. up .ge. 3)
                    bmlt(ew,ns) = bmlt(ew,ns) + newmlt
-                   newmlt = f3 * zCoord%dupc(up) * thck(ew,ns) * dissip(up,ew,ns)
+                   newmlt = f3 * params%dupc(up) * thck(ew,ns) * dissip(up,ew,ns)
                    up = up - 1
                 end do
 
                 up = up + 1
 
-                if (up == zCoord%upn) then
+                if (up == params%zCoord%upn) then
                    bmlt(ew,ns) = newmlt - &
-                        f1 * ( (temp(up-2,ew,ns) - pmptemp(up-2)) * zCoord%dupa(up) &
-                        + (temp(up-1,ew,ns) - pmptemp(up-1)) * zCoord%dupb(up) ) / thck(ew,ns) 
+                        f1 * ( (temp(up-2,ew,ns) - pmptemp(up-2)) * params%dupa(up) &
+                        + (temp(up-1,ew,ns) - pmptemp(up-1)) * params%dupb(up) ) / thck(ew,ns) 
                 else
                    bmlt(ew,ns) = bmlt(ew,ns) + max(0.0d0, newmlt - &
-                        f1 * ( (temp(up-2,ew,ns) - pmptemp(up-2)) * zCoord%dupa(up) &
-                        + (temp(up-1,ew,ns) - pmptemp(up-1)) * zCoord%dupb(up) ) / thck(ew,ns)) 
+                        f1 * ( (temp(up-2,ew,ns) - pmptemp(up-2)) * params%dupa(up) &
+                        + (temp(up-1,ew,ns) - pmptemp(up-1)) * params%dupb(up) ) / thck(ew,ns)) 
                 end if
 
              else
@@ -855,12 +884,52 @@ contains
     end do
 
     ! apply periodic BC
-    if (periodic_ew.eq.1) then
-       do ns = 2,nsn-1
-          bmlt(1,ns) = bmlt(ewn-1,ns)
-          bmlt(ewn,ns) = bmlt(2,ns)
+    if (params%periodic_ew.eq.1) then
+       do ns = 2,params%hCoord%size(2)-1
+          bmlt(1,ns) = bmlt(params%hCoord%size(1)-1,ns)
+          bmlt(params%hCoord%size(1),ns) = bmlt(2,ns)
        end do
     end if
   end subroutine calcbmlt
+
+  !> compute finite difference factors
+  subroutine initFDFactors(params)
+    implicit none
+    type(type_tempFullSoln) :: params !< the vertical coordinate type
+
+    integer up
+
+    params%dupa = (/ &
+         0.0d0,      &
+         0.0d0,      &
+         ((params%zCoord%sigma(up)   - params%zCoord%sigma(up-1)) / &
+         ((params%zCoord%sigma(up-2) - params%zCoord%sigma(up-1)) * (params%zCoord%sigma(up-2) - params%zCoord%sigma(up))), &
+         up=3,params%zCoord%upn)  &
+         /)
+
+    params%dupb = (/ &
+         0.0d0,      &
+         0.0d0,      &
+         ((params%zCoord%sigma(up)   - params%zCoord%sigma(up-2)) / &
+         ((params%zCoord%sigma(up-1) - params%zCoord%sigma(up-2)) * (params%zCoord%sigma(up-1) - params%zCoord%sigma(up))), &
+         up=3,params%zCoord%upn)  &
+         /)
+
+    params%dupc = (/ &
+         (params%zCoord%sigma(2) - params%zCoord%sigma(1)) / 2.0d0, &
+         ((params%zCoord%sigma(up+1) - params%zCoord%sigma(up-1)) / 2.0d0, up=2,params%zCoord%upn-1), &
+         (params%zCoord%sigma(params%zCoord%upn) - params%zCoord%sigma(params%zCoord%upn-1)) / 2.0d0  &
+         /)
+
+    params%dups = 0.0d0
+    do up = 2, params%zCoord%upn-1
+       params%dups(up,1) = 1.d0/((params%zCoord%sigma(up+1) - params%zCoord%sigma(up-1)) * (params%zCoord%sigma(up)   - params%zCoord%sigma(up-1)))
+       params%dups(up,2) = 1.d0/((params%zCoord%sigma(up+1) - params%zCoord%sigma(up-1)) * (params%zCoord%sigma(up+1) - params%zCoord%sigma(up)))
+       params%dups(up,3) = 1.d0/( params%zCoord%sigma(up+1) - params%zCoord%sigma(up-1))
+    end do
+
+    params%dupn = params%zCoord%sigma(params%zCoord%upn) - params%zCoord%sigma(params%zCoord%upn-1)
+  end subroutine initFDFactors
+
 
 end module glide_tempFullSoln
