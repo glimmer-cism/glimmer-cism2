@@ -44,18 +44,23 @@
 #include "config.inc"
 #endif
 
+!> handle the flow law
+!!
+!! \author Ian Rutt
+
 module glide_glenflow
 
   use glimmer_global, only: dp
 
   implicit none
 
+  !> parameters for the flow law
   type glenflow_params
-     real(dp) :: fact1  ! Value of a when T* is above -263K
-     real(dp) :: fact2  ! Value of a when T* is below -263K
-     real(dp) :: fact3  ! Value of -Q/R when T* is above -263K
-     real(dp) :: fact4  ! Value of -Q/R when T* is below -263K
-     real(dp) :: fiddle
+     real(dp) :: fact1  !< Value of a when T* is above -263K
+     real(dp) :: fact2  !< Value of a when T* is below -263K
+     real(dp) :: fact3  !< Value of -Q/R when T* is above -263K
+     real(dp) :: fact4  !< Value of -Q/R when T* is below -263K
+     real(dp) :: fiddle !< a fiddle factor
   end type glenflow_params
 
   private
@@ -63,6 +68,7 @@ module glide_glenflow
 
 contains
 
+  !> initialise flow law paramters
   subroutine glenflow_init(params,fiddle)
 
     use physcon,  only: arrmlh, arrmll, actenh, actenl, gascon
@@ -70,8 +76,8 @@ contains
 
     implicit none
 
-    type(glenflow_params),intent(out) :: params
-    real(dp),             intent(in)  :: fiddle
+    type(glenflow_params),intent(out) :: params !< the flow law type
+    real(dp),             intent(in)  :: fiddle !< the fiddle factor
 
     params%fact1  = fiddle * arrmlh / vis0   ! Value of a when T* is above -263K
     params%fact2  = fiddle * arrmll / vis0   ! Value of a when T* is below -263K
@@ -83,12 +89,11 @@ contains
 
   !------------------------------------------------------------------------------------------
 
+  !> Calculates Glenn's $A$ over the three-dimensional domain,
+  !! using one of three possible methods.
+  !!
+  !! \todo I'm unsure how this ties in with the documentation, since fiddle is set to 3.0. This needs checking
   subroutine calcflwa(params,flwa,temp,thck,flag,thklim,sigma)
-
-    !*FD Calculates Glenn's $A$ over the three-dimensional domain,
-    !*FD using one of three possible methods.
-    !*FD \textbf{I'm unsure how this ties in with the documentation, since}
-    !*FD \texttt{fiddle}\ \textbf{is set to 3.0. This needs checking} 
 
     use physcon, only : pmlt, rhoi, grav
     use glimmer_global, only: dp
@@ -100,22 +105,18 @@ contains
     ! Subroutine arguments
     !------------------------------------------------------------------------------------
 
-    type(glenflow_params),      intent(in)    :: params    !*FD Derived type containing
-                                                           !*FD parameters for this module
-    real(dp),dimension(:,:,:),  intent(out)   :: flwa      !*FD The calculated values of $A$
-    real(dp),dimension(:,0:,0:),intent(in)    :: temp      !*FD The 3D temperature field
-    real(dp),dimension(:,:),    intent(in)    :: thck      !*FD The ice thickness
-    integer,                    intent(in)    :: flag      !*FD Flag to select the method
-                                                           !*FD of calculation:
-    !*FD \begin{description}
-    !*FD \item[0] {\em Paterson and Budd} relationship.
-    !*FD \item[1] {\em Paterson and Budd} relationship, with temperature set to
-    !*FD -5$^{\circ}$C.
-    !*FD \item[2] Set constant, {\em but not sure how this works at the moment\ldots}
-    !*FD \end{description}
-
-    real(dp),                   intent(in)    :: thklim    !*FD Thickness limit for calculation
-    real(dp),dimension(:),      intent(in)    :: sigma     !*FD Sigma vertical levels
+    type(glenflow_params),      intent(in)    :: params    !< Derived type containing parameters for this module
+    real(dp),dimension(:,:,:),  intent(out)   :: flwa      !< The calculated values of A
+    real(dp),dimension(:,0:,0:),intent(in)    :: temp      !< The 3D temperature field
+    real(dp),dimension(:,:),    intent(in)    :: thck      !< The ice thickness
+    !> Flag to select the method.
+    !! - 0 Paterson and Budd relationship
+    !! - 1 Paterson and Budd with temperature set to -5degC
+    !! - 2 Set constant, but not sure how this works at the moment
+    integer,                    intent(in)    :: flag      !< Flag to select the method
+                                                           !< of calculation:
+    real(dp),                   intent(in)    :: thklim    !< Thickness limit for calculation
+    real(dp),dimension(:),      intent(in)    :: sigma     !< Sigma vertical levels
 
     !------------------------------------------------------------------------------------
     ! Internal variables
@@ -186,26 +187,27 @@ contains
 
   !------------------------------------------------------------------------------------------
 
-  subroutine patebudd(tempcor,calcga,params)
+  !> Calculates the value of Glenn's $A$ for the temperature values in a one-dimensional array.
+  !!
+  !! The input array is usually a vertical temperature profile. The equation used
+  !! is from \emph{Paterson and Budd} [1982]:
+  !! \f[
+  !! A(T^{*})=a \exp \left(\frac{-Q}{RT^{*}}\right)
+  !! \f]
+  !! This is equation 9 in {\em Payne and Dongelmans}. a is a constant of proportionality,
+  !! Q is the activation energy for for ice creep, and R is the universal gas constant.
+  !! The pressure-corrected temperature, \f$T^{*}\f$ is given by:
+  !! \f[
+  !! T^{*}=T-T_{\mathrm{pmp}}+T_0
+  !! \f] 
+  !! \f[
+  !! T_{\mathrm{pmp}}=T_0-\sigma \rho g H \Phi
+  !! \f]
+  !! \f$T\f$ is the ice temperature, \f$T_{\mathrm{pmp}}\f$ is the pressure melting point 
+  !! temperature, \f$T_0\f$ is the triple point of water, \f$\rho\f$ is the ice density, and 
+  !! \f$\Phi\f$ is the (constant) rate of change of melting point temperature with pressure.
 
-    !*FD Calculates the value of Glenn's $A$ for the temperature values in a one-dimensional
-    !*FD array. The input array is usually a vertical temperature profile. The equation used
-    !*FD is from \emph{Paterson and Budd} [1982]:
-    !*FD \[
-    !*FD A(T^{*})=a \exp \left(\frac{-Q}{RT^{*}}\right)
-    !*FD \]
-    !*FD This is equation 9 in {\em Payne and Dongelmans}. $a$ is a constant of proportionality,
-    !*FD $Q$ is the activation energy for for ice creep, and $R$ is the universal gas constant.
-    !*FD The pressure-corrected temperature, $T^{*}$ is given by:
-    !*FD \[
-    !*FD T^{*}=T-T_{\mathrm{pmp}}+T_0
-    !*FD \] 
-    !*FD \[
-    !*FD T_{\mathrm{pmp}}=T_0-\sigma \rho g H \Phi
-    !*FD \]
-    !*FD $T$ is the ice temperature, $T_{\mathrm{pmp}}$ is the pressure melting point 
-    !*FD temperature, $T_0$ is the triple point of water, $\rho$ is the ice density, and 
-    !*FD $\Phi$ is the (constant) rate of change of melting point temperature with pressure.
+  subroutine patebudd(tempcor,calcga,params)
 
     use physcon, only : trpt
     use glimmer_global, only: dp
@@ -216,12 +218,13 @@ contains
     ! Subroutine arguments
     !------------------------------------------------------------------------------------
 
-    real(dp),dimension(:), intent(in)    :: tempcor  !*FD Input temperature profile. This is 
-                                                     !*FD {\em not} $T^{*}$, as it has $T_0$
-                                                     !*FD added to it later on; rather it is
-                                                     !*FD $T-T_{\mathrm{pmp}}$.
-    real(dp),dimension(:), intent(out)   :: calcga   !*FD The output values of Glenn's $A$.
-    type(glenflow_params)                :: params   !*FD Constants for the calculation. 
+    !> Input temperature profile. This is 
+    !! <EM>not</EM> \f$T^{*}\f$, as it has \f$T_0\f$
+    !! added to it later on; rather it is
+    !! \f$T-T_{\mathrm{pmp}}\f$.
+    real(dp),dimension(:), intent(in)    :: tempcor  
+    real(dp),dimension(:), intent(out)   :: calcga   !< The output values of Glenn's \f$A\f$.
+    type(glenflow_params)                :: params   !< Constants for the calculation. 
 
     !------------------------------------------------------------------------------------
     ! Actual calculation is done here - constants depend on temperature -----------------

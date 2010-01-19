@@ -1,3 +1,6 @@
+2010-01-19 Magnus Hagdorn
+ * libglide/glide_glenflow.F90: convert doc to doxygen
+
 2010-01-18 Magnus Hagdorn
  * example-drivers/eis/src/eis_glide.F90: API change
  * libglide/glide.F90: ditto
