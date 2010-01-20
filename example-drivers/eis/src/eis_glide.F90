@@ -91,7 +91,7 @@ program eis_glide
 
   time = model%numerics%tstart
   call eis_climate(climate,model,time)
-  call spinup_lithot(model,model%lithot)
+  call spinup_lithot(model%lithot,(model%options%hotstart.eq.1),model%geometry%thkmask,model%temper%temp(model%general%upn,:,:),model%climate%artm,model%temper%bheatflx)
 
   do while(time.le.model%numerics%tend)    
      call glide_tstep_p1(model,time)

@@ -83,13 +83,15 @@ contains
   end subroutine init_lithot1d
 
   !> compute 1D geothermal heat flux
-  subroutine calc_lithot1d(model,litho)
+  subroutine calc_lithot1d(litho,thkmask,base_temp,air_temp)
     use glide_types
     use glimmer_utils
     use glimmer_mask
     implicit none
-    type(glide_global_type),intent(inout) :: model       !*FD model instance
     type(lithot_type) :: litho            !< structure holding bedrock temperature configuration    
+    integer, dimension(:,:), intent(in) :: thkmask !< surface type mask
+    real(dp), dimension(0:,0:), intent(in) :: base_temp !< temperature at ice base
+    real(sp), dimension(:,:), intent(in) :: air_temp  !< air temperature
 
     integer i,j,k
 
@@ -97,15 +99,15 @@ contains
     do j=1,litho%hCoord%size(2)
        do i=1,litho%hCoord%size(1)
           ! calculate RHS for upper BC
-          if (is_ground(model%geometry%thkmask(i,j)) .and. .not. is_thin(model%geometry%thkmask(i,j)) ) then
-             litho%rhs(1) = model%temper%temp(model%general%upn,i,j) ! ice basal temperature
+          if (is_ground(thkmask(i,j)) .and. .not. is_thin(thkmask(i,j)) ) then
+             litho%rhs(1) = base_temp(i,j) ! ice basal temperature
              litho%mask(i,j) = .true.
           else
              if (litho%mask(i,j)) then
-                if (is_ocean(model%geometry%thkmask(i,j))) then
+                if (is_ocean(thkmask(i,j))) then
                    litho%rhs(1) = litho%mart
-                else if (is_land(model%geometry%thkmask(i,j))) then
-                   litho%rhs(1) = model%climate%artm(i,j) ! air temperature outside ice sheet
+                else if (is_land(thkmask(i,j))) then
+                   litho%rhs(1) = air_temp(i,j) ! air temperature outside ice sheet
                 end if
              end if
           end if

@@ -203,7 +203,7 @@ contains
 
     if (model%lithot%do_lithot) then
        call lithot_io_createall(model)
-       call init_lithot(model,model%lithot)
+       call init_lithot(model%lithot,model%numerics%dt,(model%options%hotstart.eq.1))
     end if
 
     if (model%options%hotstart.ne.1) then
@@ -305,7 +305,7 @@ contains
     ! calculate geothermal heat flux
     ! ------------------------------------------------------------------------ 
     if (model%lithot%do_lithot) then
-       call calc_lithot(model,model%lithot)
+       call calc_lithot(model%lithot,model%geometry%thkmask,model%temper%temp(model%general%upn,:,:),model%climate%artm,model%temper%bheatflx)
     end if
 
     ! ------------------------------------------------------------------------ 
