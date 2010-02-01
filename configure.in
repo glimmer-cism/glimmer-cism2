@@ -56,9 +56,11 @@ AC_COMPILE_IFELSE([module test
   end module test],
   [AC_DEFINE(GC_DYNARRAY_ATTRIB,allocatable,[the attribute for dynamic array components])
   AC_DEFINE(GC_DYNARRAY_CHECK,allocated,[the intrinsic procedure to check if memory for array has been reserved])
+  AC_DEFINE(GC_DYNARRAY_INIT,,[the initialisation for dynamic array components])
   AC_MSG_RESULT(yes)],
   [AC_DEFINE(GC_DYNARRAY_ATTRIB,pointer,[the attribute for dynamic array components])
   AC_DEFINE(GC_DYNARRAY_CHECK,associated,[the intrinsic procedure to check if memory for array has been reserved])
+  AC_DEFINE(GC_DYNARRAY_INIT,=>null(),[the initialisation for dynamic array components])
   AC_MSG_RESULT(no)]
 )
 

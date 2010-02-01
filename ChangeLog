@@ -1,3 +1,9 @@
+2010-02-01 Ian Rutt
+ * configure.in: extended allocatable/pointer macros to allow pointer
+	initialisation to null
+ * libglide/glide_types.F90: began using pointer initialisation macro, as
+	a test
+
 2010-01-20 Magnus Hagdorn
  * libglide/lithot.F90: remove glide_global_type from argument list and replace
    with individual fields

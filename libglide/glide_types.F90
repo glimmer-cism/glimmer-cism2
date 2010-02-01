@@ -206,29 +206,29 @@ module glide_types
     !*FD Holds fields and other information relating to the
     !*FD geometry of the ice sheet and bedrock.
 
-    real, dimension(:,:), GC_DYNARRAY_ATTRIB :: temporary0
+    real, dimension(:,:), GC_DYNARRAY_ATTRIB :: temporary0 GC_DYNARRAY_INIT
     !*FD temporary array used for masking velocity grid
-    real, dimension(:,:), GC_DYNARRAY_ATTRIB :: temporary1
+    real, dimension(:,:), GC_DYNARRAY_ATTRIB :: temporary1 GC_DYNARRAY_INIT
     !*FD temporary array used for masking temperature grid
 
-    real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: thck
+    real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: thck GC_DYNARRAY_INIT
     !*FD The thickness of the ice, divided by \texttt{thk0}.
 
-    real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: usrf
+    real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: usrf GC_DYNARRAY_INIT
     !*FD The elevation of the upper ice surface, divided by \texttt{thk0}.
 
-    real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: lsrf 
+    real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: lsrf GC_DYNARRAY_INIT
     !*FD The elevation of the lower ice surface, divided by \texttt{thk0}.
 
-    real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: topg 
+    real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: topg GC_DYNARRAY_INIT
     !*FD The elevation of the topography, divided by \texttt{thk0}.
 
-    integer, dimension(:,:),GC_DYNARRAY_ATTRIB :: mask
+    integer, dimension(:,:),GC_DYNARRAY_ATTRIB :: mask GC_DYNARRAY_INIT
     !*FD Set to zero for all points where $\mathtt{thck}=0$, otherwise non-zero.
     !*FD the non-zero points are numbered in sequence from the bottom left to the 
     !*FD top right, going along the rows.
 
-    integer, dimension(:,:),GC_DYNARRAY_ATTRIB :: thkmask
+    integer, dimension(:,:),GC_DYNARRAY_ATTRIB :: thkmask GC_DYNARRAY_INIT
     !*FD see glimmer_mask.f90 for possible values
 
     integer :: totpts = 0
