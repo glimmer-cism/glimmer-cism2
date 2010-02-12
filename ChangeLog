@@ -1,3 +1,7 @@
+2010-02-12 Magnus Hagdorn
+ * libglide/lithot.F90: do not load glide_types module
+ * libglide/lithot1d.F90: ditto
+
 2010-02-01 Ian Rutt
  * configure.in: extended allocatable/pointer macros to allow pointer
 	initialisation to null

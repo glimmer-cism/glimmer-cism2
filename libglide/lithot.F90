@@ -123,7 +123,6 @@ contains
 
   !> spinup geothermal heat flux computations
   subroutine spinup_lithot(litho,hotstart,thkmask,base_temp,air_temp,bheatflx)
-    use glide_types
     use glimmer_log
     use glimmer_mask
     implicit none

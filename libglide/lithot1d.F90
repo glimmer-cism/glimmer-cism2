@@ -84,7 +84,6 @@ contains
 
   !> compute 1D geothermal heat flux
   subroutine calc_lithot1d(litho,thkmask,base_temp,air_temp)
-    use glide_types
     use glimmer_utils
     use glimmer_mask
     implicit none
