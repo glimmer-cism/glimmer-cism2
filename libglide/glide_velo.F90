@@ -44,16 +44,17 @@
 #include "config.inc"
 #endif
 
+!> Contains routines which handle various aspects of velocity in the model,
+!! not only the bulk ice velocity, but also basal sliding, and vertical grid 
+!! velocities, etc.
+
 module glide_velo
-
-  !*FD Contains routines which handle various aspects of velocity in the model,
-  !*FD not only the bulk ice velocity, but also basal sliding, and vertical grid 
-  !*FD velocities, etc.
-
+  
   use glide_types
   use glimmer_global, only : dp
   use physcon, only : rhoi, grav, gn
   use glimmer_paramets, only : thk0, len0, vis0, vel0, acc0
+  use velo_types, only : velo_type
 
   private patebudd
 
@@ -66,60 +67,44 @@ module glide_velo
 
 contains
 
-  subroutine init_velo(model)
-    !*FD initialise velocity module
+  !> initialise velocity module
+  subroutine init_velo(velo,bpar)
     use physcon, only : scyr
     use glide_glenflow, only: glenflow_init
     implicit none
-    type(glide_global_type) :: model
+    type(velo_type) :: velo                      !< the derived type holding the velocity grid
+    real(dp), dimension(5), intent(in) :: bpar   !< basal traction parameters
+    
 
-    integer ewn, nsn, upn
     integer up
 
-    ewn=model%general%ewn
-    nsn=model%general%nsn
-    upn=model%general%upn
-
-    allocate(model%velowk%fslip(ewn-1,nsn-1))
-
-    allocate(model%velowk%depth(upn))
-    allocate(model%velowk%dintflwa(ewn-1,nsn-1))
-
-    model%velowk%depth = (/ (((model%numerics%sigma(up+1)+model%numerics%sigma(up))/2.0d0)**gn &
-         *(model%numerics%sigma(up+1)-model%numerics%sigma(up)),up=1,upn-1),0.0d0 /)
-
-    allocate(model%velowk%dups(upn)) 
-    model%velowk%dups = (/ (model%numerics%sigma(up+1) - model%numerics%sigma(up), up=1,upn-1),0.0d0 /)
+    velo%depth = (/ (((velo%sigma_grid%sigma(up+1)+velo%sigma_grid%sigma(up))/2.0d0)**gn &
+         *(velo%sigma_grid%sigma(up+1)-velo%sigma_grid%sigma(up)),up=1,velo%sigma_grid%upn-1),0.0d0 /)
+    
+    velo%dups = (/ (velo%sigma_grid%sigma(up+1) - velo%sigma_grid%sigma(up), up=1,velo%sigma_grid%upn-1),0.0d0 /)
 
     !++++++ N.B. The definition of DUPS here is NOT THE SAME as that used in the 
     !++++++ temperature vertical coordinate!!! You have been warned...
 
-    allocate(model%velowk%dupsw (upn))
-    allocate(model%velowk%depthw(upn))
-    allocate(model%velowk%suvel (upn))
-    allocate(model%velowk%svvel (upn))
-
     ! Calculate the differences between adjacent sigma levels -------------------------
 
-    model%velowk%dupsw  = (/ (model%numerics%sigma(up+1)-model%numerics%sigma(up), up=1,upn-1), 0.0d0 /) 
+    velo%dupsw  = (/ (velo%sigma_grid%sigma(up+1)-velo%sigma_grid%sigma(up), up=1,velo%sigma_grid%upn-1), 0.0d0 /) 
 
     ! Calculate the value of sigma for the levels between the standard ones -----------
 
-    model%velowk%depthw = (/ ((model%numerics%sigma(up+1)+model%numerics%sigma(up)) / 2.0d0, up=1,upn-1), 0.0d0 /)
+    velo%depthw = (/ ((velo%sigma_grid%sigma(up+1)+velo%sigma_grid%sigma(up)) / 2.0d0, up=1,velo%sigma_grid%upn-1), 0.0d0 /)
 
-    call glenflow_init(model%velowk%glenflow,model%paramets%fiddle)
-    
-    model%velowk%watwd  = model%paramets%bpar(1) / model%paramets%bpar(2)
-    model%velowk%watct  = model%paramets%bpar(2) 
-    model%velowk%trcmin = model%paramets%bpar(3) / scyr
-    model%velowk%trcmax = model%paramets%bpar(4) / scyr
-    model%velowk%marine = model%paramets%bpar(5)
-    model%velowk%trcmax = model%velowk%trcmax / model%velowk%trc0
-    model%velowk%trcmin = model%velowk%trcmin / model%velowk%trc0
-    model%velowk%c(1)   = (model%velowk%trcmax - model%velowk%trcmin) / 2.0d0 + model%velowk%trcmin
-    model%velowk%c(2)   = (model%velowk%trcmax - model%velowk%trcmin) / 2.0d0
-    model%velowk%c(3)   = model%velowk%watwd * thk0 / 4.0d0
-    model%velowk%c(4)   = model%velowk%watct * 4.0d0 / thk0 
+    velo%watwd  = bpar(1) / bpar(2)
+    velo%watct  = bpar(2) 
+    velo%trcmin = bpar(3) / scyr
+    velo%trcmax = bpar(4) / scyr
+    velo%marine = bpar(5)
+    velo%trcmax = velo%trcmax / velo%trc0
+    velo%trcmin = velo%trcmin / velo%trc0
+    velo%c(1)   = (velo%trcmax - velo%trcmin) / 2.0d0 + velo%trcmin
+    velo%c(2)   = (velo%trcmax - velo%trcmin) / 2.0d0
+    velo%c(3)   = velo%watwd * thk0 / 4.0d0
+    velo%c(4)   = velo%watct * 4.0d0 / thk0 
 
   end subroutine init_velo
 
@@ -303,7 +288,7 @@ contains
     ! Subroutine arguments
     !------------------------------------------------------------------------------------
 
-    type(glide_velowk),     intent(inout) :: velowk
+    type(velo_type),     intent(inout) :: velowk
     real(dp),dimension(:),    intent(in)    :: sigma
     integer,                  intent(in)    :: flag
     real(dp),dimension(:,:),  intent(in)    :: stagthck
@@ -567,7 +552,7 @@ contains
                                                           !*FD elevation.
     type(glide_numerics),    intent(in)    :: numerics  !*FD Derived type holding numerical
                                                           !*FD parameters, including sigma values.
-    type(glide_velowk),      intent(inout) :: velowk    !*FD Derived type holding working arrays
+    type(velo_type),      intent(inout) :: velowk    !*FD Derived type holding working arrays
                                                           !*FD used by the subroutine
     real(dp),dimension(:,:),   intent(in)    :: wgrd      !*FD The grid vertical velocity at
                                                           !*FD the lowest model level.

@@ -117,7 +117,7 @@ contains
     use isostasy
     use glimmer_map_init
     use glimmer_horizcoord
-    use glide_glenflow, only: calcflwa
+    use glide_glenflow, only: glenflow_init,calcflwa
     use glide_tempFullSoln, only: init_tempFullSoln
     use glide_thckADI, only: thckADI_init
     use glide_thckCommon, only: glide_calclsrf
@@ -141,6 +141,9 @@ contains
          model%numerics%dew,model%numerics%dns, &
          model%general%ewn-1,model%general%nsn-1)
 
+    ! load sigma file
+    call glide_load_sigma(model,dummyunit)
+
     ! allocate arrays
     call glide_allocarr(model)
 
@@ -149,9 +152,6 @@ contains
 
     ! set uniform basal heat flux
     model%temper%bheatflx = model%lithot%geot
-
-    ! load sigma file
-    call glide_load_sigma(model,dummyunit)
 
     ! open all input files
     call openall_in(model%funits%in_first,model%coordinates)
@@ -181,7 +181,8 @@ contains
     call glide_io_createall(model)
 
     ! initialise glide components
-    call init_velo(model)
+    call glenflow_init(model%glenflow,model%paramets%fiddle)
+    call init_velo(model%velowk,model%paramets%bpar)
 
     call init_tempFullSoln(    &
          model%tempFullSoln,   &
@@ -210,7 +211,7 @@ contains
        ! initialise Glen's flow parameter A using an isothermal temperature distribution
        call calcTemp_asSurfTemp(model%temper%temp,model%climate%artm)
        ! Calculate Glenn's A --------------------------------------------------------
-       call calcflwa(model%velowk%glenflow,          &
+       call calcflwa(model%glenflow,          &
             model%temper%flwa,     &
             model%temper%temp,     &
             model%geometry%thck,   &
@@ -397,7 +398,7 @@ contains
        end select
 
        ! Calculate Glenn's A --------------------------------------------------------
-       call calcflwa(model%velowk%glenflow,          &
+       call calcflwa(model%glenflow,          &
             model%temper%flwa,     &
             model%temper%temp,     &
             model%geometry%thck,   &

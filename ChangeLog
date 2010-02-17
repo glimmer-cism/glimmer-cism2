@@ -1,3 +1,14 @@
+2010-02-17 Magnus Hagdorn
+ * libglide/Makefile.am: add convinience library for velocity computations
+ * libglide/glide.F90: new API for init_velo; call flow law initialisation
+   procedure directly
+ * libglide/glide_setup.F90: allocate memory for sigma coords here
+ * libglide/glide_types.F90: get velo type from its own module; flowlaw type
+   has its own entry
+ * libglide/glide_velo.F90: refactor init_velo
+ * libglide/velo_types.F90: new module for handling velocity computations work
+   arrays
+
 2010-02-12 Magnus Hagdorn
  * libglide/lithot.F90: do not load glide_types module
  * libglide/lithot1d.F90: ditto

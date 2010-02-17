@@ -71,6 +71,7 @@ module glide_types
   use glimmer_deriv_time, only: timeders_type
   use glide_tempFullSoln, only: type_tempFullSoln
   use glide_thckADI, only: thckADI_type
+  use velo_types
   use glimmer_slap, only: slapMatrix_type
 
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -359,30 +360,6 @@ module glide_types
 
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-  type glide_velowk
-    real(dp),dimension(:),  GC_DYNARRAY_ATTRIB :: depth   
-    real(dp),dimension(:),  GC_DYNARRAY_ATTRIB :: dupsw   
-    real(dp),dimension(:),  GC_DYNARRAY_ATTRIB :: depthw  
-    real(dp),dimension(:),  GC_DYNARRAY_ATTRIB :: suvel   
-    real(dp),dimension(:),  GC_DYNARRAY_ATTRIB :: svvel   
-    real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: fslip   
-    real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: dintflwa
-    real(dp),dimension(:),  GC_DYNARRAY_ATTRIB :: dups    
-    type(glenflow_params) :: glenflow
-    real(dp),dimension(4) :: c    = 0.0
-    real(dp) :: watwd  = 3.0d0
-    real(dp) :: watct  = 10.0d0
-    real(dp) :: trc0   = 0.0
-    real(dp) :: trcmin = 0.0d0
-    real(dp) :: marine = 1.0d0
-    real(dp) :: trcmax = 10.0d0
-    real(dp) :: btrac_const = 0.0d0
-    real(dp) :: btrac_slope = 0.0d0
-    real(dp) :: btrac_max = 0.d0
-  end type glide_velowk
-
-  !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
   type glide_pcgdwk
     real(dp),dimension(4)         :: fc      = 0.0
     real(dp),dimension(6)         :: fc2     = 0.0
@@ -436,7 +413,8 @@ module glide_types
     type(lithot_type)    :: lithot
     type(glide_funits)   :: funits
     type(glide_numerics) :: numerics
-    type(glide_velowk)   :: velowk
+    type(velo_type)      :: velowk
+    type(glenflow_params) :: glenflow
     type(glide_pcgdwk)   :: pcgdwk
     type(glide_thckwk)   :: thckwk
     type(glide_paramets) :: paramets
@@ -621,6 +599,8 @@ contains
     call isos_allocate(model%isos,model%coordinates)
     ! allocate geothermal heat flux grids
     call lithot_allocate(model%lithot,model%coordinates)
+    ! allocate velocity work grids
+    call velo_allocate(model%velowk,model%coordinates)
 
   end subroutine glide_allocarr
 
@@ -700,6 +680,8 @@ contains
     call lithot_deallocate(model%lithot)
     ! deallocate temperature work arrays
     call destroy_tempFullSoln(model%tempFullSoln)
+    ! deallocate velo work arrays
+    call velo_deallocate(model%velowk)
 
   end subroutine glide_deallocarr
 

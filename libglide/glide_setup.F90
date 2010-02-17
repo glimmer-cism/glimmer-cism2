@@ -254,6 +254,7 @@ contains
     ! Beginning of code
 
     upn=model%general%upn
+    allocate(model%numerics%sigma(upn))
 
     select case(model%options%which_sigma)
     case(0)
