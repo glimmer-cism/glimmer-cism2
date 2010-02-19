@@ -300,7 +300,7 @@ coordinates:   lon lat
 dimensions:    time, y1, x1
 units:         meter/year
 long_name:     rate of upper ice surface elevation change
-data:          data%geomderv%dusrfdtm
+data:          data%velowk%dusrfdtm
 factor:        scale2d_f1
 coordinates:   lon lat
 

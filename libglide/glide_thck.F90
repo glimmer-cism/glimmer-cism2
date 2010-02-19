@@ -124,10 +124,14 @@ contains
 
        ! calculate basal velos
        if (newtemps) then
-          call slipvelo(model,                &
-               1,                             &
-               model%velocity% btrc,          &
-               model%velocity% ubas,          &
+          call slipvelo(model%velowk,   &
+               1,                       &
+               model%numerics%thklim,   &
+               model%geomderv%stagthck, &
+               model%geomderv%dusrfdew, &
+               model%geomderv%dusrfdns, &
+               model%velocity% btrc,    &
+               model%velocity% ubas,    &
                model%velocity% vbas)
           ! calculate Glen's A if necessary
           call velo_integrate_flwa(     &
@@ -137,10 +141,14 @@ contains
                model%geomderv%stagthck, &
                model%temper%flwa)
        end if
-       call slipvelo(model,                &
-            2,                             &
-            model%velocity% btrc,          &
-            model%velocity% ubas,          &
+       call slipvelo(model%velowk,   &
+            2,                       &
+            model%numerics%thklim,   &
+            model%geomderv%stagthck, &
+            model%geomderv%dusrfdew, &
+            model%geomderv%dusrfdns, &
+            model%velocity% btrc,    &
+            model%velocity% ubas,    &
             model%velocity% vbas)
 
        ! calculate diffusivity
@@ -151,11 +159,15 @@ contains
        call thck_evolve(model,rhs,model%geometry%mask,model%geometry%totpts,.true.,model%geometry%thck,model%geometry%thck)
 
        ! calculate horizontal velocity field
-       call slipvelo(model,                &
-            3,                             &
-            model%velocity%btrc,           &
-            model%velocity%ubas,           &
-            model%velocity%vbas)
+       call slipvelo(model%velowk,   &
+            3,                       &
+            model%numerics%thklim,   &
+            model%geomderv%stagthck, &
+            model%geomderv%dusrfdew, &
+            model%geomderv%dusrfdns, &
+            model%velocity% btrc,    &
+            model%velocity% ubas,    &
+            model%velocity% vbas)
        call velo_calc_velo(model%velowk%dintflwa,model%velowk%depth,model%geomderv%stagthck,model%geomderv%dusrfdew, &
             model%geomderv%dusrfdns,model%temper%flwa,model%velocity%diffu,model%velocity%ubas, &
             model%velocity%vbas,model%velocity%uvel,model%velocity%vvel,model%velocity%uflx,model%velocity%vflx)
@@ -220,10 +232,14 @@ contains
 
        ! calculate basal velos
        if (newtemps) then
-          call slipvelo(model,                &
-               1,                             &
-               model%velocity% btrc,          &
-               model%velocity% ubas,          &
+          call slipvelo(model%velowk,   &
+               1,                       &
+               model%numerics%thklim,   &
+               model%geomderv%stagthck, &
+               model%geomderv%dusrfdew, &
+               model%geomderv%dusrfdns, &
+               model%velocity% btrc,    &
+               model%velocity% ubas,    &
                model%velocity% vbas)
           ! calculate Glen's A if necessary
           call velo_integrate_flwa(     &
@@ -257,10 +273,14 @@ contains
                model%geomderv%dthckdns, &
                .false., .false.)
 
-          call slipvelo(model,                &
-               2,                             &
-               model%velocity% btrc,          &
-               model%velocity% ubas,          &
+          call slipvelo(model%velowk,   &
+               2,                       &
+               model%numerics%thklim,   &
+               model%geomderv%stagthck, &
+               model%geomderv%dusrfdew, &
+               model%geomderv%dusrfdns, &
+               model%velocity% btrc,    &
+               model%velocity% ubas,    &
                model%velocity% vbas)
 
           ! calculate diffusivity
@@ -286,11 +306,15 @@ contains
 #endif
 
        ! calculate horizontal velocity field
-       call slipvelo(model,                &
-            3,                             &
-            model%velocity%btrc,           &
-            model%velocity%ubas,           &
-            model%velocity%vbas)
+       call slipvelo(model%velowk,   &
+            3,                       &
+            model%numerics%thklim,   &
+            model%geomderv%stagthck, &
+            model%geomderv%dusrfdew, &
+            model%geomderv%dusrfdns, &
+            model%velocity% btrc,    &
+            model%velocity% ubas,    &
+            model%velocity% vbas)
        call velo_calc_velo(model%velowk%dintflwa,model%velowk%depth,model%geomderv%stagthck,model%geomderv%dusrfdew, &
             model%geomderv%dusrfdns,model%temper%flwa,model%velocity%diffu,model%velocity%ubas, &
             model%velocity%vbas,model%velocity%uvel,model%velocity%vvel,model%velocity%uflx,model%velocity%vflx)

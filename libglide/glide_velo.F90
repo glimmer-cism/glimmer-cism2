@@ -131,19 +131,19 @@ contains
 
     call timeders(model%timederivs,   &
          model%geometry%thck,     &
-         model%geomderv%dthckdtm, &
+         model%velowk%dthckdtm, &
          model%numerics%time,     &
          1)
 
     call timeders(model%timederivs,   &
          model%geometry%usrf,     &
-         model%geomderv%dusrfdtm, &
+         model%velowk%dusrfdtm, &
          model%numerics%time,     &
          2)
 
     ! Calculate the vertical velocity of the grid ------------------------------------
 
-    call gridwvel(model%numerics%sigma,  &
+    call gridwvel(model%velowk,  &
          model%numerics%thklim, &
          model%velocity%uvel,   &
          model%velocity%vvel,   &
@@ -166,7 +166,7 @@ contains
     ! Vertical integration constrained so kinematic upper BC obeyed.
 
     if (model%options%whichwvel==1) then
-       call chckwvel(model%numerics,                             &
+       call chckwvel(model%velowk,model%numerics,                             &
             model%geomderv,                             &
             model%velocity%uvel(1,:,:),                 &
             model%velocity%vvel(1,:,:),                 &
@@ -185,11 +185,10 @@ contains
   !*****************************************************************************
   ! old velo functions come here
   !*****************************************************************************
-  subroutine slipvelo(model,flag1,btrc,ubas,vbas)
-
-    !*FD Calculate the basal slip velocity and the value of $B$, the free parameter
-    !*FD in the basal velocity equation (though I'm not sure that $B$ is used anywhere 
-    !*FD else).
+  !> Calculate the basal slip velocity and the value of $B$, the free parameter
+  !! in the basal velocity equation (though I'm not sure that $B$ is used anywhere 
+  !! else).
+  subroutine slipvelo(velo,flag1,thklim,stagthck,dusrfdew,dusrfdns,btrc,ubas,vbas)
 
     implicit none
 
@@ -197,14 +196,20 @@ contains
     ! Subroutine arguments
     !------------------------------------------------------------------------------------
 
-    type(glide_global_type) :: model                  !*FD model instance
-    integer, intent(in)                 :: flag1      !*FD \texttt{flag1} sets the calculation
-                                                      !*FD method to use for the basal velocity
-                                                      !*FD (corresponded to \texttt{whichslip} in the
-                                                      !*FD old model. 
-    real(dp),dimension(:,:),intent(in)   :: btrc     !*FD The basal slip coefficient.
-    real(dp),dimension(:,:),intent(out)   :: ubas     !*FD The $x$ basal velocity (scaled)
-    real(dp),dimension(:,:),intent(out)   :: vbas     !*FD The $y$ basal velocity (scaled)
+    type(velo_type) :: velo                         !< the derived type holding the velocity grid
+    !> sets the calculation method to use for the basal velocity
+    !!  - <tt>0</tt> Linear function of gravitational driving stress
+    !!  - <tt>1</tt> option to be used in picard iteration for thck start by find constants which dont vary in iteration
+    !!  - <tt>2</tt> option to be used in picard iteration for thck called once per non-linear iteration, set uvel to ub * H /(ds/dx) which is a diffusivity for the slip term (note same in x and y)
+    !!  - <tt>3</tt> option to be used in picard iteration for thck finally calc ub and vb from diffusivities
+    integer, intent(in) :: flag1     
+    real(dp), intent(in) :: thklim                  !< the ice thickness below which no computations are done
+    real(dp),dimension(:,:), intent(in) :: stagthck !< ice thickness averaged onto the staggered grid.
+    real(dp),dimension(:,:), intent(in) :: dusrfdew !< E-W derivative of upper surface elevation.
+    real(dp),dimension(:,:), intent(in) :: dusrfdns !< N-S derivative of upper surface elevation.
+    real(dp),dimension(:,:),intent(in)  :: btrc     !< The basal slip coefficient.
+    real(dp),dimension(:,:),intent(out) :: ubas     !< The x basal velocity (scaled)
+    real(dp),dimension(:,:),intent(out) :: vbas     !< The y basal velocity (scaled)
 
     !------------------------------------------------------------------------------------
     ! Internal variables
@@ -226,9 +231,9 @@ contains
     
       ! Linear function of gravitational driving stress ---------------------------------
 
-      where (model%numerics%thklim < model%geomderv%stagthck)
-        ubas = btrc * rhograv * model%geomderv%stagthck * model%geomderv%dusrfdew
-        vbas = btrc * rhograv * model%geomderv%stagthck * model%geomderv%dusrfdns
+      where (thklim < stagthck)
+        ubas = btrc * rhograv * stagthck * dusrfdew
+        vbas = btrc * rhograv * stagthck * dusrfdns
       elsewhere
         ubas = 0.0d0
         vbas = 0.0d0
@@ -239,7 +244,7 @@ contains
       ! *tp* option to be used in picard iteration for thck
       ! *tp* start by find constants which dont vary in iteration
 
-      model%velowk%fslip = rhograv * btrc
+      velo%fslip = rhograv * btrc
 
     case(2)
 
@@ -247,8 +252,8 @@ contains
       ! *tp* called once per non-linear iteration, set uvel to ub * H /(ds/dx) which is
       ! *tp* a diffusivity for the slip term (note same in x and y)
 
-      where (model%numerics%thklim < model%geomderv%stagthck)
-        ubas = model%velowk%fslip * model%geomderv%stagthck**2  
+      where (thklim < stagthck)
+        ubas = velo%fslip * stagthck**2  
       elsewhere
         ubas = 0.0d0
       end where
@@ -258,9 +263,9 @@ contains
       ! *tp* option to be used in picard iteration for thck
       ! *tp* finally calc ub and vb from diffusivities
 
-      where (model%numerics%thklim < model%geomderv%stagthck)
-        vbas = ubas *  model%geomderv%dusrfdns / model%geomderv%stagthck
-        ubas = ubas *  model%geomderv%dusrfdew / model%geomderv%stagthck
+      where (thklim < stagthck)
+        vbas = ubas *  dusrfdns / stagthck
+        ubas = ubas *  dusrfdew / stagthck
       elsewhere
         ubas = 0.0d0
         vbas = 0.0d0
@@ -453,16 +458,16 @@ contains
 
 !------------------------------------------------------------------------------------------
 
-  subroutine gridwvel(sigma,thklim,uvel,vvel,geomderv,thck,wgrd)
-
-    !*FD Calculates the vertical velocity of the grid, and returns it in \texttt{wgrd}. This
-    !*FD is necessary because the model uses a sigma coordinate system.
-    !*FD The equation for grid velocity is:
-    !*FD \[
-    !*FD \mathtt{wgrd}(x,y,\sigma)=\frac{\partial s}{\partial t}+\mathbf{U}\cdot\nabla s
-    !*FD -\sigma\left(\frac{\partial H}{\partial t}+\mathbf{U}\cdot\nabla H\right)
-    !*FD \]
-    !*FD Compare this with equation A1 in {\em Payne and Dongelmans}.
+  !> Calculates the vertical velocity of the grid.
+  !!
+  !! This is necessary because the model uses a sigma coordinate system.
+  !! The equation for grid velocity is:
+  !! \f[
+  !! \mathtt{wgrd}(x,y,\sigma)=\frac{\partial s}{\partial t}+\mathbf{U}\cdot\nabla s
+  !! -\sigma\left(\frac{\partial H}{\partial t}+\mathbf{U}\cdot\nabla H\right)
+  !! \f]
+  !! Compare this with equation A1 in <em>Payne and Dongelmans</em>.
+  subroutine gridwvel(velo,thklim,uvel,vvel,geomderv,thck,wgrd)
 
     use glimmer_utils, only: hsum4 
 
@@ -472,8 +477,8 @@ contains
     ! Subroutine arguments
     !------------------------------------------------------------------------------------
 
-    real(dp),dimension(:),    intent(in)  :: sigma     !*FD Array holding values of sigma
-                                                       !*FD at each vertical level
+    type(velo_type) :: velo                      !< the derived type holding the velocity grid
+
     real(dp),                 intent(in)  :: thklim    !*FD Minimum thickness to be considered
                                                        !*FD when calculating the grid velocity.
                                                        !*FD This is in m, divided by \texttt{thk0}.
@@ -503,12 +508,12 @@ contains
     do ns = 2,nsn-1
       do ew = 2,ewn-1
         if (thck(ew,ns) > thklim) then
-          wgrd(:,ew,ns) = geomderv%dusrfdtm(ew,ns) - sigma * geomderv%dthckdtm(ew,ns) + & 
+          wgrd(:,ew,ns) = velo%dusrfdtm(ew,ns) - velo%sigma_grid%sigma * velo%dthckdtm(ew,ns) + & 
                       (hsum4(uvel(:,ew-1:ew,ns-1:ns)) * &
-                      (sum(geomderv%dusrfdew(ew-1:ew,ns-1:ns)) - sigma * &
+                      (sum(geomderv%dusrfdew(ew-1:ew,ns-1:ns)) - velo%sigma_grid%sigma * &
                        sum(geomderv%dthckdew(ew-1:ew,ns-1:ns))) + &
                        hsum4(vvel(:,ew-1:ew,ns-1:ns)) * &
-                      (sum(geomderv%dusrfdns(ew-1:ew,ns-1:ns)) - sigma * &
+                      (sum(geomderv%dusrfdns(ew-1:ew,ns-1:ns)) - velo%sigma_grid%sigma * &
                        sum(geomderv%dthckdns(ew-1:ew,ns-1:ns)))) / 16.0d0
         else
           wgrd(:,ew,ns) = 0.0d0
@@ -646,10 +651,9 @@ contains
 
 !------------------------------------------------------------------------------------------
 
-  subroutine chckwvel(numerics,geomderv,uvel,vvel,wvel,thck,acab)
-
-    !*FD Constrain the vertical velocity field to obey a kinematic upper boundary 
-    !*FD condition.
+  !> Constrain the vertical velocity field to obey a kinematic upper boundary 
+  !! condition.
+  subroutine chckwvel(velo,numerics,geomderv,uvel,vvel,wvel,thck,acab)
 
     use glimmer_global, only : sp 
 
@@ -659,6 +663,7 @@ contains
     ! Subroutine arguments
     !------------------------------------------------------------------------------------
 
+    type(velo_type) :: velo                      !< the derived type holding the velocity grid
     type(glide_numerics),   intent(in)    :: numerics !*FD Numerical parameters of model
     type(glide_geomderv),   intent(in)    :: geomderv !*FD Temporal and horizontal derivatives
                                                         !*FD of thickness and upper ice surface
@@ -692,7 +697,7 @@ contains
       do ew = 2,ewn-1
          if (thck(ew,ns) > numerics%thklim .and. wvel(1,ew,ns).ne.0) then
 
-            wchk = geomderv%dusrfdtm(ew,ns) &
+            wchk = velo%dusrfdtm(ew,ns) &
                  - acab(ew,ns) &
                  + (sum(uvel(ew-1:ew,ns-1:ns)) * sum(geomderv%dusrfdew(ew-1:ew,ns-1:ns)) &
                  +  sum(vvel(ew-1:ew,ns-1:ns)) * sum(geomderv%dusrfdns(ew-1:ew,ns-1:ns))) &
@@ -701,7 +706,7 @@ contains
             
             tempcoef = wchk - wvel(1,ew,ns)
 
-            wvel(:,ew,ns) = wvel(:,ew,ns) + tempcoef * (1.0d0 - numerics%sigma) 
+            wvel(:,ew,ns) = wvel(:,ew,ns) + tempcoef * (1.0d0 - velo%sigma_grid%sigma) 
          end if
       end do
     end do

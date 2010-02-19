@@ -250,8 +250,6 @@ module glide_types
     real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: dusrfdew !*FD E-W derivative of upper surface elevation.
     real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: dthckdns !*FD N-S derivative of thickness.
     real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: dusrfdns !*FD N-S derivative of upper surface elevation.
-    real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: dthckdtm !*FD Temporal derivative of thickness.
-    real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: dusrfdtm !*FD Temporal derivative of upper surface elevation.
     real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: stagthck !*FD Thickness averaged onto the staggered grid.
 
   end type glide_geomderv
@@ -567,8 +565,6 @@ contains
     call horizCoord_allocate(model%coordinates%velo_grid, model%geomderv%dusrfdew)
     call horizCoord_allocate(model%coordinates%velo_grid, model%geomderv%dthckdns)
     call horizCoord_allocate(model%coordinates%velo_grid, model%geomderv%dusrfdns)
-    call horizCoord_allocate(model%coordinates%ice_grid, model%geomderv%dthckdtm)
-    call horizCoord_allocate(model%coordinates%ice_grid, model%geomderv%dusrfdtm)
     call horizCoord_allocate(model%coordinates%velo_grid, model%geomderv%stagthck)
   
     call horizCoord_allocate(model%coordinates%velo_grid, model%geometry%temporary0)
@@ -655,8 +651,6 @@ contains
     deallocate(model%geomderv%dusrfdew)
     deallocate(model%geomderv%dthckdns)
     deallocate(model%geomderv%dusrfdns)
-    deallocate(model%geomderv%dthckdtm)
-    deallocate(model%geomderv%dusrfdtm)
     deallocate(model%geomderv%stagthck)
   
     deallocate(model%geometry%temporary0)

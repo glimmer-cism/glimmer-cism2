@@ -1,3 +1,12 @@
+2010-02-19 Magnus Hagdorn
+ * libglide/glide_thck.F90: use new dummy params for slipvelo
+ * libglide/glide_types.F90: move dthckdtm and dusrfdtm to velo_type
+ * libglide/glide_vars.def: new location for dusrfdtm
+ * libglide/glide_velo.F90: refactor slipvelo, first go at refactoring
+   gridwvel and chckwvel
+ * libglide/velo_types.F90: add ice_grid coord system, add dthckdtm and 
+   dusrfdtm
+
 2010-02-17 Magnus Hagdorn
  * libglide/Makefile.am: add convinience library for velocity computations
  * libglide/glide.F90: new API for init_velo; call flow law initialisation

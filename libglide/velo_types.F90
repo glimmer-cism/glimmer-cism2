@@ -59,6 +59,7 @@ module velo_types
   !> holds variables for velocity computations
   type velo_type
      type(horizCoord_type) :: velo_grid  !< coordinate system of the velocity grid
+     type(horizCoord_type) :: ice_grid   !< coordinate system of the ice thickness grid
      type(vertCoord_type)   :: sigma_grid !< the sigma coordinate system
      
      real(dp),dimension(:),  GC_DYNARRAY_ATTRIB :: depth   
@@ -69,6 +70,8 @@ module velo_types
      real(dp),dimension(:),  GC_DYNARRAY_ATTRIB :: svvel   
      real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: fslip   
      real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: dintflwa
+     real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: dthckdtm !< Temporal derivative of thickness.
+     real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: dusrfdtm !< Temporal derivative of upper surface elevation.     
      real(dp),dimension(4) :: c    = 0.0
      real(dp) :: watwd  = 3.0d0
      real(dp) :: watct  = 10.0d0
@@ -97,6 +100,7 @@ contains
 
     ! copy coordinate systems
     velo%velo_grid = coords%velo_grid
+    velo%ice_grid = coords%ice_grid
     call initVertCoord(velo%sigma_grid,coords%sigma_grid)
 
     GLIMMER_ALLOC1D(velo%depth ,velo%sigma_grid%upn)
@@ -108,6 +112,8 @@ contains
 
     call horizCoord_allocate(velo%velo_grid, velo%fslip)
     call horizCoord_allocate(velo%velo_grid, velo%dintflwa)
+    call horizCoord_allocate(velo%ice_grid, velo%dthckdtm)
+    call horizCoord_allocate(velo%ice_grid, velo%dusrfdtm)
   end subroutine velo_allocate
 
   !> deallocate data for velocity computations
@@ -127,6 +133,8 @@ contains
     GLIMMER_DEALLOC(velo%svvel)
     GLIMMER_DEALLOC(velo%fslip)
     GLIMMER_DEALLOC(velo%dintflwa)
+    GLIMMER_DEALLOC(velo%dthckdtm)
+    GLIMMER_DEALLOC(velo%dusrfdtm)
 
   end subroutine velo_deallocate
 
