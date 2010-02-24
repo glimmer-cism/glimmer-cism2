@@ -1,3 +1,6 @@
+2010-02-24 Magnus Hagdorn
+ * libglide/glide_velo.F90: refactor zerovelo and gridwvel
+ 
 2010-02-19 Magnus Hagdorn
  * libglide/glide_thck.F90: use new dummy params for slipvelo
  * libglide/glide_types.F90: move dthckdtm and dusrfdtm to velo_type

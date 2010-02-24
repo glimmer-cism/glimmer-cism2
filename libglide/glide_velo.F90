@@ -147,7 +147,10 @@ contains
          model%numerics%thklim, &
          model%velocity%uvel,   &
          model%velocity%vvel,   &
-         model%geomderv,        &
+         model%geomderv%dusrfdew, &
+         model%geomderv%dusrfdns, &
+         model%geomderv%dthckdew, &
+         model%geomderv%dthckdns, &
          model%geometry%thck,   &
          model%velocity%wgrd)
 
@@ -280,10 +283,9 @@ contains
 
 !------------------------------------------------------------------------------------------
 
-  subroutine zerovelo(velowk,sigma,flag,stagthck,dusrfdew,dusrfdns,flwa,ubas,vbas,uvel,vvel,uflx,vflx,diffu)
-
-    !*FD Performs the velocity calculation. This subroutine is called with
-    !*FD different values of \texttt{flag}, depending on exactly what we want to calculate.
+  !> Performs the velocity calculation. This subroutine is called with
+  !! different values of <tt>flag</tt>, depending on exactly what we want to calculate.
+  subroutine zerovelo(velo,flag,stagthck,dusrfdew,dusrfdns,flwa,ubas,vbas,uvel,vvel,uflx,vflx,diffu)
 
     use glimmer_utils, only : hsum4, vertintg
 
@@ -293,34 +295,33 @@ contains
     ! Subroutine arguments
     !------------------------------------------------------------------------------------
 
-    type(velo_type),     intent(inout) :: velowk
-    real(dp),dimension(:),    intent(in)    :: sigma
-    integer,                  intent(in)    :: flag
-    real(dp),dimension(:,:),  intent(in)    :: stagthck
-    real(dp),dimension(:,:),  intent(in)    :: dusrfdew
-    real(dp),dimension(:,:),  intent(in)    :: dusrfdns
+    type(velo_type),     intent(inout) :: velo          !< the derived type holding the velocity grid
+    integer,                  intent(in)    :: flag     !< control how velo is initialised
+    real(dp),dimension(:,:),  intent(in)    :: stagthck !< ice thickness averaged onto the staggered grid.
+    real(dp),dimension(:,:),  intent(in)    :: dusrfdew !< E-W derivative of upper surface elevation.
+    real(dp),dimension(:,:),  intent(in)    :: dusrfdns !< N-S derivative of upper surface elevation.
     real(dp),dimension(:,:,:),intent(in)    :: flwa
-    real(dp),dimension(:,:),  intent(in)    :: ubas
-    real(dp),dimension(:,:),  intent(in)    :: vbas
-    real(dp),dimension(:,:,:),intent(out)   :: uvel
-    real(dp),dimension(:,:,:),intent(out)   :: vvel
-    real(dp),dimension(:,:),  intent(out)   :: uflx
-    real(dp),dimension(:,:),  intent(out)   :: vflx
-    real(dp),dimension(:,:),  intent(out)   :: diffu
+    real(dp),dimension(:,:),  intent(in)    :: ubas     !< The x basal velocity (scaled)
+    real(dp),dimension(:,:),  intent(in)    :: vbas     !< The y basal velocity (scaled)
+    real(dp),dimension(:,:,:),intent(out)   :: uvel     !< x component of velocity field
+    real(dp),dimension(:,:,:),intent(out)   :: vvel     !< y component of velocity field
+    real(dp),dimension(:,:),  intent(out)   :: uflx     !< x component of ice flux
+    real(dp),dimension(:,:),  intent(out)   :: vflx     !< y component of ice flux
+    real(dp),dimension(:,:),  intent(out)   :: diffu    !< diffusivity
 
     !------------------------------------------------------------------------------------
     ! Internal variables
     !------------------------------------------------------------------------------------
 
     
-    real(dp),dimension(size(sigma)) :: hrzflwa, intflwa 
+    real(dp),dimension(velo%sigma_grid%upn) :: hrzflwa, intflwa 
     real(dp),dimension(3)           :: const
 
-    integer :: ew,ns,up,ewn,nsn,upn
+    integer :: ew,ns,up,ewn,nsn
 
     !------------------------------------------------------------------------------------
 
-    upn=size(sigma) ; ewn=size(ubas,1) ; nsn=size(ubas,2)
+    ewn=size(ubas,1) ; nsn=size(ubas,2)
 
 
     !------------------------------------------------------------------------------------
@@ -335,8 +336,8 @@ contains
 
             ! Set velocity to zero at base of column
 
-            uvel(upn,ew,ns) = 0.0d0
-            vvel(upn,ew,ns) = 0.0d0
+            uvel(velo%sigma_grid%upn,ew,ns) = 0.0d0
+            vvel(velo%sigma_grid%upn,ew,ns) = 0.0d0
 
             ! Get column profile of Glenn's A
 
@@ -348,14 +349,14 @@ contains
 
             ! Do first step of finding u according to (8) in Payne and Dongelmans 
 
-            do up = upn-1, 1, -1
+            do up = velo%sigma_grid%upn-1, 1, -1
               uvel(up,ew,ns) = uvel(up+1,ew,ns) + const(1) * &
-                    velowk%depth(up) * sum(hrzflwa(up:up+1)) 
+                    velo%depth(up) * sum(hrzflwa(up:up+1)) 
             end do
 
             ! Calculate u diffusivity (?)
 
-            diffu(ew,ns) = vertintg(velowk%dups,uvel(:,ew,ns)) * stagthck(ew,ns)
+            diffu(ew,ns) = vertintg(velo%dups,uvel(:,ew,ns)) * stagthck(ew,ns)
 
             ! Complete calculation of u and v
 
@@ -389,17 +390,17 @@ contains
           if (stagthck(ew,ns) /= 0.0d0) then
 
             hrzflwa = hsum4(flwa(:,ew:ew+1,ns:ns+1))  
-            intflwa(upn) = 0.0d0
+            intflwa(velo%sigma_grid%upn) = 0.0d0
 
-            do up = upn-1, 1, -1
-               intflwa(up) = intflwa(up+1) + velowk%depth(up) * sum(hrzflwa(up:up+1)) 
+            do up = velo%sigma_grid%upn-1, 1, -1
+               intflwa(up) = intflwa(up+1) + velo%depth(up) * sum(hrzflwa(up:up+1)) 
             end do
 
-            velowk%dintflwa(ew,ns) = c * vertintg(velowk%dups,intflwa)
+            velo%dintflwa(ew,ns) = c * vertintg(velo%dups,intflwa)
 
           else 
 
-            velowk%dintflwa(ew,ns) = 0.0d0
+            velo%dintflwa(ew,ns) = 0.0d0
 
           end if
         end do
@@ -408,7 +409,7 @@ contains
     case(2)
 
       where (0.0d0 /= stagthck)
-        diffu = velowk%dintflwa * stagthck**p4 * sqrt(dusrfdew**2 + dusrfdns**2)**p2 
+        diffu = velo%dintflwa * stagthck**p4 * sqrt(dusrfdew**2 + dusrfdns**2)**p2 
       elsewhere
         diffu = 0.0d0
       end where
@@ -422,21 +423,21 @@ contains
             vflx(ew,ns) = diffu(ew,ns) * dusrfdns(ew,ns) + vbas(ew,ns) * stagthck(ew,ns)
             uflx(ew,ns) = diffu(ew,ns) * dusrfdew(ew,ns) + ubas(ew,ns) * stagthck(ew,ns)
 
-            uvel(upn,ew,ns) = ubas(ew,ns)
-            vvel(upn,ew,ns) = vbas(ew,ns)
+            uvel(velo%sigma_grid%upn,ew,ns) = ubas(ew,ns)
+            vvel(velo%sigma_grid%upn,ew,ns) = vbas(ew,ns)
 
             hrzflwa = hsum4(flwa(:,ew:ew+1,ns:ns+1))  
 
-            if (velowk%dintflwa(ew,ns) /= 0.0d0) then
-               const(2) = c * diffu(ew,ns) / velowk%dintflwa(ew,ns)/stagthck(ew,ns)
+            if (velo%dintflwa(ew,ns) /= 0.0d0) then
+               const(2) = c * diffu(ew,ns) / velo%dintflwa(ew,ns)/stagthck(ew,ns)
                const(3) = const(2) * dusrfdns(ew,ns)  
                const(2) = const(2) * dusrfdew(ew,ns) 
             else
                const(2:3) = 0.0d0
             end if
 
-            do up = upn-1, 1, -1
-              const(1) = velowk%depth(up) * sum(hrzflwa(up:up+1)) 
+            do up = velo%sigma_grid%upn-1, 1, -1
+              const(1) = velo%depth(up) * sum(hrzflwa(up:up+1)) 
               uvel(up,ew,ns) = uvel(up+1,ew,ns) + const(1) * const(2)
               vvel(up,ew,ns) = vvel(up+1,ew,ns) + const(1) * const(3) 
             end do
@@ -467,7 +468,7 @@ contains
   !! -\sigma\left(\frac{\partial H}{\partial t}+\mathbf{U}\cdot\nabla H\right)
   !! \f]
   !! Compare this with equation A1 in <em>Payne and Dongelmans</em>.
-  subroutine gridwvel(velo,thklim,uvel,vvel,geomderv,thck,wgrd)
+  subroutine gridwvel(velo,thklim,uvel,vvel,dusrfdew,dusrfdns,dthckdew,dthckdns,thck,wgrd)
 
     use glimmer_utils, only: hsum4 
 
@@ -479,21 +480,15 @@ contains
 
     type(velo_type) :: velo                      !< the derived type holding the velocity grid
 
-    real(dp),                 intent(in)  :: thklim    !*FD Minimum thickness to be considered
-                                                       !*FD when calculating the grid velocity.
-                                                       !*FD This is in m, divided by \texttt{thk0}.
-    real(dp),dimension(:,:,:),intent(in)  :: uvel      !*FD The $x$-velocity field (scaled). Velocity
-                                                       !*FD is on the staggered grid
-    real(dp),dimension(:,:,:),intent(in)  :: vvel      !*FD The $y$-velocity field (scaled). Velocity
-                                                       !*FD is on the staggered grid
-    type(glide_geomderv),   intent(in)  :: geomderv  !*FD Derived type holding temporal
-                                                       !*FD and horizontal derivatives of
-                                                       !*FD ice-sheet thickness and upper
-                                                       !*FD surface elevation
-    real(dp),dimension(:,:),  intent(in)  :: thck      !*FD Ice-sheet thickness (divided by 
-                                                       !*FD \texttt{thk0})
-    real(dp),dimension(:,:,:),intent(out) :: wgrd      !*FD The grid velocity at each point. This
-                                                       !*FD is the output.
+    real(dp),                 intent(in)  :: thklim    !< Minimum thickness to be considered when calculating the grid velocity. This is in m, divided by \texttt{thk0}.
+    real(dp),dimension(:,:,:),intent(in)  :: uvel      !< The $x$-velocity field (scaled). Velocity is on the staggered grid
+    real(dp),dimension(:,:,:),intent(in)  :: vvel      !< The $y$-velocity field (scaled). Velocity is on the staggered grid
+    real(dp),dimension(:,:),  intent(in)  :: dusrfdew  !< E-W derivative of upper surface elevation.
+    real(dp),dimension(:,:),  intent(in)  :: dusrfdns  !< N-S derivative of upper surface elevation.
+    real(dp),dimension(:,:),  intent(in)  :: dthckdew  !< E-W derivative of ice thickness.
+    real(dp),dimension(:,:),  intent(in)  :: dthckdns  !< N-S derivative of ice thickness.
+    real(dp),dimension(:,:),  intent(in)  :: thck      !< Ice-sheet thickness (divided by <tt>thk0</tt>)
+    real(dp),dimension(:,:,:),intent(out) :: wgrd      !< The grid velocity at each point. This is the output.
 
     !------------------------------------------------------------------------------------
     ! Internal variables
@@ -510,11 +505,11 @@ contains
         if (thck(ew,ns) > thklim) then
           wgrd(:,ew,ns) = velo%dusrfdtm(ew,ns) - velo%sigma_grid%sigma * velo%dthckdtm(ew,ns) + & 
                       (hsum4(uvel(:,ew-1:ew,ns-1:ns)) * &
-                      (sum(geomderv%dusrfdew(ew-1:ew,ns-1:ns)) - velo%sigma_grid%sigma * &
-                       sum(geomderv%dthckdew(ew-1:ew,ns-1:ns))) + &
+                      (sum(dusrfdew(ew-1:ew,ns-1:ns)) - velo%sigma_grid%sigma * &
+                       sum(dthckdew(ew-1:ew,ns-1:ns))) + &
                        hsum4(vvel(:,ew-1:ew,ns-1:ns)) * &
-                      (sum(geomderv%dusrfdns(ew-1:ew,ns-1:ns)) - velo%sigma_grid%sigma * &
-                       sum(geomderv%dthckdns(ew-1:ew,ns-1:ns)))) / 16.0d0
+                      (sum(dusrfdns(ew-1:ew,ns-1:ns)) - velo%sigma_grid%sigma * &
+                       sum(dthckdns(ew-1:ew,ns-1:ns)))) / 16.0d0
         else
           wgrd(:,ew,ns) = 0.0d0
         end if
