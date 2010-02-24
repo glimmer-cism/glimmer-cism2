@@ -1,4 +1,7 @@
 2010-02-24 Magnus Hagdorn
+ * libglide/glide_velo.F90: refactor wvelintg
+
+2010-02-24 Magnus Hagdorn
  * libglide/glide_velo.F90: refactor zerovelo and gridwvel
  
 2010-02-19 Magnus Hagdorn

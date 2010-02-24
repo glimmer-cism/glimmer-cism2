@@ -156,11 +156,16 @@ contains
 
     ! Calculate the actual vertical velocity ------------
 
-    call wvelintg(model%velocity%uvel,                        &
+
+    call wvelintg(model%velowk,  &
+         model%numerics%thklim, &
+         model%geomderv%stagthck, &
+         model%geomderv%dusrfdew, &
+         model%geomderv%dusrfdns, &
+         model%geomderv%dthckdew, &
+         model%geomderv%dthckdns, &
+         model%velocity%uvel,                        &
          model%velocity%vvel,                        &
-         model%geomderv,                             &
-         model%numerics,                             &
-         model%velowk,                               &
          model%velocity%wgrd(model%general%upn,:,:), &
          model%geometry%thck,                        &
          model%temper%bmlt,                          &
@@ -478,8 +483,7 @@ contains
     ! Subroutine arguments
     !------------------------------------------------------------------------------------
 
-    type(velo_type) :: velo                      !< the derived type holding the velocity grid
-
+    type(velo_type) :: velo                            !< the derived type holding the velocity grid
     real(dp),                 intent(in)  :: thklim    !< Minimum thickness to be considered when calculating the grid velocity. This is in m, divided by \texttt{thk0}.
     real(dp),dimension(:,:,:),intent(in)  :: uvel      !< The $x$-velocity field (scaled). Velocity is on the staggered grid
     real(dp),dimension(:,:,:),intent(in)  :: vvel      !< The $y$-velocity field (scaled). Velocity is on the staggered grid
@@ -520,17 +524,18 @@ contains
 
 !------------------------------------------------------------------------------------------
 
-  subroutine wvelintg(uvel,vvel,geomderv,numerics,velowk,wgrd,thck,bmlt,wvel)
+  !> Calculates the vertical velocity field, which is returned in <tt>wvel</tt>.
+  !!
+  !! This is found by doing this integration:
+  !! \f[
+  !! w(\sigma)=\int_{1}^{\sigma}\left[\frac{\partial \mathbf{U}}{\partial \sigma}
+  !! (\sigma) \cdot (\nabla s - \sigma \nabla H) +H\nabla \cdot \mathbf{U}(\sigma)\right]d\sigma
+  !! + w(1)
+  !! \f]
+  !! (This is equation 13 in <em>Payne and Dongelmans</em>.) Note that this is only 
+  !! done if the thickness is greater than the threshold given by <tt>thklim</tt>.
 
-    !*FD Calculates the vertical velocity field, which is returned in \texttt{wvel}.
-    !*FD This is found by doing this integration:
-    !*FD \[
-    !*FD w(\sigma)=\int_{1}^{\sigma}\left[\frac{\partial \mathbf{U}}{\partial \sigma}
-    !*FD (\sigma) \cdot (\nabla s - \sigma \nabla H) +H\nabla \cdot \mathbf{U}(\sigma)\right]d\sigma
-    !*FD + w(1)
-    !*FD \]
-    !*FD (This is equation 13 in {\em Payne and Dongelmans}.) Note that this is only 
-    !*FD done if the thickness is greater than the threshold given by \texttt{numerics\%thklim}.
+  subroutine wvelintg(velo,thklim,stagthck,dusrfdew,dusrfdns,dthckdew,dthckdns,uvel,vvel,wgrd,thck,bmlt,wvel)
 
     use glimmer_utils, only : hsum4 
 
@@ -540,27 +545,19 @@ contains
     ! Subroutine arguments
     !------------------------------------------------------------------------------------
 
-    real(dp),dimension(:,:,:), intent(in)    :: uvel      !*FD The $x$-velocity on the
-                                                          !*FD staggered grid (scaled)
-    real(dp),dimension(:,:,:), intent(in)    :: vvel      !*FD The $y$-velocity on the
-                                                          !*FD staggered grid (scaled)
-    real(dp),dimension(:,:),   intent(in)    :: thck      !*FD The ice thickness, divided
-                                                          !*FD by \texttt{thk0}
-    type(glide_geomderv),    intent(in)    :: geomderv  !*FD Derived type holding the
-                                                          !*FD horizontal and temporal derivatives
-                                                          !*FD of the thickness and upper surface
-                                                          !*FD elevation.
-    type(glide_numerics),    intent(in)    :: numerics  !*FD Derived type holding numerical
-                                                          !*FD parameters, including sigma values.
-    type(velo_type),      intent(inout) :: velowk    !*FD Derived type holding working arrays
-                                                          !*FD used by the subroutine
-    real(dp),dimension(:,:),   intent(in)    :: wgrd      !*FD The grid vertical velocity at
-                                                          !*FD the lowest model level.
-    real(dp),dimension(:,:),   intent(in)    :: bmlt      !*FD Basal melt-rate (scaled?) This
-                                                          !*FD is required in the basal boundary
-                                                          !*FD condition. See {\em Payne and Dongelmans}
-                                                          !*FD equation 14.
-    real(dp),dimension(:,:,:), intent(out)   :: wvel      !*FD The vertical velocity field.
+    type(velo_type) :: velo                            !< the derived type holding the velocity grid
+    real(dp),                 intent(in)   :: thklim   !< Minimum thickness to be considered when calculating the grid velocity. This is in m, divided by \texttt{thk0}.
+    real(dp),dimension(:,:),  intent(in)   :: stagthck !< ice thickness averaged onto the staggered grid.
+    real(dp),dimension(:,:),  intent(in)   :: dusrfdew !< E-W derivative of upper surface elevation.
+    real(dp),dimension(:,:),  intent(in)   :: dusrfdns !< N-S derivative of upper surface elevation.
+    real(dp),dimension(:,:),  intent(in)   :: dthckdew !< E-W derivative of ice thickness.
+    real(dp),dimension(:,:),  intent(in)   :: dthckdns !< N-S derivative of ice thickness.
+    real(dp),dimension(:,:,:),intent(in)   :: uvel     !< The $x$-velocity field (scaled). Velocity is on the staggered grid
+    real(dp),dimension(:,:,:),intent(in)   :: vvel     !< The $y$-velocity field (scaled). Velocity is on the staggered grid
+    real(dp),dimension(:,:),  intent(in)   :: thck     !< Ice-sheet thickness (divided by <tt>thk0</tt>)
+    real(dp),dimension(:,:),intent(in)     :: wgrd     !< The grid velocity at each point. This is the output.
+    real(dp),dimension(:,:),   intent(in)  :: bmlt     !< Basal melt-rate (scaled?) This is required in the basal boundary condition. See <em>Payne and Dongelmans</em> equation 14.
+    real(dp),dimension(:,:,:), intent(out) :: wvel     !< The vertical velocity field.
 
     !------------------------------------------------------------------------------------
     ! Internal variables
@@ -580,8 +577,8 @@ contains
 
     ! Multiply grid-spacings by 16 -----------------------------------------------------
 
-    dew16 = 1d0/(16.0d0 * numerics%dew)
-    dns16 = 1d0/(16.0d0 * numerics%dns)
+    dew16 = 1d0/(16.0d0 * velo%velo_grid%delta(1))
+    dns16 = 1d0/(16.0d0 * velo%velo_grid%delta(2))
 
     ! ----------------------------------------------------------------------------------
     ! Main loop over each grid-box
@@ -589,7 +586,7 @@ contains
 
     do ns = 2,nsn
       do ew = 2,ewn
-        if (thck(ew,ns) > numerics%thklim) then
+        if (thck(ew,ns) > thklim) then
   
           ! Set the bottom boundary condition ------------------------------------------
 
@@ -598,28 +595,28 @@ contains
           ! Calculate temporary local values of thickness and surface ------------------
           ! elevation derivatives.
 
-          cons(1) = sum(geomderv%dusrfdew(ew-1:ew,ns-1:ns)) / 16.0d0
-          cons(2) = sum(geomderv%dthckdew(ew-1:ew,ns-1:ns)) / 16.0d0
-          cons(3) = sum(geomderv%dusrfdns(ew-1:ew,ns-1:ns)) / 16.0d0
-          cons(4) = sum(geomderv%dthckdns(ew-1:ew,ns-1:ns)) / 16.0d0
-          cons(5) = sum(geomderv%stagthck(ew-1:ew,ns-1:ns))
+          cons(1) = sum(dusrfdew(ew-1:ew,ns-1:ns)) / 16.0d0
+          cons(2) = sum(dthckdew(ew-1:ew,ns-1:ns)) / 16.0d0
+          cons(3) = sum(dusrfdns(ew-1:ew,ns-1:ns)) / 16.0d0
+          cons(4) = sum(dthckdns(ew-1:ew,ns-1:ns)) / 16.0d0
+          cons(5) = sum(stagthck(ew-1:ew,ns-1:ns))
           cons(6) = cons(5)*dns16
           cons(5) = cons(5)*dew16
           ! * better? (an alternative from TP's original code)
           !cons(5) = (thck(ew-1,ns)+2.0d0*thck(ew,ns)+thck(ew+1,ns)) * dew16
           !cons(6) = (thck(ew,ns-1)+2.0d0*thck(ew,ns)+thck(ew,ns+1)) * dns16
 
-          velowk%suvel = hsum4(uvel(:,ew-1:ew,ns-1:ns))
-          velowk%svvel = hsum4(vvel(:,ew-1:ew,ns-1:ns))
+          velo%suvel = hsum4(uvel(:,ew-1:ew,ns-1:ns))
+          velo%svvel = hsum4(vvel(:,ew-1:ew,ns-1:ns))
 
           ! Loop over each model level, starting from the bottom ----------------------
 
           do up = upn-1, 1, -1
             wvel(up,ew,ns) = wvel(up+1,ew,ns) &
-                       - velowk%dupsw(up) * cons(5) * (sum(uvel(up:up+1,ew,ns-1:ns))  - sum(uvel(up:up+1,ew-1,ns-1:ns))) &
-                       - velowk%dupsw(up) * cons(6) * (sum(vvel(up:up+1,ew-1:ew,ns))  - sum(vvel(up:up+1,ew-1:ew,ns-1))) &
-                       - (velowk%suvel(up+1) - velowk%suvel(up)) * (cons(1) - velowk%depthw(up) * cons(2)) &
-                       - (velowk%svvel(up+1) - velowk%svvel(up)) * (cons(3) - velowk%depthw(up) * cons(4)) 
+                       - velo%dupsw(up) * cons(5) * (sum(uvel(up:up+1,ew,ns-1:ns))  - sum(uvel(up:up+1,ew-1,ns-1:ns))) &
+                       - velo%dupsw(up) * cons(6) * (sum(vvel(up:up+1,ew-1:ew,ns))  - sum(vvel(up:up+1,ew-1:ew,ns-1))) &
+                       - (velo%suvel(up+1) - velo%suvel(up)) * (cons(1) - velo%depthw(up) * cons(2)) &
+                       - (velo%svvel(up+1) - velo%svvel(up)) * (cons(3) - velo%depthw(up) * cons(4)) 
           end do
         else 
 
