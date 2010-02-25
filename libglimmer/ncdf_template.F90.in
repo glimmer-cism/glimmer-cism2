@@ -49,6 +49,8 @@ module NAME_io
   !*FD template for creating subsystem specific I/O routines
   !*FD written by Magnus Hagdorn, 2004
 
+  private :: get_xtype
+
   !GENVAR_HOT!
 
 contains
@@ -306,6 +308,27 @@ contains
     !GENVAR_RESETAVG!
   end subroutine NAME_avg_reset
 #endif
+
+  !*********************************************************************
+  ! some private procedures
+  !*********************************************************************
+
+  !> apply default type to be used in netCDF file
+  integer function get_xtype(outfile,xtype)
+    use glimmer_ncdf
+    implicit none
+    type(glimmer_nc_output), pointer :: outfile !< derived type holding information about output file
+    integer, intent(in) :: xtype                !< the external netCDF type
+
+    get_xtype = xtype
+    
+    if (xtype.eq.NF90_REAL .and. outfile%default_xtype.eq.NF90_DOUBLE) then
+       get_xtype = NF90_DOUBLE
+    end if
+    if (xtype.eq.NF90_DOUBLE .and. outfile%default_xtype.eq.NF90_REAL) then
+       get_xtype = NF90_REAL
+    end if
+  end function get_xtype
 
   !*********************************************************************
   ! lots of accessor subroutines follow

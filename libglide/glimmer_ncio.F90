@@ -206,7 +206,7 @@ contains
     call nc_errorhandle(__FILE__,__LINE__,status)
     !     time -- Model time
     call write_log('Creating variable time')
-    status = nf90_def_var(NCO%id,'time',NF90_FLOAT,(/NCO%timedim/),NCO%timevar)
+    status = nf90_def_var(NCO%id,'time',outfile%default_xtype,(/NCO%timedim/),NCO%timevar)
     call nc_errorhandle(__FILE__,__LINE__,status)
     status = nf90_put_att(NCO%id, NCO%timevar, 'long_name', 'Model time')
     status = nf90_put_att(NCO%id, NCO%timevar, 'standard_name', 'time')

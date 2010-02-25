@@ -299,12 +299,12 @@ class PrintNC_template(PrintVars):
             spaces=3
             self.stream.write("    if (.not.outfile%append) then\n")
         self.stream.write("%s    call write_log('Creating variable %s')\n"%(spaces*' ',var['name']))
-        self.stream.write("%s    status = nf90_def_var(NCO%%id,'%s',NF90_%s,(/%s/),%s)\n"%(spaces*' ',
-                                                                                           var['name'],
-                                                                                           var['type'].upper(),
-                                                                                           dimstring,
-                                                                                           idstring
-                                                                                           ))
+        self.stream.write("%s    status = nf90_def_var(NCO%%id,'%s',get_xtype(outfile,NF90_%s),(/%s/),%s)\n"%(spaces*' ',
+                                                                                                              var['name'],
+                                                                                                              var['type'].upper(), 
+                                                                                                              dimstring,
+                                                                                                              idstring
+                                                                                                              ))
         self.stream.write("%s    call nc_errorhandle(__FILE__,__LINE__,status)\n"%(spaces*' '))
         for attrib in var:
             if attrib not in NOATTRIB:

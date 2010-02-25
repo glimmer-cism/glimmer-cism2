@@ -1,3 +1,12 @@
+2010-02-25 Magnus Hagdorn
+ * doc/ug/glide.tex: document new option
+ * libglide/glimmer_ncio.F90: use default float type for time variable
+ * libglide/glimmer_ncparams.F90: add option to change default float type
+ * libglimmer/glimmer_ncdf.F90: define default float type for netCDF variables
+ * libglimmer/ncdf_template.F90.in: add function which applies default float
+   type where required
+ * scripts/generate_ncvars.py: use default float type for all FP variables
+
 2010-01-27 Magnus Hagdorn
  * configure.in: use new macro to figure out how to disable free form line length limit
  * m4macros/ax_f90_no_line_limit_flag.m4: new macro to find flag to disable free form
