@@ -1,3 +1,9 @@
+2010-02-26 Magnus Hagdorn
+ * libglimmer/ncdf_template.F90.in: load modules containing scales, declare
+   variable for scales
+ * scripts/generate_ncvars.py: store scaleing factors in netCDF attribute, 
+   only apply scaling factors if they are not attached to the variable
+
 2010-02-25 Magnus Hagdorn
  * doc/ug/glide.tex: document new option
  * libglide/glimmer_ncio.F90: use default float type for time variable
