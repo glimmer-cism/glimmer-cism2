@@ -500,6 +500,9 @@ contains
     real(rk),dimension(:,:),pointer :: temp
     real(rk) :: yearfrac
 
+!lipscomb - debug
+    real(dp) :: timeyr   ! time in years
+
     ! Check we're expecting a call now --------------------------------------------------------------
 
     if (params%new_av) then
@@ -690,9 +693,9 @@ contains
 
 !lipscomb - debug - ice sheet diagnostics
           if (mod(params%instances(i)%model%numerics%timecounter,  &
-                  params%instances(i)%model%numerics%ndiag)==0)  then 
-             print*, 'Write diagnostics, time (yr)=', real(time,rk)/8760.0
-             call glide_write_diag(params%instances(i)%model, real(time,rk)/8760.0, itest, jtest)
+                  params%instances(i)%model%numerics%ndiag)==0)  then
+             timeyr = time / (days_in_year*24.d0) 
+             call glide_write_diag(params%instances(i)%model, timeyr, itest, jtest)
           endif
 !lipscomb - end debug
 

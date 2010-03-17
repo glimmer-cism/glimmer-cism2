@@ -249,31 +249,36 @@ contains
     case(1) ! Do full temperature solution ---------------------------------------------
 
 
+!lipscomb - restart mod - This is now done at the end of tstep_p3, so that wgrd
+!                         can be written to the hotstart file and used for restart.
+                         
        ! Calculate time-derivatives of thickness and upper surface elevation ------------
 
-       call timeders(model%thckwk,   &
-            model%geometry%thck,     &
-            model%geomderv%dthckdtm, &
-            model%geometry%mask,     &
-            model%numerics%time,     &
-            1)
+!!       call timeders(model%thckwk,   &
+!!            model%geometry%thck,     &
+!!            model%geomderv%dthckdtm, &
+!!            model%geometry%mask,     &
+!!            model%numerics%time,     &
+!!            1)
 
-       call timeders(model%thckwk,   &
-            model%geometry%usrf,     &
-            model%geomderv%dusrfdtm, &
-            model%geometry%mask,     &
-            model%numerics%time,     &
-            2)
+!!       call timeders(model%thckwk,   &
+!!            model%geometry%usrf,     &
+!!            model%geomderv%dusrfdtm, &
+!!            model%geometry%mask,     &
+!!            model%numerics%time,     &
+!!            2)
 
        ! Calculate the vertical velocity of the grid ------------------------------------
 
-       call gridwvel(model%numerics%sigma,  &
-            model%numerics%thklim, &
-            model%velocity%uvel,   &
-            model%velocity%vvel,   &
-            model%geomderv,        &
-            model%geometry%thck,   &
-            model%velocity%wgrd)
+!!       call gridwvel(model%numerics%sigma,  &
+!!            model%numerics%thklim, &
+!!            model%velocity%uvel,   &
+!!            model%velocity%vvel,   &
+!!            model%geomderv,        &
+!!            model%geometry%thck,   &
+!!            model%velocity%wgrd)
+
+!lipscomb - end restart mod
 
        ! Calculate the actual vertical velocity; method depends on whichwvel ------------
 

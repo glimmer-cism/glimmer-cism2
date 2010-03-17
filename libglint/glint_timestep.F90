@@ -245,8 +245,12 @@ contains
 
           instance%glide_time=instance%glide_time+instance%model%numerics%tinc
           call glide_tstep_p1(instance%model,instance%glide_time)
-          call glide_tstep_p2(instance%model,no_write=.true.)
-          call glide_tstep_p3(instance%model)
+!lipscomb - restart mod
+!!          call glide_tstep_p2(instance%model,no_write=.true.)
+!!          call glide_tstep_p3(instance%model)
+          call glide_tstep_p2(instance%model)
+          call glide_tstep_p3(instance%model,no_write=.true.)
+!lipscomb - restart mod
 
           ! Add the calved ice to the ablation field
 

@@ -59,7 +59,7 @@ contains
     implicit none
  
     type(glide_global_type), intent(in) :: model    ! model instance
-    real(rk),  intent(in)   :: time                 ! current time in years
+    real(dp),  intent(in)   :: time                 ! current time in years
     integer, intent(in), optional :: idiag, jdiag
  
     real(dp) ::          &
@@ -97,7 +97,7 @@ contains
     !-----------------------------------------------------------------
  
     print*, ' '
-    print*, 'Writing diagnostics to log file, time =', time
+    print*, 'Writing diagnostics to log file, time(yr) =', time
  
     call write_log(' ')
     write(message,'(a32,f10.2)') 'Global diagnostic output, time =', time

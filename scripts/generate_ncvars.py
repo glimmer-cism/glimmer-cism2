@@ -443,9 +443,9 @@ class PrintNC_template(PrintVars):
                 if 'factor' in var:
                     self.stream.write("%s          scaling_factor = %s\n"%(spaces,var['factor']))
                 else:
-                    self.stream.write("%s          scaling_factor = 1.\n"%(spaces))
+                    self.stream.write("%s          scaling_factor = 1.0d0\n"%(spaces))
                 self.stream.write("%s       end if\n"%(spaces))
-                self.stream.write("%s       if (abs(scaling_factor-1.).gt.1.d-17) then\n"%(spaces))
+                self.stream.write("%s       if (abs(scaling_factor-1.0d0).gt.1.d-11) then\n"%(spaces))
                 self.stream.write("%s          %s = %s/scaling_factor\n"%(spaces,var['data'],var['data']))
                 self.stream.write("%s       end if\n"%(spaces))
 

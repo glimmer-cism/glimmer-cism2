@@ -191,17 +191,20 @@ contains
        instance%n_icetstep = instance%ice_tstep_multiply
     end if
 
+!lipscomb - restart mod - commented out because it destroys exact restart
+!lipscomb - to do - Find another way to set thk to snowd?
     ! Copy snow-depth to thickness if no thickness is present
 
-    allocate(thk(get_ewn(instance%model),get_nsn(instance%model)))
-    call glide_get_thk(instance%model,thk)
-    where (instance%snowd>0.0.and.thk==0.0)
-       thk=instance%snowd
-    elsewhere
-       thk=thk
-    endwhere
-    call glide_set_thk(instance%model,thk)
-    deallocate(thk)
+!!    allocate(thk(get_ewn(instance%model),get_nsn(instance%model)))
+!!    call glide_get_thk(instance%model,thk)
+!!    where (instance%snowd>0.0.and.thk==0.0)
+!!       thk=instance%snowd
+!!    elsewhere
+!!       thk=thk
+!!    endwhere
+!!    call glide_set_thk(instance%model,thk)
+!!    deallocate(thk)
+!lipscomb - end restart mod
 
     call glide_io_writeall(instance%model,instance%model)
     call glint_io_writeall(instance,instance%model)
