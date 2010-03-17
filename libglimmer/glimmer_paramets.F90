@@ -49,7 +49,7 @@
 module glimmer_paramets
 
   use glimmer_global, only : sp, dp
-  use physcon, only : scyr
+  use glimmer_physcon, only : scyr
 
   implicit none; save
 
@@ -66,6 +66,9 @@ module glimmer_paramets
                                           ! in initial in blah.f90 (not sure this applies now...)
 
   real(sp), parameter :: conv = tim0 / scyr
+
+!lipscomb - debug
+  integer, parameter :: itest = 30, jtest = 50
 
 !MH!  !MAKE_RESTART
 !MH!#ifdef RESTARTS

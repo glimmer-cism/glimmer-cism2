@@ -181,6 +181,13 @@ contains
        call init_lithot(model)
     end if
 
+!lipscomb mod
+    ! initialise ice age
+    ! Currently the ice age is not computed.  Later, the plan is to advect ice age along
+    !  with temperature using the remapping transport scheme.
+    model%geometry%age(:,:,:) = 0._dp
+!lipscomb mod
+
     if (model%options%hotstart.ne.1) then
        ! initialise Glen's flow parameter A using an isothermal temperature distribution
        call timeevoltemp(model,0)

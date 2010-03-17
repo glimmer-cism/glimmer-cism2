@@ -55,6 +55,10 @@ module glint_main
   use glint_constants
   use glimmer_anomcouple
 
+!lipscomb - debug - for additional diagnostics
+  use glide_diagnostics
+  use glimmer_paramets, only: itest, jtest  
+
   ! ------------------------------------------------------------
   ! GLIMMER_PARAMS derived type definition
   ! This is where default values are set.
@@ -323,6 +327,10 @@ contains
           end if
           if (params%anomaly_params%enabled) anomaly_check=.true.
        end if
+
+!lipscomb - debug - initial ice sheet diagnostics 
+       print*, 'Write initial diagnostics, time (yr)= 0.0'     
+       call glide_write_diag(params%instances(i)%model, 0.0_rk, itest, jtest)
 
     end do
 
@@ -679,6 +687,14 @@ contains
           if (present(ice_tstep)) then
              ice_tstep=(ice_tstep.or.icets)
           end if
+
+!lipscomb - debug - ice sheet diagnostics
+          if (mod(params%instances(i)%model%numerics%timecounter,  &
+                  params%instances(i)%model%numerics%ndiag)==0)  then 
+             print*, 'Write diagnostics, time (yr)=', real(time,rk)/8760.0
+             call glide_write_diag(params%instances(i)%model, real(time,rk)/8760.0, itest, jtest)
+          endif
+!lipscomb - end debug
 
        enddo
 

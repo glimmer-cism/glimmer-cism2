@@ -186,7 +186,7 @@ contains
     use glint_initialise
     use glimmer_log
     use glimmer_filenames
-    use physcon, only: pi
+    use glimmer_physcon, only: pi
     implicit none
 
     ! Subroutine argument declarations --------------------------------------------------------
