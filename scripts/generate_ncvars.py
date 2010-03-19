@@ -441,12 +441,15 @@ class PrintNC_template(PrintVars):
                 self.stream.write("%s       status = nf90_get_att(NCI%%id, varid,'scale_factor',scaling_factor)\n"%(spaces))
                 self.stream.write("%s       if (status.ne.NF90_NOERR) then\n"%(spaces))
                 if 'factor' in var:
-                    self.stream.write("%s          scaling_factor = %s\n"%(spaces,var['factor']))
+                    self.stream.write("%s          scaling_factor = 1.0d0/(%s)\n"%(spaces,var['factor']))
                 else:
                     self.stream.write("%s          scaling_factor = 1.0d0\n"%(spaces))
+                if 'factor' in var:
+                    self.stream.write("%s       else\n"%(spaces))
+                    self.stream.write("%s          scaling_factor = scaling_factor/(%s)\n"%(spaces,var['factor']))
                 self.stream.write("%s       end if\n"%(spaces))
-                self.stream.write("%s       if (abs(scaling_factor-1.0d0).gt.1.d-11) then\n"%(spaces))
-                self.stream.write("%s          %s = %s/scaling_factor\n"%(spaces,var['data'],var['data']))
+                self.stream.write("%s       if (abs(scaling_factor-1.0d0).gt.1.d-17) then\n"%(spaces))
+                self.stream.write("%s          %s = %s*scaling_factor\n"%(spaces,var['data'],var['data']))
                 self.stream.write("%s       end if\n"%(spaces))
 
                 if  'level' in dims:
