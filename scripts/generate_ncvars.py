@@ -449,6 +449,7 @@ class PrintNC_template(PrintVars):
                     self.stream.write("%s          scaling_factor = scaling_factor/(%s)\n"%(spaces,var['factor']))
                 self.stream.write("%s       end if\n"%(spaces))
                 self.stream.write("%s       if (abs(scaling_factor-1.0d0).gt.1.d-17) then\n"%(spaces))
+                self.stream.write("%s          call write_log(\"scaling %s\",GM_DIAGNOSTIC)\n"%(spaces,var['name']))
                 self.stream.write("%s          %s = %s*scaling_factor\n"%(spaces,var['data'],var['data']))
                 self.stream.write("%s       end if\n"%(spaces))
 

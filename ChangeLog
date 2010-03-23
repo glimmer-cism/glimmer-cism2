@@ -1,3 +1,8 @@
+2010-03-23 Magnus Hagdorn
+ * scripts/generate_ncvars.py: write to log when input variables are scaled
+ * utils/compare.cpp: attempt to apply scales to netCDF files when present
+   before comparing variables
+
 2010-03-19 Magnus Hagdorn
  * scripts/generate_ncvars.py: fix bug with scaling factors
 
