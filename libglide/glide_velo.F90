@@ -174,8 +174,9 @@ contains
     ! Vertical integration constrained so kinematic upper BC obeyed.
 
     if (model%options%whichwvel==1) then
-       call chckwvel(model%velowk,model%numerics,                             &
-            model%geomderv,                             &
+       call chckwvel(model%velowk,model%numerics%thklim,&
+            model%geomderv%dusrfdew,                    &
+            model%geomderv%dusrfdns,                    &
             model%velocity%uvel(1,:,:),                 &
             model%velocity%vvel(1,:,:),                 &
             model%velocity%wvel,                        &
@@ -650,7 +651,7 @@ contains
 
   !> Constrain the vertical velocity field to obey a kinematic upper boundary 
   !! condition.
-  subroutine chckwvel(velo,numerics,geomderv,uvel,vvel,wvel,thck,acab)
+  subroutine chckwvel(velo,thklim,dusrfdew,dusrfdns,uvel,vvel,wvel,thck,acab)
 
     use glimmer_global, only : sp 
 
@@ -660,18 +661,15 @@ contains
     ! Subroutine arguments
     !------------------------------------------------------------------------------------
 
-    type(velo_type) :: velo                      !< the derived type holding the velocity grid
-    type(glide_numerics),   intent(in)    :: numerics !*FD Numerical parameters of model
-    type(glide_geomderv),   intent(in)    :: geomderv !*FD Temporal and horizontal derivatives
-                                                        !*FD of thickness and upper ice surface
-                                                        !*FD elevation.
-    real(dp),dimension(:,:),  intent(in)    :: uvel     !*FD $x$ velocity field at top model
-                                                        !*FD level (scaled, on staggered grid).
-    real(dp),dimension(:,:),  intent(in)    :: vvel     !*FD $y$ velocity field at top model
-                                                        !*FD level (scaled, on staggered grid).
-    real(dp),dimension(:,:,:),intent(inout) :: wvel     !*FD Vertical velocity field, 
-    real(dp),dimension(:,:),  intent(in)    :: thck     !*FD Ice thickness (scaled)
-    real(sp),dimension(:,:),  intent(in)    :: acab     !*FD Mass-balance (scaled)
+    type(velo_type) :: velo                         !< the derived type holding the velocity grid
+    real(dp), intent(in) :: thklim                  !< the ice thickness below which no computations are done
+    real(dp),dimension(:,:), intent(in) :: dusrfdew !< E-W derivative of upper surface elevation.
+    real(dp),dimension(:,:), intent(in) :: dusrfdns !< N-S derivative of upper surface elevation.
+    real(dp),dimension(:,:),  intent(in)    :: uvel !< $x$ velocity field at top model level (scaled, on staggered grid).
+    real(dp),dimension(:,:),  intent(in)    :: vvel !< $y$ velocity field at top model level (scaled, on staggered grid).
+    real(dp),dimension(:,:,:),intent(inout) :: wvel !< Vertical velocity field, 
+    real(dp),dimension(:,:),  intent(in)    :: thck !< Ice thickness (scaled)
+    real(sp),dimension(:,:),  intent(in)    :: acab !< Mass-balance (scaled)
 
     !------------------------------------------------------------------------------------
     ! Internal variables
@@ -692,12 +690,12 @@ contains
 
     do ns = 2,nsn-1
       do ew = 2,ewn-1
-         if (thck(ew,ns) > numerics%thklim .and. wvel(1,ew,ns).ne.0) then
+         if (thck(ew,ns) > thklim .and. wvel(1,ew,ns).ne.0) then
 
             wchk = velo%dusrfdtm(ew,ns) &
                  - acab(ew,ns) &
-                 + (sum(uvel(ew-1:ew,ns-1:ns)) * sum(geomderv%dusrfdew(ew-1:ew,ns-1:ns)) &
-                 +  sum(vvel(ew-1:ew,ns-1:ns)) * sum(geomderv%dusrfdns(ew-1:ew,ns-1:ns))) &
+                 + (sum(uvel(ew-1:ew,ns-1:ns)) * sum(dusrfdew(ew-1:ew,ns-1:ns)) &
+                 +  sum(vvel(ew-1:ew,ns-1:ns)) * sum(dusrfdns(ew-1:ew,ns-1:ns))) &
                  / 16.0d0
 
             
