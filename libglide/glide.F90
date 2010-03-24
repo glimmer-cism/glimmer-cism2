@@ -544,7 +544,7 @@ contains
 #endif
     
     ! basal shear stress calculations
-    call calc_basal_shear(model)
+    call calc_basal_shear(model%geomderv%stagthck,model%geomderv%dusrfdew,model%geomderv%dusrfdns,model%velocity%tau_x,model%velocity%tau_y)
   end subroutine glide_tstep_p2
 
   subroutine glide_tstep_p3(model)

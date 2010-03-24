@@ -185,7 +185,7 @@ contains
 
     ! apply periodic ew BC
     if (model%options%periodic_ew.eq.1) then
-       call wvel_ew(model)
+       call wvel_ew(model%velocity%wgrd,model%velocity%wvel)
     end if
 
   end subroutine calcVerticalVelocity
@@ -630,15 +630,20 @@ contains
 
   end subroutine wvelintg
 
-  subroutine wvel_ew(model)
-    !*FD set periodic EW boundary conditions
+  !> set periodic EW boundary conditions
+  subroutine wvel_ew(wgrd,wvel)
     implicit none
-    type(glide_global_type),intent(inout) :: model       !*FD Ice model parameters.
+    real(dp),dimension(:,:,:) :: wvel 
+    real(dp),dimension(:,:,:) :: wgrd
 
-    model%velocity%wgrd(:,1,:)                  = model%velocity%wgrd(:,model%general%ewn-1,:)
-    model%velocity%wgrd(:,model%general%ewn,:) = model%velocity%wgrd(:,2,:)
-    model%velocity%wvel(:,1,:)                  = model%velocity%wvel(:,model%general%ewn-1,:)
-    model%velocity%wvel(:,model%general%ewn,:) = model%velocity%wvel(:,2,:)
+    integer :: ewn
+
+    ewn = size(wgrd,2)
+
+    wgrd(:,1,:)   = wgrd(:,ewn-1,:)
+    wgrd(:,ewn,:) = wgrd(:,2,:)
+    wvel(:,1,:)   = wvel(:,ewn-1,:)
+    wvel(:,ewn,:) = wvel(:,2,:)
   end subroutine wvel_ew
 
 !------------------------------------------------------------------------------------------
@@ -797,16 +802,19 @@ contains
 
   end subroutine calc_btrc
 
-  subroutine calc_basal_shear(model)
-    !*FD calculate basal shear stress: tau_{x,y} = -ro_i*g*H*d(H+h)/d{x,y}
+  !> calculate basal shear stress: \f[tau_{(x,y)} = -ro_igH\frac{d(H+h)}{d{(x,y)}}\f]
+  subroutine calc_basal_shear(stagthck,dusrfdew,dusrfdns,tau_x,tau_y)
     use physcon, only : rhoi,grav
     implicit none
-    type(glide_global_type) :: model        !*FD model instance
+    real(dp),dimension(:,:), intent(in) :: stagthck !< ice thickness averaged onto the staggered grid.
+    real(dp),dimension(:,:), intent(in) :: dusrfdew !< E-W derivative of upper surface elevation.
+    real(dp),dimension(:,:), intent(in) :: dusrfdns !< N-S derivative of upper surface elevation.
+    real(dp),dimension(:,:), intent(out) :: tau_x   !< x component of basal shear stress
+    real(dp),dimension(:,:), intent(out) :: tau_y   !< y component of basal shear stress
 
-
-    model%velocity%tau_x = -rhoi*grav*model%geomderv%stagthck
-    model%velocity%tau_y = model%velocity%tau_x * model%geomderv%dusrfdns
-    model%velocity%tau_x = model%velocity%tau_x * model%geomderv%dusrfdew
+    tau_x = -rhoi*grav*stagthck
+    tau_y = tau_x * dusrfdns
+    tau_x = tau_x * dusrfdew
   end subroutine calc_basal_shear
 
 end module glide_velo
