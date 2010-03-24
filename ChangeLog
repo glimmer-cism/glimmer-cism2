@@ -1,5 +1,9 @@
 2010-03-24 Magnus Hagdorn
  * libglide/glide.F90: use new API
+ * libglide/glide_velo.F90: refactor calc_btrc
+
+2010-03-24 Magnus Hagdorn
+ * libglide/glide.F90: use new API
  * libglide/glide_velo.F90: refactor wvel_ew and calc_basal_shear
 
 2010-02-24 Magnus Hagdorn

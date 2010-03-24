@@ -414,7 +414,9 @@ contains
     ! ------------------------------------------------------------------------ 
     ! Calculate basal traction factor
     ! ------------------------------------------------------------------------ 
-    call calc_btrc(model,model%options%whichbtrc,model%velocity%btrc)
+    call calc_btrc(model%velowk,model%options%whichbtrc,model%velocity%bed_softness, &
+         model%temper%stagbwat, model%temper%stagbtemp, model%temper%stagbpmp, &
+         model%temper%bmlt, model%isos%relx, model%velocity%btrc)
 
   end subroutine glide_tstep_p1
 

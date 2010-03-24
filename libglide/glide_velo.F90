@@ -716,39 +716,45 @@ contains
 
 !------------------------------------------------------------------------------------------
 
-  subroutine calc_btrc(model,flag,btrc)
-    !*FD Calculate the value of $B$ used for basal sliding calculations.
+  !> Calculate the value of $B$ used for basal sliding calculations.
+  subroutine calc_btrc(velo,flag,bed_softness,stagbwat,stagbtemp,stagbpmp,bmlt,relx,btrc)
     use glimmer_global, only : dp 
     implicit none
 
-    type(glide_global_type) :: model        !*FD model instance
-    integer,                intent(in)    :: flag     !*FD Flag to select method of
-    real(dp),dimension(:,:),intent(out)   :: btrc     !*FD Array of values of $B$.
+    type(velo_type) :: velo                               !< the derived type holding the velocity grid
+    integer,                intent(in)    :: flag         !< Flag to select method of
+    real(dp),dimension(:,:),intent(in)    :: bed_softness !< bed softness parameter
+    real(dp),dimension(:,:),intent(in)    :: stagbwat     !< Basal water depth in velo grid
+    real(dp),dimension(:,:),intent(in)    :: stagbtemp    !< Basal temperature on velo grid
+    real(dp),dimension(:,:),intent(in)    :: stagbpmp     !< Basal pressure melting point on velo grid
+    real(dp),dimension(:,:),intent(in)    :: bmlt         !< Basal melt-rate
+    real(dp),dimension(:,:),intent(in)    :: relx         !< The elevation of the relaxed topography, by <tt>thck0</tt>.
+    real(dp),dimension(:,:),intent(out)   :: btrc         !< Array of values of $B$.
 
     !------------------------------------------------------------------------------------
     ! Internal variables
     !------------------------------------------------------------------------------------
 
-    real(dp) :: stagbwat 
+    real(dp) :: sbwat 
     integer :: ew,ns,nsn,ewn
 
     !------------------------------------------------------------------------------------
 
-    ewn=model%general%ewn
-    nsn=model%general%nsn
+    ewn=velo%ice_grid%size(1)
+    nsn=velo%ice_grid%size(2)
 
     !------------------------------------------------------------------------------------
 
     select case(flag)
     case(1)
        ! constant everywhere
-       btrc = model%velocity%bed_softness
+       btrc = bed_softness
     case(2)
        ! constant where basal melt water is present
        do ns = 1,nsn-1
           do ew = 1,ewn-1
-             if (0.0d0 < model%temper%stagbwat(ew,ns)) then
-                btrc(ew,ns) = model%velocity%bed_softness(ew,ns)
+             if (0.0d0 < stagbwat(ew,ns)) then
+                btrc(ew,ns) = bed_softness(ew,ns)
              else
                 btrc(ew,ns) = 0.0d0
              end if
@@ -758,11 +764,11 @@ contains
        ! function of basal water depth
        do ns = 1,nsn-1
           do ew = 1,ewn-1
-             if (0.0d0 < model%temper%stagbwat(ew,ns)) then
-                btrc(ew,ns) = model%velowk%c(2) * tanh(model%velowk%c(3) * &
-                     (stagbwat - model%velowk%c(4))) + model%velowk%c(1)
-                if (0.0d0 > sum(model%isos%relx(ew:ew+1,ns:ns+1))) then
-                   btrc(ew,ns) = btrc(ew,ns) * model%velowk%marine  
+             if (0.0d0 < stagbwat(ew,ns)) then
+                btrc(ew,ns) = velo%c(2) * tanh(velo%c(3) * &
+                     (sbwat - velo%c(4))) + velo%c(1)
+                if (0.0d0 > sum(relx(ew:ew+1,ns:ns+1))) then
+                   btrc(ew,ns) = btrc(ew,ns) * velo%marine  
                 end if
              else
                 btrc(ew,ns) = 0.0d0
@@ -773,10 +779,10 @@ contains
        ! linear function of basal melt rate
        do ns = 1,nsn-1
           do ew = 1,ewn-1
-             stagbwat = 0.25*sum(model%temper%bmlt(ew:ew+1,ns:ns+1))
+             sbwat = 0.25*sum(bmlt(ew:ew+1,ns:ns+1))
              
-             if (stagbwat>0.d0) then
-                btrc(ew,ns) = min(model%velowk%btrac_max, model%velocity%bed_softness(ew,ns)+model%velowk%btrac_slope*stagbwat)
+             if (sbwat>0.d0) then
+                btrc(ew,ns) = min(velo%btrac_max, bed_softness(ew,ns)+velo%btrac_slope*sbwat)
              else
                 btrc(ew,ns) = 0.0d0
              end if
@@ -788,8 +794,8 @@ contains
        ! as case(2) above, depending on the hydrology
        do ns = 1,nsn-1
           do ew = 1,ewn-1
-             if (abs(model%temper%stagbpmp(ew,ns) - model%temper%stagbtemp(ew,ns))<0.001) then
-                btrc(ew,ns) = model%velocity%bed_softness(ew,ns)
+             if (abs(stagbpmp(ew,ns) - stagbtemp(ew,ns))<0.001) then
+                btrc(ew,ns) = bed_softness(ew,ns)
              else
                 btrc(ew,ns) = 0.0d0
              end if
