@@ -1,6 +1,7 @@
 2010-03-26 Ian Rutt
  * libglide/glide_thck.F90: refactored findsums (taken outside thck_evolve)
  * libglide/glide_thck.F90: formatting changes
+ * libglide/glide_thck.F90: initial refactoring of generate_row
 	
 2010-03-24 Magnus Hagdorn
  * libglide/glide_velo.F90: refactored chckwvel

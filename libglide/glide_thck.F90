@@ -404,7 +404,20 @@ contains
                   model%pcgdwk%fc2(1), &
                   model%pcgdwk%fc2(5), &
                   ewn-2,ewn-1,ns-1,ns)
-             call generate_row(ewn-2,ew,ew+1,ns-1,ns,ns+1)
+             call generate_row(matrix,sumd,mask, &
+                  model%geometry%lsrf, &
+                  model%climate%acab, &
+                  model%temper%bmlt, &
+                  old_thck, &
+                  new_thck, &
+                  rhsd, &
+                  answ, &
+                  calc_rhs, &
+                  model%pcgdwk%fc2(2), &
+                  model%pcgdwk%fc2(3), &
+                  model%pcgdwk%fc2(4), &
+                  ewn-2,ew,ew+1,ns-1,ns,ns+1, &
+                  model%options%basal_mbal)
           end if
           ew=ewn
           if (mask(ew,ns) /= 0) then
@@ -414,7 +427,20 @@ contains
                   model%pcgdwk%fc2(1), &
                   model%pcgdwk%fc2(5), &
                   1,2,ns-1,ns)
-             call generate_row(ew-1,ew,3,ns-1,ns,ns+1)
+             call generate_row(matrix,sumd,mask, &
+                  model%geometry%lsrf, &
+                  model%climate%acab, &
+                  model%temper%bmlt, &
+                  old_thck, &
+                  new_thck, &
+                  rhsd, &
+                  answ, &
+                  calc_rhs, &
+                  model%pcgdwk%fc2(2), &
+                  model%pcgdwk%fc2(3), &
+                  model%pcgdwk%fc2(4), &
+                  ew-1,ew,3,ns-1,ns,ns+1, &
+                  model%options%basal_mbal)
           end if
        end do
     else
@@ -451,7 +477,20 @@ contains
                   model%pcgdwk%fc2(1), &
                   model%pcgdwk%fc2(5), &
                   ew-1,ew,ns-1,ns)
-             call generate_row(ew-1,ew,ew+1,ns-1,ns,ns+1)
+             call generate_row(matrix,sumd,mask, &
+                  model%geometry%lsrf, &
+                  model%climate%acab, &
+                  model%temper%bmlt, &
+                  old_thck, &
+                  new_thck, &
+                  rhsd, &
+                  answ, &
+                  calc_rhs, &
+                  model%pcgdwk%fc2(2), &
+                  model%pcgdwk%fc2(3), &
+                  model%pcgdwk%fc2(4), &
+                  ew-1,ew,ew+1,ns-1,ns,ns+1, &
+                  model%options%basal_mbal)
 
           end if
        end do
@@ -483,13 +522,32 @@ contains
     call glide_calclsrf(model%geometry%thck, model%geometry%topg, model%climate%eus, model%geometry%lsrf)
     model%geometry%usrf = max(0.d0,model%geometry%thck + model%geometry%lsrf)
 
-  contains
+  end subroutine thck_evolve
 
-    subroutine generate_row(ewm,ew,ewp,nsm,ns,nsp)
+!-------------------------------------------------------------------------
+
+    subroutine generate_row(matrix,sumd,mask,lsrf,acab,bmlt,old_thck,new_thck,rhsd,answ, &
+         calc_rhs,fc2_2,fc2_3,fc2_4,ewm,ew,ewp,nsm,ns,nsp,basal_mbal)
       ! calculate row of sparse matrix equation
+      use glimmer_slap, only: slapMatrix_type, slapMatrix_insertElement
       implicit none
+      type(slapMatrix_type),  intent(inout) :: matrix
+      real(dp),dimension(5),  intent(in)    :: sumd
+      integer, dimension(:,:),intent(in)    :: mask        !< Index mask for matrix mapping
+      real(dp),dimension(:,:),intent(in)    :: lsrf
+      real(sp),dimension(:,:),intent(in)    :: acab
+      real(dp),dimension(:,:),intent(in)    :: bmlt
+      real(dp),dimension(:,:),intent(in)    :: old_thck !< contains ice thicknesses from previous time step
+      real(dp),dimension(:,:),intent(inout) :: new_thck !< on entry contains first guess for new ice thicknesses
+      real(dp),dimension(:),  intent(inout) :: rhsd
+      real(dp),dimension(:),  intent(out)   :: answ
+      logical,                intent(in)    :: calc_rhs
+      real(dp),               intent(in)    :: fc2_2
+      real(dp),               intent(in)    :: fc2_3
+      real(dp),               intent(in)    :: fc2_4
       integer, intent(in) :: ewm,ew,ewp  ! ew index to left, central, right node
       integer, intent(in) :: nsm,ns,nsp  ! ns index to lower, central, upper node
+      integer, intent(in) :: basal_mbal  !< Set ==1 if basal mass balance is considered
 
       ! fill sparse matrix
       call slapMatrix_insertElement(matrix,sumd(1),mask(ewm,ns),mask(ew,ns))       ! point (ew-1,ns)
@@ -501,29 +559,25 @@ contains
       ! calculate RHS
       if (calc_rhs) then
          rhsd(mask(ew,ns)) =                    &
-              old_thck(ew,ns) * (1.0d0 - model%pcgdwk%fc2(3) * sumd(5))     &
-            - model%pcgdwk%fc2(3) * (old_thck(ewm,ns) * sumd(1)             &
-                                   + old_thck(ewp,ns) * sumd(2)             &
-                                   + old_thck(ew,nsm) * sumd(3)             &
-                                   + old_thck(ew,nsp) * sumd(4))            &
-            - model%pcgdwk%fc2(4) * (model%geometry%lsrf(ew,ns)  * sumd(5)  &
-                                   + model%geometry%lsrf(ewm,ns) * sumd(1)  &
-                                   + model%geometry%lsrf(ewp,ns) * sumd(2)  &
-                                   + model%geometry%lsrf(ew,nsm) * sumd(3)  &
-                                   + model%geometry%lsrf(ew,nsp) * sumd(4)) &
-            + model%climate%acab(ew,ns) * model%pcgdwk%fc2(2)
-         if(model%options%basal_mbal==1) then
-            rhsd(mask(ew,ns)) =                    &
-                 rhsd(mask(ew,ns))                 &
-                 - model%temper%bmlt(ew,ns) * model%pcgdwk%fc2(2) ! basal melt is +ve for mass loss
+              old_thck(ew,ns) * (1.0d0 - fc2_3 * sumd(5))     &
+            - fc2_3 * (old_thck(ewm,ns) * sumd(1)             &
+                     + old_thck(ewp,ns) * sumd(2)             &
+                     + old_thck(ew,nsm) * sumd(3)             &
+                     + old_thck(ew,nsp) * sumd(4))            &
+            - fc2_4 * (lsrf(ew,ns)  * sumd(5)  &
+                     + lsrf(ewm,ns) * sumd(1)  &
+                     + lsrf(ewp,ns) * sumd(2)  &
+                     + lsrf(ew,nsm) * sumd(3)  &
+                     + lsrf(ew,nsp) * sumd(4)) &
+            + acab(ew,ns) * fc2_2
+         if(basal_mbal==1) then
+            rhsd(mask(ew,ns)) = rhsd(mask(ew,ns)) - bmlt(ew,ns) * fc2_2 ! basal melt is +ve for mass loss
          end if
       end if
 
-      answ(mask(ew,ns)) = new_thck(ew,ns)      
+      answ(mask(ew,ns)) = new_thck(ew,ns)
 
     end subroutine generate_row
-
-  end subroutine thck_evolve
 
 !-------------------------------------------------------------------------
 
