@@ -156,7 +156,8 @@ contains
             model%geomderv%dusrfdns,model%velocity%diffu)
 
        ! get new thicknesses
-       call thck_evolve(model,rhs,model%geometry%mask,model%geometry%totpts,.true.,model%geometry%thck,model%geometry%thck)
+       call thck_evolve(model,rhs,model%geometry%mask,model%geometry%totpts, &
+            .true.,model%geometry%thck,model%geometry%thck,model%options%periodic_ew)
 
        ! calculate horizontal velocity field
        call slipvelo(model%velowk,   &
@@ -288,7 +289,8 @@ contains
                model%geomderv%dusrfdns,model%velocity%diffu)
 
           ! get new thicknesses
-          call thck_evolve(model,rhs,model%geometry%mask,model%geometry%totpts,first_p,model%thckwk%oldthck,model%geometry%thck)
+          call thck_evolve(model,rhs,model%geometry%mask,model%geometry%totpts, &
+               first_p,model%thckwk%oldthck,model%geometry%thck,model%options%periodic_ew)
 
           first_p = .false.
           residual = maxval(abs(model%geometry%thck-model%thckwk%oldthck2))
@@ -326,7 +328,7 @@ contains
 
 !---------------------------------------------------------------------------------
 
-  subroutine thck_evolve(model,rhsd,mask,totpts,calc_rhs,old_thck,new_thck)
+  subroutine thck_evolve(model,rhsd,mask,totpts,calc_rhs,old_thck,new_thck,periodic_ew)
 
     !*FD set up sparse matrix and solve matrix equation to find new ice thickness distribution
     !*FD this routine does not override the old thickness distribution
@@ -349,6 +351,7 @@ contains
     real(dp), intent(inout), dimension(:,:) :: new_thck !< on entry contains first guess for new ice thicknesses
                                                         !< on exit contains ice thicknesses of new time step
     real(dp),intent(inout),dimension(totpts) :: rhsd
+    integer,  intent(in)                 :: periodic_ew !< Periodic boundary conditions flag
 
     ! local variables ------------------------------------------------------------------
 
@@ -359,11 +362,13 @@ contains
     integer :: ewn,nsn
     real(dp),dimension(totpts) :: answ
 
+    type(slapMatrix_type) :: matrix
+
     ewn = size(old_thck,1)
     nsn = size(old_thck,2)
 
     ! Initialise sparse matrix object
-    call slapMatrix_init(model%pcgdwk%matrix,totpts,ewn*nsn*5)
+    call slapMatrix_init(matrix,totpts,ewn*nsn*5)
 
     answ = 0.0
 
@@ -372,7 +377,7 @@ contains
     do ew = 1,ewn
        ns=1
        if (mask(ew,ns) /= 0) then
-          call slapMatrix_insertElement(model%pcgdwk%matrix,1.0d0,mask(ew,ns),mask(ew,ns))
+          call slapMatrix_insertElement(matrix,1.0d0,mask(ew,ns),mask(ew,ns))
           if (calc_rhs) then
              rhsd(mask(ew,ns)) = old_thck(ew,ns) 
           end if
@@ -380,7 +385,7 @@ contains
        end if
        ns=nsn
        if (mask(ew,ns) /= 0) then
-          call slapMatrix_insertElement(model%pcgdwk%matrix,1.0d0,mask(ew,ns),mask(ew,ns))
+          call slapMatrix_insertElement(matrix,1.0d0,mask(ew,ns),mask(ew,ns))
           if (calc_rhs) then
              rhsd(mask(ew,ns)) = old_thck(ew,ns) 
           end if
@@ -389,16 +394,26 @@ contains
     end do
 
     !left and right BC
-    if (model%options%periodic_ew.eq.1) then
+    if (periodic_ew.eq.1) then
        do ns=2,nsn-1
           ew = 1
           if (mask(ew,ns) /= 0) then
-             call findsums(ewn-2,ewn-1,ns-1,ns)
+             call findsums(model%velocity%diffu, &
+                  model%velocity%ubas, &
+                  sumd, &
+                  model%pcgdwk%fc2(1), &
+                  model%pcgdwk%fc2(5), &
+                  ewn-2,ewn-1,ns-1,ns)
              call generate_row(ewn-2,ew,ew+1,ns-1,ns,ns+1)
           end if
           ew=ewn
           if (mask(ew,ns) /= 0) then
-             call findsums(1,2,ns-1,ns)
+             call findsums(model%velocity%diffu, &
+                  model%velocity%ubas, &
+                  sumd, &
+                  model%pcgdwk%fc2(1), &
+                  model%pcgdwk%fc2(5), &
+                  1,2,ns-1,ns)
              call generate_row(ew-1,ew,3,ns-1,ns,ns+1)
           end if
        end do
@@ -406,7 +421,7 @@ contains
        do ns=2,nsn-1
           ew=1
           if (mask(ew,ns) /= 0) then
-             call slapMatrix_insertElement(model%pcgdwk%matrix,1.0d0,mask(ew,ns),mask(ew,ns))
+             call slapMatrix_insertElement(matrix,1.0d0,mask(ew,ns),mask(ew,ns))
              if (calc_rhs) then
                 rhsd(mask(ew,ns)) = old_thck(ew,ns) 
              end if
@@ -414,7 +429,7 @@ contains
           end if
           ew=ewn
           if (mask(ew,ns) /= 0) then
-             call slapMatrix_insertElement(model%pcgdwk%matrix,1.0d0,mask(ew,ns),mask(ew,ns))
+             call slapMatrix_insertElement(matrix,1.0d0,mask(ew,ns),mask(ew,ns))
              if (calc_rhs) then
                 rhsd(mask(ew,ns)) = old_thck(ew,ns) 
              end if
@@ -430,7 +445,12 @@ contains
 
           if (mask(ew,ns) /= 0) then
                 
-             call findsums(ew-1,ew,ns-1,ns)
+             call findsums(model%velocity%diffu, &
+                  model%velocity%ubas, &
+                  sumd, &
+                  model%pcgdwk%fc2(1), &
+                  model%pcgdwk%fc2(5), &
+                  ew-1,ew,ns-1,ns)
              call generate_row(ew-1,ew,ew+1,ns-1,ns,ns+1)
 
           end if
@@ -438,7 +458,7 @@ contains
     end do
 
     ! Solve the system using SLAP
-    call slapSolve(model%pcgdwk%matrix,rhsd,answ,linit,err)   
+    call slapSolve(matrix,rhsd,answ,linit,err)   
 
     ! Rejig the solution onto a 2D array
     do ns = 1,nsn
@@ -472,11 +492,11 @@ contains
       integer, intent(in) :: nsm,ns,nsp  ! ns index to lower, central, upper node
 
       ! fill sparse matrix
-      call slapMatrix_insertElement(model%pcgdwk%matrix,sumd(1),mask(ewm,ns),mask(ew,ns))       ! point (ew-1,ns)
-      call slapMatrix_insertElement(model%pcgdwk%matrix,sumd(2),mask(ewp,ns),mask(ew,ns))       ! point (ew+1,ns)
-      call slapMatrix_insertElement(model%pcgdwk%matrix,sumd(3),mask(ew,nsm),mask(ew,ns))       ! point (ew,ns-1)
-      call slapMatrix_insertElement(model%pcgdwk%matrix,sumd(4),mask(ew,nsp),mask(ew,ns))       ! point (ew,ns+1)
-      call slapMatrix_insertElement(model%pcgdwk%matrix,1.0d0 + sumd(5),mask(ew,ns),mask(ew,ns))! point (ew,ns)
+      call slapMatrix_insertElement(matrix,sumd(1),mask(ewm,ns),mask(ew,ns))       ! point (ew-1,ns)
+      call slapMatrix_insertElement(matrix,sumd(2),mask(ewp,ns),mask(ew,ns))       ! point (ew+1,ns)
+      call slapMatrix_insertElement(matrix,sumd(3),mask(ew,nsm),mask(ew,ns))       ! point (ew,ns-1)
+      call slapMatrix_insertElement(matrix,sumd(4),mask(ew,nsp),mask(ew,ns))       ! point (ew,ns+1)
+      call slapMatrix_insertElement(matrix,1.0d0 + sumd(5),mask(ew,ns),mask(ew,ns))! point (ew,ns)
 
       ! calculate RHS
       if (calc_rhs) then
@@ -503,28 +523,34 @@ contains
 
     end subroutine generate_row
 
-    subroutine findsums(ewm,ew,nsm,ns)
+  end subroutine thck_evolve
+
+    subroutine findsums(diffu,ubas,sumd,fc2_1,fc2_5,ewm,ew,nsm,ns)
       ! calculate diffusivities
       implicit none
+      real(dp),dimension(:,:),intent(in)  :: diffu
+      real(dp),dimension(:,:),intent(in)  :: ubas
+      real(dp),dimension(5),  intent(out) :: sumd 
+      real(dp),               intent(in)  :: fc2_1
+      real(dp),               intent(in)  :: fc2_5
       integer, intent(in) :: ewm,ew  ! ew index to left, right
       integer, intent(in) :: nsm,ns  ! ns index to lower, upper
 
       ! calculate sparse matrix elements
-      sumd(1) = model%pcgdwk%fc2(1) * (&
-           (model%velocity%diffu(ewm,nsm) + model%velocity%diffu(ewm,ns)) + &
-           (model%velocity%ubas (ewm,nsm) + model%velocity%ubas (ewm,ns)))
-      sumd(2) = model%pcgdwk%fc2(1) * (&
-           (model%velocity%diffu(ew,nsm) + model%velocity%diffu(ew,ns)) + &
-           (model%velocity%ubas (ew,nsm) + model%velocity%ubas (ew,ns)))
-      sumd(3) = model%pcgdwk%fc2(5) * (&
-           (model%velocity%diffu(ewm,nsm) + model%velocity%diffu(ew,nsm)) + &
-           (model%velocity%ubas (ewm,nsm) + model%velocity%ubas (ew,nsm)))
-      sumd(4) = model%pcgdwk%fc2(5) * (&
-           (model%velocity%diffu(ewm,ns) + model%velocity%diffu(ew,ns)) + &
-           (model%velocity%ubas (ewm,ns) + model%velocity%ubas (ew,ns)))
+      sumd(1) = fc2_1 * (&
+           (diffu(ewm,nsm) + diffu(ewm,ns)) + &
+           (ubas (ewm,nsm) + ubas (ewm,ns)))
+      sumd(2) = fc2_1 * (&
+           (diffu(ew,nsm) + diffu(ew,ns)) + &
+           (ubas (ew,nsm) + ubas (ew,ns)))
+      sumd(3) = fc2_5 * (&
+           (diffu(ewm,nsm) + diffu(ew,nsm)) + &
+           (ubas (ewm,nsm) + ubas (ew,nsm)))
+      sumd(4) = fc2_5 * (&
+           (diffu(ewm,ns) + diffu(ew,ns)) + &
+           (ubas (ewm,ns) + ubas (ew,ns)))
       sumd(5) = - (sumd(1) + sumd(2) + sumd(3) + sumd(4))
     end subroutine findsums
-  end subroutine thck_evolve
 
 !-------------------------------------------------------------------------
 
