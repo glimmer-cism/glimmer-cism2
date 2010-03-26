@@ -525,32 +525,28 @@ contains
 
   end subroutine thck_evolve
 
-    subroutine findsums(diffu,ubas,sumd,fc2_1,fc2_5,ewm,ew,nsm,ns)
-      ! calculate diffusivities
-      implicit none
-      real(dp),dimension(:,:),intent(in)  :: diffu
-      real(dp),dimension(:,:),intent(in)  :: ubas
-      real(dp),dimension(5),  intent(out) :: sumd 
-      real(dp),               intent(in)  :: fc2_1
-      real(dp),               intent(in)  :: fc2_5
-      integer, intent(in) :: ewm,ew  ! ew index to left, right
-      integer, intent(in) :: nsm,ns  ! ns index to lower, upper
+!-------------------------------------------------------------------------
 
-      ! calculate sparse matrix elements
-      sumd(1) = fc2_1 * (&
-           (diffu(ewm,nsm) + diffu(ewm,ns)) + &
-           (ubas (ewm,nsm) + ubas (ewm,ns)))
-      sumd(2) = fc2_1 * (&
-           (diffu(ew,nsm) + diffu(ew,ns)) + &
-           (ubas (ew,nsm) + ubas (ew,ns)))
-      sumd(3) = fc2_5 * (&
-           (diffu(ewm,nsm) + diffu(ew,nsm)) + &
-           (ubas (ewm,nsm) + ubas (ew,nsm)))
-      sumd(4) = fc2_5 * (&
-           (diffu(ewm,ns) + diffu(ew,ns)) + &
-           (ubas (ewm,ns) + ubas (ew,ns)))
-      sumd(5) = - (sumd(1) + sumd(2) + sumd(3) + sumd(4))
-    end subroutine findsums
+  subroutine findsums(diffu,ubas,sumd,fc2_1,fc2_5,ewm,ew,nsm,ns)
+  
+    implicit none
+
+    real(dp),dimension(:,:),intent(in)  :: diffu
+    real(dp),dimension(:,:),intent(in)  :: ubas
+    real(dp),dimension(5),  intent(out) :: sumd 
+    real(dp),               intent(in)  :: fc2_1
+    real(dp),               intent(in)  :: fc2_5
+    integer,                intent(in)  :: ewm,ew  ! ew index to left, right
+    integer,                intent(in)  :: nsm,ns  ! ns index to lower, upper
+
+    ! calculate sparse matrix elements
+    sumd(1) = fc2_1 * ((diffu(ewm,nsm) + diffu(ewm,ns)) + (ubas (ewm,nsm) + ubas (ewm,ns)))
+    sumd(2) = fc2_1 * ((diffu(ew,nsm)  + diffu(ew,ns))  + (ubas (ew,nsm)  + ubas (ew,ns)))
+    sumd(3) = fc2_5 * ((diffu(ewm,nsm) + diffu(ew,nsm)) + (ubas (ewm,nsm) + ubas (ew,nsm)))
+    sumd(4) = fc2_5 * ((diffu(ewm,ns)  + diffu(ew,ns))  + (ubas (ewm,ns)  + ubas (ew,ns)))
+    sumd(5) = - (sumd(1) + sumd(2) + sumd(3) + sumd(4))
+
+  end subroutine findsums
 
 !-------------------------------------------------------------------------
 
