@@ -335,7 +335,8 @@ contains
 
     use glide_thckCommon, only: glide_calclsrf
     use glimmer_global, only : dp
-    use glimmer_slap, only: slapMatrix_type, slapMatrix_init, slapMatrix_insertElement, slapSolve
+    use glimmer_slap, only: slapMatrix_type, slapMatrix_init, slapMatrix_insertElement, &
+         slapSolve, slapMatrix_dealloc
 
     implicit none
 
@@ -521,6 +522,9 @@ contains
     ! calculate upper and lower surface
     call glide_calclsrf(model%geometry%thck, model%geometry%topg, model%climate%eus, model%geometry%lsrf)
     model%geometry%usrf = max(0.d0,model%geometry%thck + model%geometry%lsrf)
+
+    ! Deallocate matrix storage
+    call slapMatrix_dealloc(matrix)
 
   end subroutine thck_evolve
 

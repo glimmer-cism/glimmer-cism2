@@ -1,6 +1,6 @@
 ! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! +                                                           +
-! +  glimmer_thck.f90 - part of the GLIMMER ice model         + 
+! +  glimmer_slap.f90 - part of the GLIMMER ice model         + 
 ! +                                                           +
 ! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! 
@@ -64,7 +64,8 @@ module glimmer_slap
   end type slapMatrix_type
 
   private
-  public :: slapMatrix_type, slapMatrix_init, slapMatrix_insertElement, slapMatrix_resize, slapSolve
+  public :: slapMatrix_type, slapMatrix_init, slapMatrix_insertElement, &
+       slapMatrix_resize, slapSolve, slapMatrix_dealloc
 
 contains
 
@@ -90,6 +91,19 @@ contains
     allocate(matrix%val(matrix%maxSize))
 
   end subroutine slapMatrix_init
+
+  !-------------------------------------------------------------------
+  !> Deallocate sparse matrix storage prior to going out of scope
+
+  subroutine slapMatrix_dealloc(matrix)
+
+    type(slapMatrix_type), intent(inout) :: matrix
+
+    if (GC_DYNARRAY_CHECK(matrix%row)) deallocate(matrix%row)
+    if (GC_DYNARRAY_CHECK(matrix%col)) deallocate(matrix%col)
+    if (GC_DYNARRAY_CHECK(matrix%val)) deallocate(matrix%val)
+
+  end subroutine slapMatrix_dealloc
 
   !-------------------------------------------------------------------
   !> Add element to sparse matrix

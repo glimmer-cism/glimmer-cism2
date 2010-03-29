@@ -1,3 +1,7 @@
+2010-03-29 Ian Rutt
+ * libglide/glide_thck.F90, libglimmer/glimmer_slap.F90: Fixed memory leak
+   from slap wrapper.
+
 2010-03-26 Ian Rutt
  * libglide/glide_thck.F90: refactored findsums (taken outside thck_evolve)
  * libglide/glide_thck.F90: formatting changes
