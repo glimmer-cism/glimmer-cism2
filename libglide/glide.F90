@@ -318,7 +318,12 @@ contains
     if ( model%numerics%tinc >  mod(model%numerics%time,model%numerics%ntem)) then
 
        ! Calculate vertical velocities
-       call calcVerticalVelocity(model)
+       call calcVerticalVelocity(model%velowk,model%timederivs,model%options%periodic_ew, model%options%whichwvel, &
+            model%numerics%thklim, model%geometry%thck, model%geometry%usrf, model%geomderv%stagthck, &
+            model%geomderv%dthckdew, model%geomderv%dthckdns, model%geomderv%dusrfdew, model%geomderv%dusrfdns, &
+            model%temper%bmlt, model%climate%acab, model%numerics%time, &
+            model%velocity%uvel, model%velocity%vvel, &
+            model%velocity%wvel, model%velocity%wgrd)
 
        ! Do ice temperature calculation
        select case(model%options%whichtemp)

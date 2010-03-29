@@ -50,8 +50,7 @@
 
 module glide_velo
   
-  use glide_types
-  use glimmer_global, only : dp
+  use glimmer_global, only : dp,sp
   use physcon, only : rhoi, grav, gn
   use glimmer_paramets, only : thk0, len0, vis0, vel0, acc0
   use velo_types, only : velo_type
@@ -114,79 +113,68 @@ contains
 
   !-------------------------------------------------------------------------
 
-  subroutine calcVerticalVelocity(model)
+  !> Calculates the ice temperature - full solution
+  subroutine calcVerticalVelocity(velo,timederivs,periodic_ew,whichwvel,thklim,thck,usrf, &
+       stagthck,dthckdew,dthckdns,dusrfdew,dusrfdns,bmlt,acab,time, &
+       uvel,vvel,wvel,wgrd)
 
-    !*FD Calculates the ice temperature - full solution
 
-    use glimmer_deriv_time, only: timeders
+    use glimmer_deriv_time, only: timeders_type, timeders
     implicit none
 
     !------------------------------------------------------------------------------------
     ! Subroutine arguments
     !------------------------------------------------------------------------------------
 
-    type(glide_global_type),intent(inout) :: model       !*FD Ice model parameters.
+    type(velo_type) :: velo                            !< the derived type holding the velocity grid
+    type(timeders_type) :: timederivs                  !< derived type holding time derivative data
+    integer, intent(in) :: periodic_ew                 !< select EW periodic boundary conditions (0 - not periodic; 1 - periodic)
+    integer, intent(in) :: whichwvel                   !< set to 1 if the Vertical integration constrained so that upper kinematic B.C. obeyed
+    real(dp),                 intent(in)  :: thklim    !< Minimum thickness to be considered when calculating the grid velocity. This is in m, divided by \texttt{thk0}.
+    real(dp),dimension(:,:),  intent(in)  :: thck      !< Ice-sheet thickness (divided by <tt>thk0</tt>)
+    real(dp),dimension(:,:),  intent(in)  :: usrf      !< The elevation of the upper ice surface (divided by <tt>thk0</tt>)
+    real(dp),dimension(:,:),  intent(in)  :: stagthck  !< ice thickness averaged onto the staggered grid.
+    real(dp),dimension(:,:),  intent(in)  :: dthckdew  !< E-W derivative of ice thickness.
+    real(dp),dimension(:,:),  intent(in)  :: dthckdns  !< N-S derivative of ice thickness.
+    real(dp),dimension(:,:),  intent(in)  :: dusrfdew  !< E-W derivative of upper surface elevation.
+    real(dp),dimension(:,:),  intent(in)  :: dusrfdns  !< N-S derivative of upper surface elevation.
+    real(dp),dimension(:,:),  intent(in)  :: bmlt      !< Basal melt-rate (scaled?) This is required in the basal boundary condition. See <em>Payne and Dongelmans</em> equation 14.
+    real(sp),dimension(:,:),  intent(in)  :: acab      !< surface Mass-balance (scaled)
+    real(sp), intent(in)                  :: time      !< current time
+    real(dp),dimension(:,:,:),  intent(inout) :: uvel  !< $x$ velocity field at top model level (scaled, on staggered grid).
+    real(dp),dimension(:,:,:),  intent(inout) :: vvel  !< $y$ velocity field at top model level (scaled, on staggered grid).
+    real(dp),dimension(:,:,:),intent(inout) :: wvel    !< Vertical velocity field, 
+    real(dp),dimension(:,:,:),intent(inout) :: wgrd    !< The grid velocity at each point. This is the output.
 
     ! Calculate time-derivatives of thickness and upper surface elevation ------------
 
-    call timeders(model%timederivs,   &
-         model%geometry%thck,     &
-         model%velowk%dthckdtm, &
-         model%numerics%time,     &
-         1)
+    call timeders(timederivs, thck, velo%dthckdtm, time, 1)
 
-    call timeders(model%timederivs,   &
-         model%geometry%usrf,     &
-         model%velowk%dusrfdtm, &
-         model%numerics%time,     &
-         2)
+    call timeders(timederivs, usrf, velo%dusrfdtm, time, 2)
 
     ! Calculate the vertical velocity of the grid ------------------------------------
 
-    call gridwvel(model%velowk,  &
-         model%numerics%thklim, &
-         model%velocity%uvel,   &
-         model%velocity%vvel,   &
-         model%geomderv%dusrfdew, &
-         model%geomderv%dusrfdns, &
-         model%geomderv%dthckdew, &
-         model%geomderv%dthckdns, &
-         model%geometry%thck,   &
-         model%velocity%wgrd)
+    call gridwvel(velo, thklim, uvel, vvel,   &
+         dusrfdew, dusrfdns, dthckdew, dthckdns, &
+         thck, wgrd)
 
     ! Calculate the actual vertical velocity ------------
 
 
-    call wvelintg(model%velowk,  &
-         model%numerics%thklim, &
-         model%geomderv%stagthck, &
-         model%geomderv%dusrfdew, &
-         model%geomderv%dusrfdns, &
-         model%geomderv%dthckdew, &
-         model%geomderv%dthckdns, &
-         model%velocity%uvel,                        &
-         model%velocity%vvel,                        &
-         model%velocity%wgrd(model%general%upn,:,:), &
-         model%geometry%thck,                        &
-         model%temper%bmlt,                          &
-         model%velocity%wvel)
+    call wvelintg(velo, thklim, stagthck, &
+         dusrfdew, dusrfdns, dthckdew, dthckdns, &
+         uvel, vvel, wgrd(velo%sigma_grid%upn,:,:), &
+         thck, bmlt, wvel)
 
     ! Vertical integration constrained so kinematic upper BC obeyed.
 
-    if (model%options%whichwvel==1) then
-       call chckwvel(model%velowk,model%numerics%thklim,&
-            model%geomderv%dusrfdew,                    &
-            model%geomderv%dusrfdns,                    &
-            model%velocity%uvel(1,:,:),                 &
-            model%velocity%vvel(1,:,:),                 &
-            model%velocity%wvel,                        &
-            model%geometry%thck,                        &
-            model%climate% acab)
+    if (whichwvel==1) then
+       call chckwvel(velo,thklim, dusrfdew, dusrfdns, uvel(1,:,:), vvel(1,:,:), wvel, thck, acab)
     end if
 
     ! apply periodic ew BC
-    if (model%options%periodic_ew.eq.1) then
-       call wvel_ew(model%velocity%wgrd,model%velocity%wvel)
+    if (periodic_ew.eq.1) then
+       call wvel_ew(wgrd,wvel)
     end if
 
   end subroutine calcVerticalVelocity
