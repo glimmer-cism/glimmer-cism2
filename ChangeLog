@@ -1,5 +1,6 @@
 2010-04-01 Ian Rutt
  * libglide/glide_thck.F90: reformatted generate_row
+ * libglide/glide_thck.F90: refactor thck_evolve
 
 2010-03-29 Magnus Hagdorn
  * libglide/glide.F90: use new API

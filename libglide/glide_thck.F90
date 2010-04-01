@@ -156,8 +156,24 @@ contains
             model%geomderv%dusrfdns,model%velocity%diffu)
 
        ! get new thicknesses
-       call thck_evolve(model,rhs,model%geometry%mask,model%geometry%totpts, &
-            .true.,model%geometry%thck,model%geometry%thck,model%options%periodic_ew)
+       call thck_evolve(model%pcgdwk, &
+            rhs,                   &
+            model%geometry%mask,   &
+            model%velocity%diffu,  &
+            model%velocity%ubas,   &
+            model%geometry%lsrf,   &
+            model%climate%acab,    &
+            model%temper%bmlt,     &
+            model%geometry%thck,   &
+            model%geometry%topg,   &
+            model%geometry%usrf,   &
+            model%climate%eus,     &
+            model%geometry%totpts, &
+            .true.,                &
+            model%geometry%thck,   &
+            model%geometry%thck,   &
+            model%options%periodic_ew, &
+            model%options%basal_mbal)
 
        ! calculate horizontal velocity field
        call slipvelo(model%velowk,   &
@@ -289,8 +305,24 @@ contains
                model%geomderv%dusrfdns,model%velocity%diffu)
 
           ! get new thicknesses
-          call thck_evolve(model,rhs,model%geometry%mask,model%geometry%totpts, &
-               first_p,model%thckwk%oldthck,model%geometry%thck,model%options%periodic_ew)
+          call thck_evolve(model%pcgdwk, &
+               rhs,                   &
+               model%geometry%mask,   &
+               model%velocity%diffu,  &
+               model%velocity%ubas,   &
+               model%geometry%lsrf,   &
+               model%climate%acab,    &
+               model%temper%bmlt,     &
+               model%geometry%thck,   &
+               model%geometry%topg,   &
+               model%geometry%usrf,   &
+               model%climate%eus,     &
+               model%geometry%totpts, &
+               first_p,               &
+               model%thckwk%oldthck,  &
+               model%geometry%thck,   &
+               model%options%periodic_ew, &
+               model%options%basal_mbal)
 
           first_p = .false.
           residual = maxval(abs(model%geometry%thck-model%thckwk%oldthck2))
@@ -328,7 +360,8 @@ contains
 
 !---------------------------------------------------------------------------------
 
-  subroutine thck_evolve(model,rhsd,mask,totpts,calc_rhs,old_thck,new_thck,periodic_ew)
+  subroutine thck_evolve(pcgdwk,rhsd,mask,diffu,ubas,lsrf,acab,bmlt,thck,topg,usrf,eus,&
+       totpts,calc_rhs,old_thck,new_thck,periodic_ew,basal_mbal)
 
     !*FD set up sparse matrix and solve matrix equation to find new ice thickness distribution
     !*FD this routine does not override the old thickness distribution
@@ -342,17 +375,27 @@ contains
 
     ! subroutine arguments -------------------------------------------------------------
 
-    type(glide_global_type) :: model
+    type(glide_pcgdwk)      :: pcgdwk
     
-    logical,intent(in) :: calc_rhs                      !< set to true when rhs should be calculated 
-                                                        !! i.e. when doing lin solution or first picard iteration
-    integer,  intent(in), dimension(:,:) :: mask        !< Index mask for matrix mapping
-    integer,  intent(in)                 :: totpts      !< Number of non-zero points in mask
-    real(dp), intent(in), dimension(:,:) :: old_thck    !< contains ice thicknesses from previous time step
-    real(dp), intent(inout), dimension(:,:) :: new_thck !< on entry contains first guess for new ice thicknesses
-                                                        !< on exit contains ice thicknesses of new time step
-    real(dp),intent(inout),dimension(totpts) :: rhsd
-    integer,  intent(in)                 :: periodic_ew !< Periodic boundary conditions flag
+    logical,                   intent(in)    :: calc_rhs    !< set to true when rhs should be calculated 
+                                                            !! i.e. when doing lin solution or first picard iteration
+    integer, dimension(:,:),   intent(in)    :: mask        !< Index mask for matrix mapping
+    real(dp),dimension(:,:),   intent(in)    :: diffu       !< Diffusivity
+    real(dp),dimension(:,:),   intent(in)    :: ubas        !< Basal x-velocity
+    real(dp),dimension(:,:),   intent(inout) :: lsrf        !< Lower surface elevation
+    real(sp),dimension(:,:),   intent(in)    :: acab        !< Surface mass balance
+    real(dp),dimension(:,:),   intent(in)    :: bmlt        !< Basal melt rate
+    real(dp),dimension(:,:),   intent(in)    :: thck        !< Ice thickness
+    real(dp),dimension(:,:),   intent(in)    :: topg        !< Basal topography
+    real(dp),dimension(:,:),   intent(inout) :: usrf        !< Upper surface elevation
+    real(sp),                  intent(in)    :: eus         !< Eustatic sea level
+    integer,                   intent(in)    :: totpts      !< Number of non-zero points in mask
+    real(dp),dimension(:,:),   intent(in)    :: old_thck    !< contains ice thicknesses from previous time step
+    real(dp),dimension(:,:),   intent(inout) :: new_thck    !< on entry contains first guess for new ice thicknesses
+                                                            !< on exit contains ice thicknesses of new time step
+    real(dp),dimension(totpts),intent(inout) :: rhsd
+    integer,                   intent(in)    :: periodic_ew !< Periodic boundary conditions flag
+    integer,                   intent(in)    :: basal_mbal  !< Include basal melt in mass-balance
 
     ! local variables ------------------------------------------------------------------
 
@@ -399,49 +442,49 @@ contains
        do ns=2,nsn-1
           ew = 1
           if (mask(ew,ns) /= 0) then
-             call findsums(model%velocity%diffu, &
-                  model%velocity%ubas, &
+             call findsums(diffu, &
+                  ubas, &
                   sumd, &
-                  model%pcgdwk%fc2(1), &
-                  model%pcgdwk%fc2(5), &
+                  pcgdwk%fc2(1), &
+                  pcgdwk%fc2(5), &
                   ewn-2,ewn-1,ns-1,ns)
              call generate_row(matrix,sumd,mask, &
-                  model%geometry%lsrf, &
-                  model%climate%acab, &
-                  model%temper%bmlt, &
+                  lsrf, &
+                  acab, &
+                  bmlt, &
                   old_thck, &
                   new_thck, &
                   rhsd, &
                   answ, &
                   calc_rhs, &
-                  model%pcgdwk%fc2(2), &
-                  model%pcgdwk%fc2(3), &
-                  model%pcgdwk%fc2(4), &
+                  pcgdwk%fc2(2), &
+                  pcgdwk%fc2(3), &
+                  pcgdwk%fc2(4), &
                   ewn-2,ew,ew+1,ns-1,ns,ns+1, &
-                  model%options%basal_mbal)
+                  basal_mbal)
           end if
           ew=ewn
           if (mask(ew,ns) /= 0) then
-             call findsums(model%velocity%diffu, &
-                  model%velocity%ubas, &
+             call findsums(diffu, &
+                  ubas, &
                   sumd, &
-                  model%pcgdwk%fc2(1), &
-                  model%pcgdwk%fc2(5), &
+                  pcgdwk%fc2(1), &
+                  pcgdwk%fc2(5), &
                   1,2,ns-1,ns)
              call generate_row(matrix,sumd,mask, &
-                  model%geometry%lsrf, &
-                  model%climate%acab, &
-                  model%temper%bmlt, &
+                  lsrf, &
+                  acab, &
+                  bmlt, &
                   old_thck, &
                   new_thck, &
                   rhsd, &
                   answ, &
                   calc_rhs, &
-                  model%pcgdwk%fc2(2), &
-                  model%pcgdwk%fc2(3), &
-                  model%pcgdwk%fc2(4), &
+                  pcgdwk%fc2(2), &
+                  pcgdwk%fc2(3), &
+                  pcgdwk%fc2(4), &
                   ew-1,ew,3,ns-1,ns,ns+1, &
-                  model%options%basal_mbal)
+                  basal_mbal)
           end if
        end do
     else
@@ -472,26 +515,26 @@ contains
 
           if (mask(ew,ns) /= 0) then
                 
-             call findsums(model%velocity%diffu, &
-                  model%velocity%ubas, &
+             call findsums(diffu, &
+                  ubas, &
                   sumd, &
-                  model%pcgdwk%fc2(1), &
-                  model%pcgdwk%fc2(5), &
+                  pcgdwk%fc2(1), &
+                  pcgdwk%fc2(5), &
                   ew-1,ew,ns-1,ns)
              call generate_row(matrix,sumd,mask, &
-                  model%geometry%lsrf, &
-                  model%climate%acab, &
-                  model%temper%bmlt, &
+                  lsrf, &
+                  acab, &
+                  bmlt, &
                   old_thck, &
                   new_thck, &
                   rhsd, &
                   answ, &
                   calc_rhs, &
-                  model%pcgdwk%fc2(2), &
-                  model%pcgdwk%fc2(3), &
-                  model%pcgdwk%fc2(4), &
+                  pcgdwk%fc2(2), &
+                  pcgdwk%fc2(3), &
+                  pcgdwk%fc2(4), &
                   ew-1,ew,ew+1,ns-1,ns,ns+1, &
-                  model%options%basal_mbal)
+                  basal_mbal)
 
           end if
        end do
@@ -514,14 +557,13 @@ contains
     new_thck = max(0.0d0, new_thck)
 
 #ifdef DEBUG
-    print *, "* thck ", model%numerics%time, linit, totpts, &
-         real(thk0*new_thck(ewn/2+1,nsn/2+1)), &
-         real(vel0*maxval(abs(model%velocity%ubas))), real(vel0*maxval(abs(model%velocity%vbas))) 
+    print *, "* thck ", linit, totpts,real(thk0*new_thck(ewn/2+1,nsn/2+1)), &
+         real(vel0*maxval(abs(ubas)))
 #endif
 
     ! calculate upper and lower surface
-    call glide_calclsrf(model%geometry%thck, model%geometry%topg, model%climate%eus, model%geometry%lsrf)
-    model%geometry%usrf = max(0.d0,model%geometry%thck + model%geometry%lsrf)
+    call glide_calclsrf(thck, topg, eus, lsrf)
+    usrf = max(0.d0,thck + lsrf)
 
     ! Deallocate matrix storage
     call slapMatrix_dealloc(matrix)

@@ -361,7 +361,6 @@ module glide_types
   type glide_pcgdwk
     real(dp),dimension(4)         :: fc      = 0.0
     real(dp),dimension(6)         :: fc2     = 0.0
-    type(slapMatrix_type) :: matrix
   end type glide_pcgdwk
 
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
