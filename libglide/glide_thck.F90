@@ -152,11 +152,16 @@ contains
             model%velocity% vbas)
 
        ! calculate diffusivity
-       call velo_calc_diffu(model%velowk%dintflwa,model%geomderv%stagthck,model%geomderv%dusrfdew, &
-            model%geomderv%dusrfdns,model%velocity%diffu)
+       call velo_calc_diffu(         &
+            model%velowk%dintflwa,   &
+            model%geomderv%stagthck, &
+            model%geomderv%dusrfdew, &
+            model%geomderv%dusrfdns, &
+            model%velocity%diffu)
 
        ! get new thicknesses
-       call thck_evolve(model%pcgdwk, &
+       call thck_evolve(           &
+            model%pcgdwk,          &
             rhs,                   &
             model%geometry%mask,   &
             model%velocity%diffu,  &
@@ -176,7 +181,8 @@ contains
             model%options%basal_mbal)
 
        ! calculate horizontal velocity field
-       call slipvelo(model%velowk,   &
+       call slipvelo(                &
+            model%velowk,            &
             3,                       &
             model%numerics%thklim,   &
             model%geomderv%stagthck, &
@@ -185,9 +191,21 @@ contains
             model%velocity% btrc,    &
             model%velocity% ubas,    &
             model%velocity% vbas)
-       call velo_calc_velo(model%velowk%dintflwa,model%velowk%depth,model%geomderv%stagthck,model%geomderv%dusrfdew, &
-            model%geomderv%dusrfdns,model%temper%flwa,model%velocity%diffu,model%velocity%ubas, &
-            model%velocity%vbas,model%velocity%uvel,model%velocity%vvel,model%velocity%uflx,model%velocity%vflx)
+
+       call velo_calc_velo(          &
+            model%velowk%dintflwa,   &
+            model%velowk%depth,      &
+            model%geomderv%stagthck, &
+            model%geomderv%dusrfdew, &
+            model%geomderv%dusrfdns, &
+            model%temper%flwa,       &
+            model%velocity%diffu,    &
+            model%velocity%ubas,     &
+            model%velocity%vbas,     &
+            model%velocity%uvel,     &
+            model%velocity%vvel,     &
+            model%velocity%uflx,     &
+            model%velocity%vflx)
     end if
 
     deallocate(rhs)
@@ -271,6 +289,7 @@ contains
        model%thckwk%oldthck = model%geometry%thck
        ! do Picard iteration
        do p=1,pmax
+          if (.not.linear) then
           model%thckwk%oldthck2 = model%geometry%thck
 
           call stagvarb(model%geometry% thck, &
@@ -278,17 +297,22 @@ contains
                model%general%  ewn, &
                model%general%  nsn)
 
-          call df_field_2d_staggered(model%geometry%usrf, &
-               model%numerics%dew, model%numerics%dns, &
+          call df_field_2d_staggered(   &
+               model%geometry%usrf,     &
+               model%numerics%dew,      &
+               model%numerics%dns,      &
                model%geomderv%dusrfdew, & 
                model%geomderv%dusrfdns, &
                .false., .false.)
 
-          call df_field_2d_staggered(model%geometry%thck, &
-               model%numerics%dew, model%numerics%dns, &
+          call df_field_2d_staggered(   &
+               model%geometry%thck,     &
+               model%numerics%dew,      &
+               model%numerics%dns,      &
                model%geomderv%dthckdew, & 
                model%geomderv%dthckdns, &
                .false., .false.)
+          end if
 
           call slipvelo(model%velowk,   &
                2,                       &
@@ -301,11 +325,16 @@ contains
                model%velocity% vbas)
 
           ! calculate diffusivity
-          call velo_calc_diffu(model%velowk%dintflwa,model%geomderv%stagthck,model%geomderv%dusrfdew, &
-               model%geomderv%dusrfdns,model%velocity%diffu)
+          call velo_calc_diffu(         &
+               model%velowk%dintflwa,   &
+               model%geomderv%stagthck, &
+               model%geomderv%dusrfdew, &
+               model%geomderv%dusrfdns, &
+               model%velocity%diffu)
 
           ! get new thicknesses
-          call thck_evolve(model%pcgdwk, &
+          call thck_evolve(           &
+               model%pcgdwk,          &
                rhs,                   &
                model%geometry%mask,   &
                model%velocity%diffu,  &
@@ -349,9 +378,21 @@ contains
             model%velocity% btrc,    &
             model%velocity% ubas,    &
             model%velocity% vbas)
-       call velo_calc_velo(model%velowk%dintflwa,model%velowk%depth,model%geomderv%stagthck,model%geomderv%dusrfdew, &
-            model%geomderv%dusrfdns,model%temper%flwa,model%velocity%diffu,model%velocity%ubas, &
-            model%velocity%vbas,model%velocity%uvel,model%velocity%vvel,model%velocity%uflx,model%velocity%vflx)
+
+       call velo_calc_velo(          &
+            model%velowk%dintflwa,   &
+            model%velowk%depth,      &
+            model%geomderv%stagthck, &
+            model%geomderv%dusrfdew, &
+            model%geomderv%dusrfdns, &
+            model%temper%flwa,       &
+            model%velocity%diffu,    &
+            model%velocity%ubas,     &
+            model%velocity%vbas,     &
+            model%velocity%uvel,     &
+            model%velocity%vvel,     &
+            model%velocity%uflx,     &
+            model%velocity%vflx)
     end if
  
     deallocate(rhs)
@@ -399,12 +440,12 @@ contains
 
     ! local variables ------------------------------------------------------------------
 
-    real(dp), dimension(5) :: sumd 
-    real(dp) :: err
-    integer :: linit
-    integer :: ew,ns
-    integer :: ewn,nsn
+    real(dp),dimension(5)      :: sumd 
     real(dp),dimension(totpts) :: answ
+    real(dp) :: err
+    integer  :: linit
+    integer  :: ew,ns
+    integer  :: ewn,nsn
 
     type(slapMatrix_type) :: matrix
 
