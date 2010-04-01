@@ -1,3 +1,6 @@
+2010-04-01 Ian Rutt
+ * libglide/glide_thck.F90: reformatted generate_row
+
 2010-03-29 Magnus Hagdorn
  * libglide/glide.F90: use new API
  * libglide/glide_velo.F90: refactor calcVerticalVelocity

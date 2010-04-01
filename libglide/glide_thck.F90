@@ -530,40 +530,40 @@ contains
 
 !-------------------------------------------------------------------------
 
-    subroutine generate_row(matrix,sumd,mask,lsrf,acab,bmlt,old_thck,new_thck,rhsd,answ, &
-         calc_rhs,fc2_2,fc2_3,fc2_4,ewm,ew,ewp,nsm,ns,nsp,basal_mbal)
-      ! calculate row of sparse matrix equation
-      use glimmer_slap, only: slapMatrix_type, slapMatrix_insertElement
-      implicit none
-      type(slapMatrix_type),  intent(inout) :: matrix
-      real(dp),dimension(5),  intent(in)    :: sumd
-      integer, dimension(:,:),intent(in)    :: mask        !< Index mask for matrix mapping
-      real(dp),dimension(:,:),intent(in)    :: lsrf
-      real(sp),dimension(:,:),intent(in)    :: acab
-      real(dp),dimension(:,:),intent(in)    :: bmlt
-      real(dp),dimension(:,:),intent(in)    :: old_thck !< contains ice thicknesses from previous time step
-      real(dp),dimension(:,:),intent(inout) :: new_thck !< on entry contains first guess for new ice thicknesses
-      real(dp),dimension(:),  intent(inout) :: rhsd
-      real(dp),dimension(:),  intent(out)   :: answ
-      logical,                intent(in)    :: calc_rhs
-      real(dp),               intent(in)    :: fc2_2
-      real(dp),               intent(in)    :: fc2_3
-      real(dp),               intent(in)    :: fc2_4
-      integer, intent(in) :: ewm,ew,ewp  ! ew index to left, central, right node
-      integer, intent(in) :: nsm,ns,nsp  ! ns index to lower, central, upper node
-      integer, intent(in) :: basal_mbal  !< Set ==1 if basal mass balance is considered
+  subroutine generate_row(matrix,sumd,mask,lsrf,acab,bmlt,old_thck,new_thck,rhsd,answ, &
+       calc_rhs,fc2_2,fc2_3,fc2_4,ewm,ew,ewp,nsm,ns,nsp,basal_mbal)
+    ! calculate row of sparse matrix equation
+    use glimmer_slap, only: slapMatrix_type, slapMatrix_insertElement
+    implicit none
+    type(slapMatrix_type),  intent(inout) :: matrix
+    real(dp),dimension(5),  intent(in)    :: sumd
+    integer, dimension(:,:),intent(in)    :: mask        !< Index mask for matrix mapping
+    real(dp),dimension(:,:),intent(in)    :: lsrf
+    real(sp),dimension(:,:),intent(in)    :: acab
+    real(dp),dimension(:,:),intent(in)    :: bmlt
+    real(dp),dimension(:,:),intent(in)    :: old_thck !< contains ice thicknesses from previous time step
+    real(dp),dimension(:,:),intent(inout) :: new_thck !< on entry contains first guess for new ice thicknesses
+    real(dp),dimension(:),  intent(inout) :: rhsd
+    real(dp),dimension(:),  intent(out)   :: answ
+    logical,                intent(in)    :: calc_rhs
+    real(dp),               intent(in)    :: fc2_2
+    real(dp),               intent(in)    :: fc2_3
+    real(dp),               intent(in)    :: fc2_4
+    integer, intent(in) :: ewm,ew,ewp  ! ew index to left, central, right node
+    integer, intent(in) :: nsm,ns,nsp  ! ns index to lower, central, upper node
+    integer, intent(in) :: basal_mbal  !< Set ==1 if basal mass balance is considered
 
-      ! fill sparse matrix
-      call slapMatrix_insertElement(matrix,sumd(1),mask(ewm,ns),mask(ew,ns))       ! point (ew-1,ns)
-      call slapMatrix_insertElement(matrix,sumd(2),mask(ewp,ns),mask(ew,ns))       ! point (ew+1,ns)
-      call slapMatrix_insertElement(matrix,sumd(3),mask(ew,nsm),mask(ew,ns))       ! point (ew,ns-1)
-      call slapMatrix_insertElement(matrix,sumd(4),mask(ew,nsp),mask(ew,ns))       ! point (ew,ns+1)
-      call slapMatrix_insertElement(matrix,1.0d0 + sumd(5),mask(ew,ns),mask(ew,ns))! point (ew,ns)
+    ! fill sparse matrix
+    call slapMatrix_insertElement(matrix,sumd(1),mask(ewm,ns),mask(ew,ns))       ! point (ew-1,ns)
+    call slapMatrix_insertElement(matrix,sumd(2),mask(ewp,ns),mask(ew,ns))       ! point (ew+1,ns)
+    call slapMatrix_insertElement(matrix,sumd(3),mask(ew,nsm),mask(ew,ns))       ! point (ew,ns-1)
+    call slapMatrix_insertElement(matrix,sumd(4),mask(ew,nsp),mask(ew,ns))       ! point (ew,ns+1)
+    call slapMatrix_insertElement(matrix,1.0d0 + sumd(5),mask(ew,ns),mask(ew,ns))! point (ew,ns)
 
-      ! calculate RHS
-      if (calc_rhs) then
-         rhsd(mask(ew,ns)) =                    &
-              old_thck(ew,ns) * (1.0d0 - fc2_3 * sumd(5))     &
+    ! calculate RHS
+    if (calc_rhs) then
+       rhsd(mask(ew,ns)) =                    &
+            old_thck(ew,ns) * (1.0d0 - fc2_3 * sumd(5))     &
             - fc2_3 * (old_thck(ewm,ns) * sumd(1)             &
                      + old_thck(ewp,ns) * sumd(2)             &
                      + old_thck(ew,nsm) * sumd(3)             &
@@ -574,14 +574,14 @@ contains
                      + lsrf(ew,nsm) * sumd(3)  &
                      + lsrf(ew,nsp) * sumd(4)) &
             + acab(ew,ns) * fc2_2
-         if(basal_mbal==1) then
-            rhsd(mask(ew,ns)) = rhsd(mask(ew,ns)) - bmlt(ew,ns) * fc2_2 ! basal melt is +ve for mass loss
-         end if
-      end if
+       if(basal_mbal==1) then
+          rhsd(mask(ew,ns)) = rhsd(mask(ew,ns)) - bmlt(ew,ns) * fc2_2 ! basal melt is +ve for mass loss
+       end if
+    end if
 
-      answ(mask(ew,ns)) = new_thck(ew,ns)
+    answ(mask(ew,ns)) = new_thck(ew,ns)
 
-    end subroutine generate_row
+  end subroutine generate_row
 
 !-------------------------------------------------------------------------
 
