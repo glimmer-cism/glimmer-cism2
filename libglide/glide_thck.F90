@@ -46,10 +46,8 @@
 
 module glide_thck
 
-  use glide_types
-
   private
-  public :: init_thck, thck_nonlin_evolve, thck_lin_evolve
+  public :: init_thck, thck_nonlin_evolve
 
 #ifdef DEBUG_PICARD
   ! debugging Picard iteration
@@ -60,19 +58,28 @@ module glide_thck
 
 contains
 
-  subroutine init_thck(model)
-    !*FD initialise work data for ice thickness evolution
-    use glimmer_log
-    implicit none
-    type(glide_global_type) :: model
+  subroutine init_thck(pcgdwk,alpha,dt,dew,dns)
 
-    
-    model%pcgdwk%fc2 = (/ model%numerics%alpha * model%numerics%dt / (2.0d0 * model%numerics%dew * model%numerics%dew), &
-         model%numerics%dt, &
-         (1.0d0-model%numerics%alpha) / model%numerics%alpha, &
-         1.0d0 / model%numerics%alpha, model%numerics%alpha * model%numerics%dt / &
-         (2.0d0 * model%numerics%dns * model%numerics%dns), &
-         0.0d0 /) 
+    !< Initialise work data for ice thickness evolution
+
+    use glimmer_log,    only: write_log
+    use glide_types,    only: glide_pcgdwk
+    use glimmer_global, only: dp
+
+    implicit none
+
+    type(glide_pcgdwk),intent(inout) :: pcgdwk
+    real(dp),          intent(in)    :: alpha
+    real(dp),          intent(in)    :: dt
+    real(dp),          intent(in)    :: dew
+    real(dp),          intent(in)    :: dns
+   
+    pcgdwk%fc2(1) = alpha * dt / (2.0d0 * dew * dew)
+    pcgdwk%fc2(2) = dt
+    pcgdwk%fc2(3) = (1.0d0 - alpha) / alpha
+    pcgdwk%fc2(4) =  1.0d0 / alpha
+    pcgdwk%fc2(5) =  alpha * dt / (2.0d0 * dns * dns)
+    pcgdwk%fc2(6) =  0.0d0
 
 #ifdef DEBUG_PICARD
     call write_log('Logging Picard iterations')
@@ -84,154 +91,27 @@ contains
 
 !---------------------------------------------------------------------------------
 
-  subroutine thck_lin_evolve(model,newtemps)
-
-    !*FD this subroutine solves the linearised ice thickness equation by computing the
-    !*FD diffusivity from quantities of the previous time step
-
-    use glide_velo
-    use glide_thckCommon, only: velo_calc_velo, velo_integrate_flwa, velo_calc_diffu, glide_calclsrf    
-    implicit none
-    ! subroutine arguments
-    type(glide_global_type) :: model
-    logical, intent(in) :: newtemps                     !*FD true when we should recalculate Glen's A
-
-    logical :: empty
-    real(dp),dimension(:),allocatable :: rhs
-
-#ifdef PROFILING
-    call glide_prof_start(model,model%glide_prof%ice_mask1)
-#endif
-    call glide_maskthck( &
-         model%geometry% thck,      &
-         model%climate%  acab,      &
-         model%geometry% mask,      &
-         model%geometry% totpts,    &
-         empty)
-#ifdef PROFILING
-    call glide_prof_stop(model,model%glide_prof%ice_mask1)
-#endif
-
-    allocate(rhs(model%geometry%totpts))
-
-    if (empty) then
-
-       model%geometry%thck = dmax1(0.0d0,model%geometry%thck + model%climate%acab * model%pcgdwk%fc2(2))
-#ifdef DEBUG       
-       print *, "* thck empty - net accumulation added", model%numerics%time
-#endif
-    else
-
-       ! calculate basal velos
-       if (newtemps) then
-          call slipvelo(model%velowk,   &
-               1,                       &
-               model%numerics%thklim,   &
-               model%geomderv%stagthck, &
-               model%geomderv%dusrfdew, &
-               model%geomderv%dusrfdns, &
-               model%velocity% btrc,    &
-               model%velocity% ubas,    &
-               model%velocity% vbas)
-          ! calculate Glen's A if necessary
-          call velo_integrate_flwa(     &
-               model%velowk%dups,       &
-               model%velowk%depth,      &
-               model%velowk%dintflwa,   &
-               model%geomderv%stagthck, &
-               model%temper%flwa)
-       end if
-       call slipvelo(model%velowk,   &
-            2,                       &
-            model%numerics%thklim,   &
-            model%geomderv%stagthck, &
-            model%geomderv%dusrfdew, &
-            model%geomderv%dusrfdns, &
-            model%velocity% btrc,    &
-            model%velocity% ubas,    &
-            model%velocity% vbas)
-
-       ! calculate diffusivity
-       call velo_calc_diffu(         &
-            model%velowk%dintflwa,   &
-            model%geomderv%stagthck, &
-            model%geomderv%dusrfdew, &
-            model%geomderv%dusrfdns, &
-            model%velocity%diffu)
-
-       ! get new thicknesses
-       call thck_evolve(           &
-            model%pcgdwk,          &
-            rhs,                   &
-            model%geometry%mask,   &
-            model%velocity%diffu,  &
-            model%velocity%ubas,   &
-            model%geometry%lsrf,   &
-            model%climate%acab,    &
-            model%temper%bmlt,     &
-            model%geometry%thck,   &
-            model%geometry%topg,   &
-            model%geometry%usrf,   &
-            model%climate%eus,     &
-            model%geometry%totpts, &
-            .true.,                &
-            model%geometry%thck,   &
-            model%geometry%thck,   &
-            model%options%periodic_ew, &
-            model%options%basal_mbal)
-
-       ! calculate horizontal velocity field
-       call slipvelo(                &
-            model%velowk,            &
-            3,                       &
-            model%numerics%thklim,   &
-            model%geomderv%stagthck, &
-            model%geomderv%dusrfdew, &
-            model%geomderv%dusrfdns, &
-            model%velocity% btrc,    &
-            model%velocity% ubas,    &
-            model%velocity% vbas)
-
-       call velo_calc_velo(          &
-            model%velowk%dintflwa,   &
-            model%velowk%depth,      &
-            model%geomderv%stagthck, &
-            model%geomderv%dusrfdew, &
-            model%geomderv%dusrfdns, &
-            model%temper%flwa,       &
-            model%velocity%diffu,    &
-            model%velocity%ubas,     &
-            model%velocity%vbas,     &
-            model%velocity%uvel,     &
-            model%velocity%vvel,     &
-            model%velocity%uflx,     &
-            model%velocity%vflx)
-    end if
-
-    deallocate(rhs)
-
-  end subroutine thck_lin_evolve
-
-!---------------------------------------------------------------------------------
-
-  subroutine thck_nonlin_evolve(model,newtemps,linear)
+  subroutine thck_nonlin_evolve(model,pcgdwk,thck,acab,newtemps,linear)
 
     !*FD this subroutine solves the ice thickness equation by doing an outer, 
     !*FD non-linear iteration to update the diffusivities and in inner, linear
     !*FD iteration to calculate the new ice thickness distrib
 
-    use glimmer_global, only : dp
-    use glide_velo
-    use glide_setup
+    use glimmer_global, only : dp,sp
+    use glide_types, only: glide_global_type,glide_pcgdwk
     use glimmer_utils, only: stagvarb
     use glimmer_deriv, only: df_field_2d_staggered 
     use glide_thckCommon, only: velo_calc_velo, velo_integrate_flwa, velo_calc_diffu, glide_calclsrf
+    use physcon,        only: rhoi, grav
 
     implicit none
     ! subroutine arguments
     type(glide_global_type) :: model
-    logical, intent(in) :: newtemps                     !*FD true when we should recalculate Glen's A
-    logical, intent(in) :: linear
+    type(glide_pcgdwk),     intent(in)    :: pcgdwk
+    real(dp),dimension(:,:),intent(inout) :: thck     !< ice thickness
+    real(sp),dimension(:,:),intent(in)    :: acab     !< surface mass balance
+    logical,                intent(in)    :: newtemps !< true when we should recalculate Glen's A
+    logical,                intent(in)    :: linear   !< true if we do a linear thickness calc
 
     ! local variables
     integer, parameter :: pmax=50                       !*FD maximum Picard iterations
@@ -241,25 +121,26 @@ contains
     logical first_p
     logical empty
     real(dp),dimension(:),allocatable :: rhs
+    integer, dimension(size(thck,1),size(thck,2)) :: mask
+    real(dp),dimension(size(thck,1)-1,size(thck,2)-1)  :: fslip
+    integer :: totpts
+    real(dp), parameter :: rhograv = - rhoi * grav
 
 #ifdef PROFILING
     call glide_prof_start(model,model%glide_prof%ice_mask1)
 #endif
-    call glide_maskthck( &
-         model%geometry% thck,      &
-         model%climate%  acab,      &
-         model%geometry% mask,      &
-         model%geometry% totpts,    &
-         empty)
+
+    call glide_maskthck(thck,acab,mask,totpts,empty)
+
 #ifdef PROFILING
     call glide_prof_stop(model,model%glide_prof%ice_mask1)
 #endif
 
-    allocate(rhs(model%geometry%totpts))
+    allocate(rhs(totpts))
 
     if (empty) then
 
-       model%geometry%thck = dmax1(0.0d0,model%geometry%thck + model%climate%acab * model%pcgdwk%fc2(2))
+       thck = dmax1(0.0d0,thck + acab * pcgdwk%fc2(2))
 #ifdef DEBUG
        print *, "* thck empty - net accumulation added", model%numerics%time
 #endif
@@ -267,16 +148,10 @@ contains
 
        ! calculate basal velos
        if (newtemps) then
-          call slipvelo(model%velowk,   &
-               1,                       &
-               model%numerics%thklim,   &
-               model%geomderv%stagthck, &
-               model%geomderv%dusrfdew, &
-               model%geomderv%dusrfdns, &
-               model%velocity% btrc,    &
-               model%velocity% ubas,    &
-               model%velocity% vbas)
-          ! calculate Glen's A if necessary
+
+          fslip = rhograv * model%velocity%btrc
+
+         ! calculate Glen's A if necessary
           call velo_integrate_flwa(     &
                model%velowk%dups,       &
                model%velowk%depth,      &
@@ -286,13 +161,13 @@ contains
        end if
 
        first_p = .true.
-       model%thckwk%oldthck = model%geometry%thck
+       model%thckwk%oldthck = thck
        ! do Picard iteration
        do p=1,pmax
           if (.not.linear) then
-          model%thckwk%oldthck2 = model%geometry%thck
+          model%thckwk%oldthck2 = thck
 
-          call stagvarb(model%geometry% thck, &
+          call stagvarb(thck, &
                model%geomderv% stagthck,&
                model%general%  ewn, &
                model%general%  nsn)
@@ -306,7 +181,7 @@ contains
                .false., .false.)
 
           call df_field_2d_staggered(   &
-               model%geometry%thck,     &
+               thck,                    &
                model%numerics%dew,      &
                model%numerics%dns,      &
                model%geomderv%dthckdew, & 
@@ -314,15 +189,11 @@ contains
                .false., .false.)
           end if
 
-          call slipvelo(model%velowk,   &
-               2,                       &
-               model%numerics%thklim,   &
-               model%geomderv%stagthck, &
-               model%geomderv%dusrfdew, &
-               model%geomderv%dusrfdns, &
-               model%velocity% btrc,    &
-               model%velocity% ubas,    &
-               model%velocity% vbas)
+          where (model%numerics%thklim < model%geomderv%stagthck)
+             model%velocity%ubas = fslip * model%geomderv%stagthck**2  
+          elsewhere
+             model%velocity%ubas = 0.0d0
+          end where
 
           ! calculate diffusivity
           call velo_calc_diffu(         &
@@ -334,27 +205,27 @@ contains
 
           ! get new thicknesses
           call thck_evolve(           &
-               model%pcgdwk,          &
+               pcgdwk,                &
                rhs,                   &
-               model%geometry%mask,   &
+               mask,                  &
                model%velocity%diffu,  &
                model%velocity%ubas,   &
                model%geometry%lsrf,   &
-               model%climate%acab,    &
+               acab,                  &
                model%temper%bmlt,     &
-               model%geometry%thck,   &
+               thck,                  &
                model%geometry%topg,   &
                model%geometry%usrf,   &
                model%climate%eus,     &
-               model%geometry%totpts, &
+               totpts,                &
                first_p,               &
                model%thckwk%oldthck,  &
-               model%geometry%thck,   &
+               thck,                  &
                model%options%periodic_ew, &
                model%options%basal_mbal)
 
           first_p = .false.
-          residual = maxval(abs(model%geometry%thck-model%thckwk%oldthck2))
+          residual = maxval(abs(thck-model%thckwk%oldthck2))
           if ((residual.le.tol).or.linear) then
              exit
           end if
@@ -369,15 +240,15 @@ contains
 #endif
 
        ! calculate horizontal velocity field
-       call slipvelo(model%velowk,   &
-            3,                       &
-            model%numerics%thklim,   &
-            model%geomderv%stagthck, &
-            model%geomderv%dusrfdew, &
-            model%geomderv%dusrfdns, &
-            model%velocity% btrc,    &
-            model%velocity% ubas,    &
-            model%velocity% vbas)
+
+      where (model%numerics%thklim < model%geomderv%stagthck)
+        model%velocity%vbas = model%velocity%ubas *  model%geomderv%dusrfdns / model%geomderv%stagthck
+        model%velocity%ubas = model%velocity%ubas *  model%geomderv%dusrfdew / model%geomderv%stagthck
+      elsewhere
+        model%velocity%ubas = 0.0d0
+        model%velocity%vbas = 0.0d0
+      end where
+
 
        call velo_calc_velo(          &
             model%velowk%dintflwa,   &
@@ -408,7 +279,8 @@ contains
     !*FD this routine does not override the old thickness distribution
 
     use glide_thckCommon, only: glide_calclsrf
-    use glimmer_global, only : dp
+    use glide_types, only: glide_pcgdwk
+    use glimmer_global, only : dp, sp
     use glimmer_slap, only: slapMatrix_type, slapMatrix_init, slapMatrix_insertElement, &
          slapSolve, slapMatrix_dealloc
 
@@ -616,6 +488,7 @@ contains
   subroutine generate_row(matrix,sumd,mask,lsrf,acab,bmlt,old_thck,new_thck,rhsd,answ, &
        calc_rhs,fc2_2,fc2_3,fc2_4,ewm,ew,ewp,nsm,ns,nsp,basal_mbal)
     ! calculate row of sparse matrix equation
+    use glimmer_global, only: dp,sp
     use glimmer_slap, only: slapMatrix_type, slapMatrix_insertElement
     implicit none
     type(slapMatrix_type),  intent(inout) :: matrix
@@ -670,6 +543,8 @@ contains
 
   subroutine findsums(diffu,ubas,sumd,fc2_1,fc2_5,ewm,ew,nsm,ns)
   
+    use glimmer_global, only: dp,sp
+
     implicit none
 
     real(dp),dimension(:,:),intent(in)  :: diffu

@@ -224,16 +224,8 @@ module glide_types
     real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: topg GC_DYNARRAY_INIT
     !*FD The elevation of the topography, divided by \texttt{thk0}.
 
-    integer, dimension(:,:),GC_DYNARRAY_ATTRIB :: mask GC_DYNARRAY_INIT
-    !*FD Set to zero for all points where $\mathtt{thck}=0$, otherwise non-zero.
-    !*FD the non-zero points are numbered in sequence from the bottom left to the 
-    !*FD top right, going along the rows.
-
     integer, dimension(:,:),GC_DYNARRAY_ATTRIB :: thkmask GC_DYNARRAY_INIT
     !*FD see glimmer_mask.f90 for possible values
-
-    integer :: totpts = 0
-    !*FD The total number of points with non-zero thickness
 
     real(dp) :: ivol, iarea !*FD ice volume and ice area
 
@@ -572,7 +564,6 @@ contains
     call horizCoord_allocate(model%coordinates%ice_grid, model%geometry%usrf)
     call horizCoord_allocate(model%coordinates%ice_grid, model%geometry%lsrf)
     call horizCoord_allocate(model%coordinates%ice_grid, model%geometry%topg)
-    call horizCoord_allocate(model%coordinates%ice_grid, model%geometry%mask)
     call horizCoord_allocate(model%coordinates%ice_grid, model%geometry%thkmask)
 
     call timeders_init(model%timederivs,ewn,nsn)
@@ -658,7 +649,6 @@ contains
     deallocate(model%geometry%usrf)
     deallocate(model%geometry%lsrf)
     deallocate(model%geometry%topg)
-    deallocate(model%geometry%mask)
     deallocate(model%geometry%thkmask)
 
     call timeders_final(model%timederivs)

@@ -68,7 +68,6 @@ module velo_types
      real(dp),dimension(:),  GC_DYNARRAY_ATTRIB :: depthw  
      real(dp),dimension(:),  GC_DYNARRAY_ATTRIB :: suvel   
      real(dp),dimension(:),  GC_DYNARRAY_ATTRIB :: svvel   
-     real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: fslip   
      real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: dintflwa
      real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: dthckdtm !< Temporal derivative of thickness.
      real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: dusrfdtm !< Temporal derivative of upper surface elevation.     
@@ -110,7 +109,6 @@ contains
     GLIMMER_ALLOC1D(velo%suvel ,velo%sigma_grid%upn)
     GLIMMER_ALLOC1D(velo%svvel ,velo%sigma_grid%upn)
 
-    call horizCoord_allocate(velo%velo_grid, velo%fslip)
     call horizCoord_allocate(velo%velo_grid, velo%dintflwa)
     call horizCoord_allocate(velo%ice_grid, velo%dthckdtm)
     call horizCoord_allocate(velo%ice_grid, velo%dusrfdtm)
@@ -131,7 +129,6 @@ contains
     GLIMMER_DEALLOC(velo%depthw)
     GLIMMER_DEALLOC(velo%suvel)
     GLIMMER_DEALLOC(velo%svvel)
-    GLIMMER_DEALLOC(velo%fslip)
     GLIMMER_DEALLOC(velo%dintflwa)
     GLIMMER_DEALLOC(velo%dthckdtm)
     GLIMMER_DEALLOC(velo%dusrfdtm)

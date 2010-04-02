@@ -1,3 +1,7 @@
+2010-04-02 Ian Rutt
+ * libglide/glide_thck.F90: part-refactored thck_nonlin_evolve
+ * libglide/glide_velo.F90: removed slipvelo and zerovelo (redundant)
+
 2010-04-01 Ian Rutt
  * libglide/glide_thck.F90: reformatted generate_row
  * libglide/glide_thck.F90: refactor thck_evolve
