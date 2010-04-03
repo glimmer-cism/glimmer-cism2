@@ -58,47 +58,15 @@ module glide_thck
 
 contains
 
-  subroutine init_thck(pcgdwk,alpha,dt,dew,dns)
-
-    !< Initialise work data for ice thickness evolution
-
-    use glimmer_log,    only: write_log
-    use glide_types,    only: glide_pcgdwk
-    use glimmer_global, only: dp
-
-    implicit none
-
-    type(glide_pcgdwk),intent(inout) :: pcgdwk
-    real(dp),          intent(in)    :: alpha
-    real(dp),          intent(in)    :: dt
-    real(dp),          intent(in)    :: dew
-    real(dp),          intent(in)    :: dns
-   
-    pcgdwk%fc2(1) = alpha * dt / (2.0d0 * dew * dew)
-    pcgdwk%fc2(2) = dt
-    pcgdwk%fc2(3) = (1.0d0 - alpha) / alpha
-    pcgdwk%fc2(4) =  1.0d0 / alpha
-    pcgdwk%fc2(5) =  alpha * dt / (2.0d0 * dns * dns)
-    pcgdwk%fc2(6) =  0.0d0
-
-#ifdef DEBUG_PICARD
-    call write_log('Logging Picard iterations')
-    open(picard_unit,name='picard_info.data',status='unknown')
-    write(picard_unit,*) '#time    max_iter'
-#endif
-
-  end subroutine init_thck
-
-!---------------------------------------------------------------------------------
-
-  subroutine thck_nonlin_evolve(model,pcgdwk,thck,acab,newtemps,linear)
+  subroutine thck_nonlin_evolve(model,params,thck,acab,newtemps,linear,dt)
 
     !*FD this subroutine solves the ice thickness equation by doing an outer, 
     !*FD non-linear iteration to update the diffusivities and in inner, linear
     !*FD iteration to calculate the new ice thickness distrib
 
     use glimmer_global, only : dp,sp
-    use glide_types, only: glide_global_type,glide_pcgdwk
+    use glide_types, only: glide_global_type
+    use glide_thckADI, only: thckADI_type
     use glimmer_utils, only: stagvarb
     use glimmer_deriv, only: df_field_2d_staggered 
     use glide_thckCommon, only: velo_calc_velo, velo_integrate_flwa, velo_calc_diffu, glide_calclsrf
@@ -107,11 +75,12 @@ contains
     implicit none
     ! subroutine arguments
     type(glide_global_type) :: model
-    type(glide_pcgdwk),     intent(in)    :: pcgdwk
+    type(thckADI_type),     intent(inout) :: params
     real(dp),dimension(:,:),intent(inout) :: thck     !< ice thickness
     real(sp),dimension(:,:),intent(in)    :: acab     !< surface mass balance
     logical,                intent(in)    :: newtemps !< true when we should recalculate Glen's A
     logical,                intent(in)    :: linear   !< true if we do a linear thickness calc
+    real(dp),               intent(in)    :: dt       !< Timestep
 
     ! local variables
     integer, parameter :: pmax=50                       !*FD maximum Picard iterations
@@ -140,7 +109,7 @@ contains
 
     if (empty) then
 
-       thck = dmax1(0.0d0,thck + acab * pcgdwk%fc2(2))
+       thck = dmax1(0.0d0,thck + acab * dt)
 #ifdef DEBUG
        print *, "* thck empty - net accumulation added", model%numerics%time
 #endif
@@ -153,9 +122,9 @@ contains
 
          ! calculate Glen's A if necessary
           call velo_integrate_flwa(     &
-               model%velowk%dups,       &
-               model%velowk%depth,      &
-               model%velowk%dintflwa,   &
+               params%velo_dups,        &
+               params%depth,            &
+               params%dintflwa,         &
                model%geomderv%stagthck, &
                model%temper%flwa)
        end if
@@ -169,27 +138,27 @@ contains
 
           call stagvarb(thck, &
                model%geomderv% stagthck,&
-               model%general%  ewn, &
-               model%general%  nsn)
+               params%ewn, &
+               params%nsn)
 
           call df_field_2d_staggered(   &
                model%geometry%usrf,     &
-               model%numerics%dew,      &
-               model%numerics%dns,      &
+               params%dew,              &
+               params%dns,              &
                model%geomderv%dusrfdew, & 
                model%geomderv%dusrfdns, &
                .false., .false.)
 
           call df_field_2d_staggered(   &
                thck,                    &
-               model%numerics%dew,      &
-               model%numerics%dns,      &
+               params%dew,              &
+               params%dns,              &
                model%geomderv%dthckdew, & 
                model%geomderv%dthckdns, &
                .false., .false.)
           end if
 
-          where (model%numerics%thklim < model%geomderv%stagthck)
+          where (params%thklim < model%geomderv%stagthck)
              model%velocity%ubas = fslip * model%geomderv%stagthck**2  
           elsewhere
              model%velocity%ubas = 0.0d0
@@ -197,7 +166,7 @@ contains
 
           ! calculate diffusivity
           call velo_calc_diffu(         &
-               model%velowk%dintflwa,   &
+               params%dintflwa,         &
                model%geomderv%stagthck, &
                model%geomderv%dusrfdew, &
                model%geomderv%dusrfdns, &
@@ -205,7 +174,7 @@ contains
 
           ! get new thicknesses
           call thck_evolve(           &
-               pcgdwk,                &
+               params,                &
                rhs,                   &
                mask,                  &
                model%velocity%diffu,  &
@@ -222,7 +191,8 @@ contains
                model%thckwk%oldthck,  &
                thck,                  &
                model%options%periodic_ew, &
-               model%options%basal_mbal)
+               params%basal_mbal_flag,  &
+               dt)
 
           first_p = .false.
           residual = maxval(abs(thck-model%thckwk%oldthck2))
@@ -241,7 +211,7 @@ contains
 
        ! calculate horizontal velocity field
 
-      where (model%numerics%thklim < model%geomderv%stagthck)
+      where (params%thklim < model%geomderv%stagthck)
         model%velocity%vbas = model%velocity%ubas *  model%geomderv%dusrfdns / model%geomderv%stagthck
         model%velocity%ubas = model%velocity%ubas *  model%geomderv%dusrfdew / model%geomderv%stagthck
       elsewhere
@@ -251,8 +221,8 @@ contains
 
 
        call velo_calc_velo(          &
-            model%velowk%dintflwa,   &
-            model%velowk%depth,      &
+            params%dintflwa,         &
+            params%depth,            &
             model%geomderv%stagthck, &
             model%geomderv%dusrfdew, &
             model%geomderv%dusrfdns, &
@@ -272,14 +242,14 @@ contains
 
 !---------------------------------------------------------------------------------
 
-  subroutine thck_evolve(pcgdwk,rhsd,mask,diffu,ubas,lsrf,acab,bmlt,thck,topg,usrf,eus,&
-       totpts,calc_rhs,old_thck,new_thck,periodic_ew,basal_mbal)
+  subroutine thck_evolve(params,rhsd,mask,diffu,ubas,lsrf,acab,bmlt,thck,topg,usrf,eus,&
+       totpts,calc_rhs,old_thck,new_thck,periodic_ew,basal_mbal,dt)
 
     !*FD set up sparse matrix and solve matrix equation to find new ice thickness distribution
     !*FD this routine does not override the old thickness distribution
 
     use glide_thckCommon, only: glide_calclsrf
-    use glide_types, only: glide_pcgdwk
+    use glide_thckADI, only: thckADI_type
     use glimmer_global, only : dp, sp
     use glimmer_slap, only: slapMatrix_type, slapMatrix_init, slapMatrix_insertElement, &
          slapSolve, slapMatrix_dealloc
@@ -288,7 +258,7 @@ contains
 
     ! subroutine arguments -------------------------------------------------------------
 
-    type(glide_pcgdwk)      :: pcgdwk
+    type(thckADI_type)      :: params
     
     logical,                   intent(in)    :: calc_rhs    !< set to true when rhs should be calculated 
                                                             !! i.e. when doing lin solution or first picard iteration
@@ -309,7 +279,8 @@ contains
     real(dp),dimension(totpts),intent(inout) :: rhsd
     integer,                   intent(in)    :: periodic_ew !< Periodic boundary conditions flag
     integer,                   intent(in)    :: basal_mbal  !< Include basal melt in mass-balance
-
+    real(dp),                  intent(in)    :: dt          !< Timestep
+    
     ! local variables ------------------------------------------------------------------
 
     real(dp),dimension(5)      :: sumd 
@@ -317,21 +288,17 @@ contains
     real(dp) :: err
     integer  :: linit
     integer  :: ew,ns
-    integer  :: ewn,nsn
 
     type(slapMatrix_type) :: matrix
 
-    ewn = size(old_thck,1)
-    nsn = size(old_thck,2)
-
     ! Initialise sparse matrix object
-    call slapMatrix_init(matrix,totpts,ewn*nsn*5)
+    call slapMatrix_init(matrix,totpts,params%ewn*params%nsn*5)
 
     answ = 0.0
 
     ! Boundary Conditions ---------------------------------------------------------------
     ! lower and upper BC
-    do ew = 1,ewn
+    do ew = 1,params%ewn
        ns=1
        if (mask(ew,ns) /= 0) then
           call slapMatrix_insertElement(matrix,1.0d0,mask(ew,ns),mask(ew,ns))
@@ -340,7 +307,7 @@ contains
           end if
           answ(mask(ew,ns)) = new_thck(ew,ns)
        end if
-       ns=nsn
+       ns=params%nsn
        if (mask(ew,ns) /= 0) then
           call slapMatrix_insertElement(matrix,1.0d0,mask(ew,ns),mask(ew,ns))
           if (calc_rhs) then
@@ -352,15 +319,15 @@ contains
 
     !left and right BC
     if (periodic_ew.eq.1) then
-       do ns=2,nsn-1
+       do ns=2,params%nsn-1
           ew = 1
           if (mask(ew,ns) /= 0) then
              call findsums(diffu, &
                   ubas, &
                   sumd, &
-                  pcgdwk%fc2(1), &
-                  pcgdwk%fc2(5), &
-                  ewn-2,ewn-1,ns-1,ns)
+                  params%fc2(1), &
+                  params%fc2(5), &
+                  params%ewn-2,params%ewn-1,ns-1,ns)
              call generate_row(matrix,sumd,mask, &
                   lsrf, &
                   acab, &
@@ -370,19 +337,19 @@ contains
                   rhsd, &
                   answ, &
                   calc_rhs, &
-                  pcgdwk%fc2(2), &
-                  pcgdwk%fc2(3), &
-                  pcgdwk%fc2(4), &
-                  ewn-2,ew,ew+1,ns-1,ns,ns+1, &
+                  dt, &
+                  params%fc2(3), &
+                  params%fc2(4), &
+                  params%ewn-2,ew,ew+1,ns-1,ns,ns+1, &
                   basal_mbal)
           end if
-          ew=ewn
+          ew=params%ewn
           if (mask(ew,ns) /= 0) then
              call findsums(diffu, &
                   ubas, &
                   sumd, &
-                  pcgdwk%fc2(1), &
-                  pcgdwk%fc2(5), &
+                  params%fc2(1), &
+                  params%fc2(5), &
                   1,2,ns-1,ns)
              call generate_row(matrix,sumd,mask, &
                   lsrf, &
@@ -393,15 +360,15 @@ contains
                   rhsd, &
                   answ, &
                   calc_rhs, &
-                  pcgdwk%fc2(2), &
-                  pcgdwk%fc2(3), &
-                  pcgdwk%fc2(4), &
+                  dt, &
+                  params%fc2(3), &
+                  params%fc2(4), &
                   ew-1,ew,3,ns-1,ns,ns+1, &
                   basal_mbal)
           end if
        end do
     else
-       do ns=2,nsn-1
+       do ns=2,params%nsn-1
           ew=1
           if (mask(ew,ns) /= 0) then
              call slapMatrix_insertElement(matrix,1.0d0,mask(ew,ns),mask(ew,ns))
@@ -410,7 +377,7 @@ contains
              end if
              answ(mask(ew,ns)) = new_thck(ew,ns)
           end if
-          ew=ewn
+          ew=params%ewn
           if (mask(ew,ns) /= 0) then
              call slapMatrix_insertElement(matrix,1.0d0,mask(ew,ns),mask(ew,ns))
              if (calc_rhs) then
@@ -423,16 +390,16 @@ contains
 
     ! ice body -------------------------------------------------------------------------
 
-    do ns = 2,nsn-1
-       do ew = 2,ewn-1
+    do ns = 2,params%nsn-1
+       do ew = 2,params%ewn-1
 
           if (mask(ew,ns) /= 0) then
                 
              call findsums(diffu, &
                   ubas, &
                   sumd, &
-                  pcgdwk%fc2(1), &
-                  pcgdwk%fc2(5), &
+                  params%fc2(1), &
+                  params%fc2(5), &
                   ew-1,ew,ns-1,ns)
              call generate_row(matrix,sumd,mask, &
                   lsrf, &
@@ -443,9 +410,9 @@ contains
                   rhsd, &
                   answ, &
                   calc_rhs, &
-                  pcgdwk%fc2(2), &
-                  pcgdwk%fc2(3), &
-                  pcgdwk%fc2(4), &
+                  dt, &
+                  params%fc2(3), &
+                  params%fc2(4), &
                   ew-1,ew,ew+1,ns-1,ns,ns+1, &
                   basal_mbal)
 
@@ -457,8 +424,8 @@ contains
     call slapSolve(matrix,rhsd,answ,linit,err)   
 
     ! Rejig the solution onto a 2D array
-    do ns = 1,nsn
-       do ew = 1,ewn 
+    do ns = 1,params%nsn
+       do ew = 1,params%ewn 
 
           if (mask(ew,ns) /= 0) then
              new_thck(ew,ns) = answ(mask(ew,ns))
@@ -470,7 +437,7 @@ contains
     new_thck = max(0.0d0, new_thck)
 
 #ifdef DEBUG
-    print *, "* thck ", linit, totpts,real(thk0*new_thck(ewn/2+1,nsn/2+1)), &
+    print *, "* thck ", linit, totpts,real(thk0*new_thck(params%ewn/2+1,params%nsn/2+1)), &
          real(vel0*maxval(abs(ubas)))
 #endif
 
@@ -486,7 +453,7 @@ contains
 !-------------------------------------------------------------------------
 
   subroutine generate_row(matrix,sumd,mask,lsrf,acab,bmlt,old_thck,new_thck,rhsd,answ, &
-       calc_rhs,fc2_2,fc2_3,fc2_4,ewm,ew,ewp,nsm,ns,nsp,basal_mbal)
+       calc_rhs,dt,fc2_3,fc2_4,ewm,ew,ewp,nsm,ns,nsp,basal_mbal)
     ! calculate row of sparse matrix equation
     use glimmer_global, only: dp,sp
     use glimmer_slap, only: slapMatrix_type, slapMatrix_insertElement
@@ -502,7 +469,7 @@ contains
     real(dp),dimension(:),  intent(inout) :: rhsd
     real(dp),dimension(:),  intent(out)   :: answ
     logical,                intent(in)    :: calc_rhs
-    real(dp),               intent(in)    :: fc2_2
+    real(dp),               intent(in)    :: dt
     real(dp),               intent(in)    :: fc2_3
     real(dp),               intent(in)    :: fc2_4
     integer, intent(in) :: ewm,ew,ewp  ! ew index to left, central, right node
@@ -529,9 +496,9 @@ contains
                      + lsrf(ewp,ns) * sumd(2)  &
                      + lsrf(ew,nsm) * sumd(3)  &
                      + lsrf(ew,nsp) * sumd(4)) &
-            + acab(ew,ns) * fc2_2
+            + acab(ew,ns) * dt
        if(basal_mbal==1) then
-          rhsd(mask(ew,ns)) = rhsd(mask(ew,ns)) - bmlt(ew,ns) * fc2_2 ! basal melt is +ve for mass loss
+          rhsd(mask(ew,ns)) = rhsd(mask(ew,ns)) - bmlt(ew,ns) * dt ! basal melt is +ve for mass loss
        end if
     end if
 

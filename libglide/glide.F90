@@ -190,13 +190,6 @@ contains
          model%numerics%thklim,&
          model%options%periodic_ew)
 
-    call init_thck(            &
-         model%pcgdwk,         &
-         model%numerics%alpha, &
-         model%numerics%dt,    &
-         model%numerics%dew,   &
-         model%numerics%dns)
-
     call thckADI_init(model%thckADI, &
          model%general%ewn, &
          model%general%nsn, &
@@ -205,6 +198,8 @@ contains
          model%numerics%dew, &
          model%numerics%dns, &
          model%numerics%thklim, &
+         model%numerics%alpha, &
+         model%numerics%dt,    &   !##### This is temporary ######
          model%options%basal_mbal)
 
     if (model%lithot%do_lithot) then
@@ -476,11 +471,12 @@ contains
 
        call thck_nonlin_evolve(    &
             model,                 &
-            model%pcgdwk,          &
+            model%thckADI,         &
             model%geometry%thck,   &
             model%climate%acab,    &
             model%temper%newtemps, &
-            linear = .true.)
+            .true.,                &
+            model%numerics%dt)
 
     case(1) ! Use explicit leap frog method with uflx,vflx -------------------
 
@@ -510,11 +506,12 @@ contains
 
        call thck_nonlin_evolve(    &
             model,                 &
-            model%pcgdwk,          &
+            model%thckADI,         &
             model%geometry%thck,   &
             model%climate%acab,    &
             model%temper%newtemps, &
-            linear = .false.)
+            .false.,               &
+            model%numerics%dt)
 
     end select
 #ifdef PROFILING

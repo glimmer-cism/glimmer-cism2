@@ -51,13 +51,14 @@ module glide_thckADI
   implicit none
 
   type thckADI_type
-     private
      integer  :: ewn
      integer  :: nsn
      integer  :: upn
      real(dp) :: dew
      real(dp) :: dns
      real(dp) :: thklim
+     real(dp) :: alpha
+     real(dp) :: dt
      integer  :: basal_mbal_flag
      real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: dintflwa  
      !< Vertically-integrated value of Glen's A
@@ -65,11 +66,12 @@ module glide_thckADI
      real(dp),dimension(:,:),GC_DYNARRAY_ATTRIB :: vflx  !< v flux
      real(dp),dimension(:),  GC_DYNARRAY_ATTRIB :: velo_dups
      real(dp),dimension(:),  GC_DYNARRAY_ATTRIB :: depth
+     real(dp),dimension(6) :: fc2 = 0.0
   end type thckADI_type
 
 contains
 
-  subroutine thckADI_init(params,ewn,nsn,upn,sigma,dew,dns,thklim,basal_mbal_flag)
+  subroutine thckADI_init(params,ewn,nsn,upn,sigma,dew,dns,thklim,alpha,dt,basal_mbal_flag)
 
     use glimmer_global, only: dp
     use physcon,        only: gn
@@ -84,6 +86,8 @@ contains
     real(dp),          intent(in)  :: dew
     real(dp),          intent(in)  :: dns
     real(dp),          intent(in)  :: thklim
+    real(dp),          intent(in)  :: alpha
+    real(dp),          intent(in)  :: dt
     integer,           intent(in)  :: basal_mbal_flag
 
     integer :: up
@@ -94,6 +98,8 @@ contains
     params%dew = dew
     params%dns = dns
     params%thklim = thklim
+    params%alpha = alpha
+    params%dt = dt  !###### This is Temporary #######
     params%basal_mbal_flag = basal_mbal_flag
 
     if (GC_DYNARRAY_CHECK(params%dintflwa)) deallocate(params%dintflwa)
@@ -110,6 +116,13 @@ contains
 
     params%velo_dups = (/ (sigma(up+1) - sigma(up), up=1,upn-1),0.0d0 /)
     params%depth = (/ (((sigma(up+1)+sigma(up))/2.0d0)**gn *(sigma(up+1)-sigma(up)),up=1,upn-1),0.0d0 /)
+
+    params%fc2(1) = alpha * dt / (2.0d0 * dew * dew)
+    params%fc2(2) = 0.0
+    params%fc2(3) = (1.0d0 - alpha) / alpha
+    params%fc2(4) =  1.0d0 / alpha
+    params%fc2(5) =  alpha * dt / (2.0d0 * dns * dns)
+    params%fc2(6) =  0.0d0
 
   end subroutine thckADI_init
 

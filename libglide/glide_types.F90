@@ -347,14 +347,6 @@ module glide_types
     integer :: profile_period = 100            !*FD profile frequency
   end type glide_numerics
 
-
-  !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-  type glide_pcgdwk
-    real(dp),dimension(4)         :: fc      = 0.0
-    real(dp),dimension(6)         :: fc2     = 0.0
-  end type glide_pcgdwk
-
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   type glide_thckwk
@@ -404,7 +396,6 @@ module glide_types
     type(glide_numerics) :: numerics
     type(velo_type)      :: velowk
     type(glenflow_params) :: glenflow
-    type(glide_pcgdwk)   :: pcgdwk
     type(glide_thckwk)   :: thckwk
     type(glide_paramets) :: paramets
     type(profile_type)   :: profile
