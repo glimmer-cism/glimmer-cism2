@@ -1,6 +1,7 @@
 2010-04-03 Ian Rutt
  * libglide/glide_thck.F90: rejigged thickness core to use ADI derived type. 
    This will form a common parameter type for the two schemes eventually.
+ * libglide/glide_thck.F90: Finished first go at refactoring main SIA thickness calcs.
 
 2010-04-02 Ian Rutt
  * libglide/glide_thck.F90: part-refactored thck_nonlin_evolve

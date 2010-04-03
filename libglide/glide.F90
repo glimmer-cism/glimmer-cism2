@@ -199,8 +199,8 @@ contains
          model%numerics%dns, &
          model%numerics%thklim, &
          model%numerics%alpha, &
-         model%numerics%dt,    &   !##### This is temporary ######
-         model%options%basal_mbal)
+         model%options%basal_mbal, &
+         model%options%periodic_ew)
 
     if (model%lithot%do_lithot) then
        call lithot_io_createall(model)
@@ -470,10 +470,21 @@ contains
     case(0) ! Use precalculated uflx, vflx -----------------------------------
 
        call thck_nonlin_evolve(    &
-            model,                 &
             model%thckADI,         &
             model%geometry%thck,   &
+            model%geometry%usrf,   &
+            model%geometry%lsrf,   &
+            model%geometry%topg,   &
             model%climate%acab,    &
+            model%temper%bmlt,     &
+            model%velocity%btrc,   &
+            model%temper%flwa,     &
+            model%velocity%uvel,   &
+            model%velocity%vvel,   &
+            model%velocity%diffu,  &
+            model%velocity%ubas,   &
+            model%velocity%vbas,   &
+            model%climate%eus,     &
             model%temper%newtemps, &
             .true.,                &
             model%numerics%dt)
@@ -497,23 +508,35 @@ contains
             model%numerics%dt,   &
             model%climate%eus,   &
             model%temper%newtemps)
-       
-       ! Retrieve fluxes from ADI model
-       call get_uflx(model%thckADI,model%velocity%uflx)
-       call get_vflx(model%thckADI,model%velocity%vflx)
 
     case(2) ! Use non-linear calculation that incorporates velocity calc -----
 
        call thck_nonlin_evolve(    &
-            model,                 &
             model%thckADI,         &
             model%geometry%thck,   &
+            model%geometry%usrf,   &
+            model%geometry%lsrf,   &
+            model%geometry%topg,   &
             model%climate%acab,    &
+            model%temper%bmlt,     &
+            model%velocity%btrc,   &
+            model%temper%flwa,     &
+            model%velocity%uvel,   &
+            model%velocity%vvel,   &
+            model%velocity%diffu,  &
+            model%velocity%ubas,   &
+            model%velocity%vbas,   &
+            model%climate%eus,     &
             model%temper%newtemps, &
             .false.,               &
             model%numerics%dt)
 
     end select
+
+    ! Retrieve fluxes from thickness model
+    call get_uflx(model%thckADI,model%velocity%uflx)
+    call get_vflx(model%thckADI,model%velocity%vflx)
+
 #ifdef PROFILING
     call glide_prof_stop(model,model%glide_prof%ice_evo)
 #endif

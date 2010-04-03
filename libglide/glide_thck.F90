@@ -47,25 +47,18 @@
 module glide_thck
 
   private
-  public :: init_thck, thck_nonlin_evolve
-
-#ifdef DEBUG_PICARD
-  ! debugging Picard iteration
-  integer, private, parameter :: picard_unit=101
-  real, private, parameter    :: picard_interval=500.
-  integer, private            :: picard_max=0
-#endif
+  public :: thck_nonlin_evolve
 
 contains
 
-  subroutine thck_nonlin_evolve(model,params,thck,acab,newtemps,linear,dt)
+  subroutine thck_nonlin_evolve(params,thck,usrf,lsrf,topg,acab,bmlt,btrc,flwa, &
+       uvel,vvel,diffu,ubas,vbas,eus,newtemps,linear,dt)
 
     !*FD this subroutine solves the ice thickness equation by doing an outer, 
     !*FD non-linear iteration to update the diffusivities and in inner, linear
     !*FD iteration to calculate the new ice thickness distrib
 
     use glimmer_global, only : dp,sp
-    use glide_types, only: glide_global_type
     use glide_thckADI, only: thckADI_type
     use glimmer_utils, only: stagvarb
     use glimmer_deriv, only: df_field_2d_staggered 
@@ -74,10 +67,21 @@ contains
 
     implicit none
     ! subroutine arguments
-    type(glide_global_type) :: model
     type(thckADI_type),     intent(inout) :: params
     real(dp),dimension(:,:),intent(inout) :: thck     !< ice thickness
+    real(dp),dimension(:,:),intent(inout) :: usrf     !< Surface elevation
+    real(dp),dimension(:,:),intent(inout) :: lsrf     !< Lower elevation
+    real(dp),dimension(:,:),intent(in)    :: topg     !< Bedrock topography
     real(sp),dimension(:,:),intent(in)    :: acab     !< surface mass balance
+    real(dp),dimension(:,:),intent(in)    :: bmlt     !< Basal melt rate
+    real(dp),dimension(:,:),intent(in)    :: btrc     !< basal traction coefficient 
+    real(dp),dimension(:,:,:),intent(in)  :: flwa     !< Glen's A
+    real(dp),dimension(:,:,:),intent(out) :: uvel     !< x-velocity
+    real(dp),dimension(:,:,:),intent(out) :: vvel     !< y-velocity
+    real(dp),dimension(:,:),intent(out)   :: diffu    !< diffusivity
+    real(dp),dimension(:,:),intent(out)   :: ubas     !< basal x velocity
+    real(dp),dimension(:,:),intent(out)   :: vbas     !< basal y velocity
+    real(sp),               intent(in)    :: eus      !< Sea level
     logical,                intent(in)    :: newtemps !< true when we should recalculate Glen's A
     logical,                intent(in)    :: linear   !< true if we do a linear thickness calc
     real(dp),               intent(in)    :: dt       !< Timestep
@@ -92,148 +96,137 @@ contains
     real(dp),dimension(:),allocatable :: rhs
     integer, dimension(size(thck,1),size(thck,2)) :: mask
     real(dp),dimension(size(thck,1)-1,size(thck,2)-1)  :: fslip
+    real(dp), dimension(params%ewn-1,params%nsn-1)  :: stagthck
+    real(dp), dimension(params%ewn-1,params%nsn-1)  :: dusrfdew
+    real(dp), dimension(params%ewn-1,params%nsn-1)  :: dusrfdns
+    real(dp), dimension(params%ewn-1,params%nsn-1)  :: dthckdew
+    real(dp), dimension(params%ewn-1,params%nsn-1)  :: dthckdns
+    real(dp), dimension(params%ewn,  params%nsn  )  :: oldthck
+    real(dp), dimension(params%ewn,  params%nsn  )  :: oldthck2
     integer :: totpts
     real(dp), parameter :: rhograv = - rhoi * grav
+    real(dp) :: fc2_1, fc2_5
 
-#ifdef PROFILING
-    call glide_prof_start(model,model%glide_prof%ice_mask1)
-#endif
+    ! Timestep-dependent constants
+    fc2_1 = params%alpha * dt / (2.0d0 * params%dew * params%dew)
+    fc2_5 = params%alpha * dt / (2.0d0 * params%dns * params%dns)
+    
+    ! Calculate staggered thickness
+    call stagvarb(thck,stagthck,params%ewn,params%nsn)
 
+    ! Calculate spatial derivatives
+    call df_field_2d_staggered(usrf,params%dew,params%dns,dusrfdew,dusrfdns,.false.,.false.)
+    call df_field_2d_staggered(thck,params%dew,params%dns,dthckdew,dthckdns,.false.,.false.)
+
+    ! Masking for matrix solution
     call glide_maskthck(thck,acab,mask,totpts,empty)
-
-#ifdef PROFILING
-    call glide_prof_stop(model,model%glide_prof%ice_mask1)
-#endif
-
     allocate(rhs(totpts))
 
     if (empty) then
 
        thck = dmax1(0.0d0,thck + acab * dt)
 #ifdef DEBUG
-       print *, "* thck empty - net accumulation added", model%numerics%time
+       print *, "* thck empty - net accumulation added"
 #endif
     else
 
        ! calculate basal velos
        if (newtemps) then
 
-          fslip = rhograv * model%velocity%btrc
+          fslip = rhograv * btrc
 
          ! calculate Glen's A if necessary
           call velo_integrate_flwa(     &
                params%velo_dups,        &
                params%depth,            &
                params%dintflwa,         &
-               model%geomderv%stagthck, &
-               model%temper%flwa)
+               stagthck,                &
+               flwa)
        end if
 
        first_p = .true.
-       model%thckwk%oldthck = thck
+       oldthck = thck
        ! do Picard iteration
        do p=1,pmax
           if (.not.linear) then
-          model%thckwk%oldthck2 = thck
+          oldthck2 = thck
 
-          call stagvarb(thck, &
-               model%geomderv% stagthck,&
-               params%ewn, &
-               params%nsn)
-
-          call df_field_2d_staggered(   &
-               model%geometry%usrf,     &
-               params%dew,              &
-               params%dns,              &
-               model%geomderv%dusrfdew, & 
-               model%geomderv%dusrfdns, &
-               .false., .false.)
-
-          call df_field_2d_staggered(   &
-               thck,                    &
-               params%dew,              &
-               params%dns,              &
-               model%geomderv%dthckdew, & 
-               model%geomderv%dthckdns, &
-               .false., .false.)
+          call stagvarb(thck,stagthck,params%ewn,params%nsn)
+          call df_field_2d_staggered(usrf,params%dew,params%dns,dusrfdew,dusrfdns,.false., .false.)
+          call df_field_2d_staggered(thck,params%dew,params%dns,dthckdew,dthckdns,.false., .false.)
           end if
 
-          where (params%thklim < model%geomderv%stagthck)
-             model%velocity%ubas = fslip * model%geomderv%stagthck**2  
+          where (params%thklim < stagthck)
+             ubas = fslip * stagthck**2  
           elsewhere
-             model%velocity%ubas = 0.0d0
+             ubas = 0.0d0
           end where
 
           ! calculate diffusivity
           call velo_calc_diffu(         &
                params%dintflwa,         &
-               model%geomderv%stagthck, &
-               model%geomderv%dusrfdew, &
-               model%geomderv%dusrfdns, &
-               model%velocity%diffu)
+               stagthck,                &
+               dusrfdew,                &
+               dusrfdns,                &
+               diffu)
 
           ! get new thicknesses
           call thck_evolve(           &
                params,                &
                rhs,                   &
                mask,                  &
-               model%velocity%diffu,  &
-               model%velocity%ubas,   &
-               model%geometry%lsrf,   &
+               diffu,                 &
+               ubas,                  &
+               lsrf,                  &
                acab,                  &
-               model%temper%bmlt,     &
+               bmlt,                  &
                thck,                  &
-               model%geometry%topg,   &
-               model%geometry%usrf,   &
-               model%climate%eus,     &
+               topg,                  &
+               usrf,                  &
+               eus,                   &
                totpts,                &
                first_p,               &
-               model%thckwk%oldthck,  &
+               oldthck,               &
                thck,                  &
-               model%options%periodic_ew, &
-               params%basal_mbal_flag,  &
+               params%periodic_ew,    &
+               params%basal_mbal_flag, &
+               fc2_1,                 &
+               fc2_5,                 &
                dt)
 
           first_p = .false.
-          residual = maxval(abs(thck-model%thckwk%oldthck2))
+          residual = maxval(abs(thck-oldthck2))
           if ((residual.le.tol).or.linear) then
              exit
           end if
           
        end do
-#ifdef DEBUG_PICARD
-       picard_max=max(picard_max,p)
-       if (model%numerics%tinc > mod(model%numerics%time,picard_interval)) then
-          write(picard_unit,*) model%numerics%time,p
-          picard_max = 0
-       end if
-#endif
 
        ! calculate horizontal velocity field
 
-      where (params%thklim < model%geomderv%stagthck)
-        model%velocity%vbas = model%velocity%ubas *  model%geomderv%dusrfdns / model%geomderv%stagthck
-        model%velocity%ubas = model%velocity%ubas *  model%geomderv%dusrfdew / model%geomderv%stagthck
+      where (params%thklim < stagthck)
+        vbas = ubas *  dusrfdns / stagthck
+        ubas = ubas *  dusrfdew / stagthck
       elsewhere
-        model%velocity%ubas = 0.0d0
-        model%velocity%vbas = 0.0d0
+        ubas = 0.0d0
+        vbas = 0.0d0
       end where
 
 
        call velo_calc_velo(          &
             params%dintflwa,         &
             params%depth,            &
-            model%geomderv%stagthck, &
-            model%geomderv%dusrfdew, &
-            model%geomderv%dusrfdns, &
-            model%temper%flwa,       &
-            model%velocity%diffu,    &
-            model%velocity%ubas,     &
-            model%velocity%vbas,     &
-            model%velocity%uvel,     &
-            model%velocity%vvel,     &
-            model%velocity%uflx,     &
-            model%velocity%vflx)
+            stagthck,                &
+            dusrfdew,                &
+            dusrfdns,                &
+            flwa,                    &
+            diffu,                   &
+            ubas,                    &
+            vbas,                    &
+            uvel,                    &
+            vvel,                    &
+            params%uflx,             &
+            params%vflx)
     end if
  
     deallocate(rhs)
@@ -243,7 +236,7 @@ contains
 !---------------------------------------------------------------------------------
 
   subroutine thck_evolve(params,rhsd,mask,diffu,ubas,lsrf,acab,bmlt,thck,topg,usrf,eus,&
-       totpts,calc_rhs,old_thck,new_thck,periodic_ew,basal_mbal,dt)
+       totpts,calc_rhs,old_thck,new_thck,periodic_ew,basal_mbal,fc2_1,fc2_5,dt)
 
     !*FD set up sparse matrix and solve matrix equation to find new ice thickness distribution
     !*FD this routine does not override the old thickness distribution
@@ -279,6 +272,8 @@ contains
     real(dp),dimension(totpts),intent(inout) :: rhsd
     integer,                   intent(in)    :: periodic_ew !< Periodic boundary conditions flag
     integer,                   intent(in)    :: basal_mbal  !< Include basal melt in mass-balance
+    real(dp),                  intent(in)    :: fc2_1       !< A timestep-dependent constant
+    real(dp),                  intent(in)    :: fc2_5       !< A timestep-dependent constant
     real(dp),                  intent(in)    :: dt          !< Timestep
     
     ! local variables ------------------------------------------------------------------
@@ -325,8 +320,8 @@ contains
              call findsums(diffu, &
                   ubas, &
                   sumd, &
-                  params%fc2(1), &
-                  params%fc2(5), &
+                  fc2_1, &
+                  fc2_5, &
                   params%ewn-2,params%ewn-1,ns-1,ns)
              call generate_row(matrix,sumd,mask, &
                   lsrf, &
@@ -338,8 +333,8 @@ contains
                   answ, &
                   calc_rhs, &
                   dt, &
-                  params%fc2(3), &
-                  params%fc2(4), &
+                  params%fc2_3, &
+                  params%fc2_4, &
                   params%ewn-2,ew,ew+1,ns-1,ns,ns+1, &
                   basal_mbal)
           end if
@@ -348,8 +343,8 @@ contains
              call findsums(diffu, &
                   ubas, &
                   sumd, &
-                  params%fc2(1), &
-                  params%fc2(5), &
+                  fc2_1, &
+                  fc2_5, &
                   1,2,ns-1,ns)
              call generate_row(matrix,sumd,mask, &
                   lsrf, &
@@ -361,8 +356,8 @@ contains
                   answ, &
                   calc_rhs, &
                   dt, &
-                  params%fc2(3), &
-                  params%fc2(4), &
+                  params%fc2_3, &
+                  params%fc2_4, &
                   ew-1,ew,3,ns-1,ns,ns+1, &
                   basal_mbal)
           end if
@@ -398,8 +393,8 @@ contains
              call findsums(diffu, &
                   ubas, &
                   sumd, &
-                  params%fc2(1), &
-                  params%fc2(5), &
+                  fc2_1, &
+                  fc2_5, &
                   ew-1,ew,ns-1,ns)
              call generate_row(matrix,sumd,mask, &
                   lsrf, &
@@ -411,8 +406,8 @@ contains
                   answ, &
                   calc_rhs, &
                   dt, &
-                  params%fc2(3), &
-                  params%fc2(4), &
+                  params%fc2_3, &
+                  params%fc2_4, &
                   ew-1,ew,ew+1,ns-1,ns,ns+1, &
                   basal_mbal)
 
