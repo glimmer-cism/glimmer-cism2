@@ -2,7 +2,9 @@
  * libglide/glide_thck.F90: rejigged thickness core to use ADI derived type. 
    This will form a common parameter type for the two schemes eventually.
  * libglide/glide_thck.F90: Finished first go at refactoring main SIA thickness calcs.
-
+ * N.B. Regtest fails between r1550 and r1551 because we are using the new
+   vertical coordinate in the thickness calculation (see also log message of r1482)
+	
 2010-04-02 Ian Rutt
  * libglide/glide_thck.F90: part-refactored thck_nonlin_evolve
  * libglide/glide_velo.F90: removed slipvelo and zerovelo (redundant)
