@@ -691,9 +691,9 @@ contains
   subroutine get_gcm_upscaled_fields(instance,    nec,      &
                                      nxl,         nyl,      &
                                      nxg,         nyg,      &
-                                     gfrac,       gthck,    &
-                                     gtopo,       ghflx,    &
-                                     groff)
+                                     gfrac,       gtopo,    &
+                                     grofi,       grofl,    &
+                                     ghflx)
 
     ! Upscale fields from the local grid to the global grid (with multiple elevation classes).
     ! This subroutine is modeled on get_i_upscaled_fields in glint_type.F90.
@@ -710,10 +710,10 @@ contains
     integer,                  intent(in)  :: nxg,nyg       ! global grid dimensions 
 
     real(dp),dimension(nxg,nyg,nec),intent(out) :: gfrac   ! ice-covered fraction [0,1]
-    real(dp),dimension(nxg,nyg,nec),intent(out) :: gthck   ! ice thickness (m)
     real(dp),dimension(nxg,nyg,nec),intent(out) :: gtopo   ! surface elevation (m)
+    real(dp),dimension(nxg,nyg,nec),intent(out) :: grofi   ! ice runoff (calving) flux (kg/m^2/s)
+    real(dp),dimension(nxg,nyg,nec),intent(out) :: grofl   ! liquid runoff (basal melt) flux (kg/m^2/s)
     real(dp),dimension(nxg,nyg,nec),intent(out) :: ghflx   ! heat flux (m)
-    real(dp),dimension(nxg,nyg,nec),intent(out) :: groff   ! runoff/calving flux (kg/m^2/s)
  
     ! Internal variables ----------------------------------------------------------------------
  
@@ -791,18 +791,6 @@ contains
                             local_field,        gfrac,          &
                             local_topo,         instance%out_mask)
 
-    ! ice thickness
-
-    local_field(:,:) = thk0 * instance%model%geometry%thck(:,:)
-
-    call mean_to_global_mec(instance%ups,                   &
-                            nxl,                nyl,        &
-                            nxg,                nyg,        &
-                            nec,                topomax,    &
-                            local_field,        gthck,      &
-                            local_topo,         instance%out_mask)
-
-
     ! surface elevation
 
     call mean_to_global_mec(instance%ups,                   &
@@ -812,9 +800,33 @@ contains
                             local_topo,          gtopo,     &
                             local_topo,          instance%out_mask)
 
+     
+!lipscomb - to do - Copy the appropriate fields into local_field array
+
+    ! ice runoff
+
+    local_field(:,:) = 0._dp
+
+    call mean_to_global_mec(instance%ups,                   &
+                            nxl,                 nyl,       &
+                            nxg,                 nyg,       &
+                            nec,                 topomax,   &
+                            local_field,         grofi,     &
+                            local_topo,          instance%out_mask)
+
+    ! liquid runoff
+
+    local_field(:,:) = 0._dp
+
+    call mean_to_global_mec(instance%ups,                   &
+                            nxl,                 nyl,       &
+                            nxg,                 nyg,       &
+                            nec,                 topomax,   &
+                            local_field,         grofl,     &
+                            local_topo,          instance%out_mask)
+
     ! heat flux
 
-!lipscomb - to do - Copy runoff into local_field array
     local_field(:,:) = 0._dp
 
     call mean_to_global_mec(instance%ups,                   &
@@ -824,16 +836,6 @@ contains
                             local_field,         ghflx,     &
                             local_topo,          instance%out_mask)
  
-!lipscomb - to do - Copy runoff into local_field array
-    local_field(:,:) = 0._dp
-
-    call mean_to_global_mec(instance%ups,                   &
-                            nxl,                 nyl,       &
-                            nxg,                 nyg,       &
-                            nec,                 topomax,   &
-                            local_field,         groff,     &
-                            local_topo,          instance%out_mask)
-
 !lipscomb - debug
 !       write(stdout,*) ' '
 !       write(stdout,*) 'global ifrac:'
@@ -848,21 +850,21 @@ contains
 !       enddo
 
 !       write(stdout,*) ' '
-!       write(stdout,*) 'global gthck:'
+!       write(stdout,*) 'global grofi:'
 !       do n = 1, nec
-!          write(stdout,*) n, gthck(ig, jg, n)
+!          write(stdout,*) n, grofi(ig, jg, n)
+!       enddo
+
+!       write(stdout,*) ' '
+!       write(stdout,*) 'global grofl:'
+!       do n = 1, nec
+!          write(stdout,*) n, grofl(ig, jg, n)
 !       enddo
 
 !       write(stdout,*) ' '
 !       write(stdout,*) 'global ghflx:'
 !       do n = 1, nec
 !          write(stdout,*) n, ghflx(ig, jg, n)
-!       enddo
-
-!       write(stdout,*) ' '
-!       write(stdout,*) 'global groff:'
-!       do n = 1, nec
-!          write(stdout,*) n, groff(ig, jg, n)
 !       enddo
 
   end subroutine get_gcm_upscaled_fields

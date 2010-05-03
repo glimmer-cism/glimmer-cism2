@@ -171,7 +171,7 @@ contains
                               orog_lats,orog_longs,orog_latb,orog_lonb,output_flag,        &
                               daysinyear,snow_model,ice_dt,extraconfigs,start_time,        &
 !lipscomb mod
-                              ccsm_flag_in, gfrac, gthck, gtopo, ghflx, groff, gmask)
+                              ccsm_flag_in, gfrac, gtopo, grofi, grofl, ghflx, gmask)
 !lipscomb end mod
 
 
@@ -220,10 +220,10 @@ contains
 !lipscomb mod
     logical,                  optional,intent(in)  :: ccsm_flag_in !*FD if true, upscale the following five fields
     real(rk),dimension(:,:,:),optional,intent(out) :: gfrac       !*FD ice fractional area [0,1]
-    real(rk),dimension(:,:,:),optional,intent(out) :: gthck       !*FD ice thickness (m)
     real(rk),dimension(:,:,:),optional,intent(out) :: gtopo       !*FD surface elevation (m)
+    real(rk),dimension(:,:,:),optional,intent(out) :: grofi       !*FD ice runoff (kg/m^2/s = mm H2O/s)
+    real(rk),dimension(:,:,:),optional,intent(out) :: grofl       !*FD liquid runoff (kg/m^2/s = mm H2O/s)
     real(rk),dimension(:,:,:),optional,intent(out) :: ghflx       !*FD heat flux (W/m^2, positive down)
-    real(rk),dimension(:,:,:),optional,intent(out) :: groff       !*FD runoff (kg/m^2/s = mm H2O/s)
     integer, dimension(:,:),  optional,intent(in)  :: gmask       !*FD mask = 1 where global data are valid
 !lipscomb end mod
 
@@ -240,7 +240,7 @@ contains
 
 !lipscomb mod
     real(rk),dimension(:,:,:),allocatable ::   &
-               gfrac_temp, gthck_temp, gtopo_temp, ghflx_temp, groff_temp ! Temporary output arrays
+               gfrac_temp, gtopo_temp, grofi_temp, grofl_temp, ghflx_temp ! Temporary output arrays
     integer :: nec       ! number of elevation classes
     integer :: nxg, nyg  ! global grid dimensions
     integer :: nxl, nyl  ! local grid dimensions
@@ -494,10 +494,10 @@ contains
 
 !lipscomb mod
     if (present(gfrac))    gfrac = 0.0
-    if (present(gthck))    gthck = 0.0
     if (present(gtopo))    gtopo = 0.0
+    if (present(grofi))    grofi = 0.0
+    if (present(grofl))    grofl = 0.0
     if (present(ghflx))    ghflx = 0.0
-    if (present(groff))    groff = 0.0
 !lipscomb end mod
 
 !lipscomb - debug
@@ -516,10 +516,10 @@ contains
 
 !lipscomb mod
     allocate(gfrac_temp(nxg,nyg,nec))
-    allocate(gthck_temp(nxg,nyg,nec))
     allocate(gtopo_temp(nxg,nyg,nec))
+    allocate(grofi_temp(nxg,nyg,nec))
+    allocate(grofl_temp(nxg,nyg,nec))
     allocate(ghflx_temp(nxg,nyg,nec))
-    allocate(groff_temp(nxg,nyg,nec))
 !lipscomb end mod
 
 !lipscomb - debug
@@ -574,9 +574,9 @@ contains
           call get_gcm_upscaled_fields(params%instances(i), nec,          &
                                        nxl,                 nyl,          &
                                        nxg,                 nyg,          &
-                                       gfrac_temp,          gthck_temp,   &
-                                       gtopo_temp,          ghflx_temp,   &
-                                       groff_temp)
+                                       gfrac_temp,          gtopo_temp,   &
+                                       grofi_temp,          grofl_temp,   &
+                                       ghflx_temp)
 
           do n = 1, nec
 
@@ -586,27 +586,27 @@ contains
                                             params%instances(i)%frac_coverage, &
                                             params%cov_normalise)
 
-             if (present(gthck))    &
-                gthck(:,:,n) = splice_field(gthck(:,:,n),                      &
-                                            gthck_temp(:,:,n),                 &
-                                            params%instances(i)%frac_coverage, &
-                                            params%cov_normalise)
-
              if (present(gtopo))    &
                 gtopo(:,:,n) = splice_field(gtopo(:,:,n),                      &
                                             gtopo_temp(:,:,n),                 &
                                             params%instances(i)%frac_coverage, &
                                             params%cov_normalise)
 
-             if (present(ghflx))    &
-                ghflx(:,:,n) = splice_field(ghflx(:,:,n),                      &
-                                            ghflx_temp(:,:,n),                 &
+             if (present(grofi))    &
+                grofi(:,:,n) = splice_field(grofi(:,:,n),                      &
+                                            grofi_temp(:,:,n),                 &
                                             params%instances(i)%frac_coverage, &
                                             params%cov_normalise)
 
-             if (present(groff))    &
-                groff(:,:,n) = splice_field(groff(:,:,n),                      &
-                                            groff_temp(:,:,n),                 &
+             if (present(grofl))    &
+                grofl(:,:,n) = splice_field(grofl(:,:,n),                      &
+                                            grofl_temp(:,:,n),                 &
+                                            params%instances(i)%frac_coverage, &
+                                            params%cov_normalise)
+
+             if (present(ghflx))    &
+                ghflx(:,:,n) = splice_field(ghflx(:,:,n),                      &
+                                            ghflx_temp(:,:,n),                 &
                                             params%instances(i)%frac_coverage, &
                                             params%cov_normalise)
 
@@ -621,7 +621,7 @@ contains
 
     deallocate(orog_temp,alb_temp,if_temp,vf_temp,sif_temp,svf_temp,sd_temp)
 !lipscomb mod
-    deallocate(gfrac_temp, gthck_temp, gtopo_temp, ghflx_temp, groff_temp)
+    deallocate(gfrac_temp, gtopo_temp, grofi_temp, grofl_temp, ghflx_temp)
 !lipscomb end mod
 
     ! Sort out snow_model flag
@@ -661,9 +661,9 @@ contains
                    ice_volume,     ice_tstep,       &
                    ccsm_flag_in,   tsfc,            &
                    qice,           topo,            &
-                   gfrac,          gthck,           &
-                   gtopo,          ghflx,           &
-                   groff  )
+                   gfrac,          gtopo,           &
+                   grofi,          grofl,           &
+                   ghflx  )
 
 !lipscomb end mod
     !*FD Main Glimmer subroutine.
@@ -722,10 +722,10 @@ contains
     real(rk),dimension(:,:,:),optional,intent(in)    :: qice          ! flux of glacier ice (kg/m^2/s)
     real(rk),dimension(:,:,:),optional,intent(in)    :: topo          ! surface elevation (m)
     real(rk),dimension(:,:,:),optional,intent(inout) :: gfrac         ! ice fractional area [0,1]
-    real(rk),dimension(:,:,:),optional,intent(inout) :: gthck         ! ice thickness (m)
     real(rk),dimension(:,:,:),optional,intent(inout) :: gtopo         ! surface elevation (m)
+    real(rk),dimension(:,:,:),optional,intent(inout) :: grofi         ! ice runoff (kg/m^2/s = mm H2O/s)
+    real(rk),dimension(:,:,:),optional,intent(inout) :: grofl         ! liquid runoff (kg/m^2/s = mm H2O/s)
     real(rk),dimension(:,:,:),optional,intent(inout) :: ghflx         ! heat flux (W/m^2, positive down)
-    real(rk),dimension(:,:,:),optional,intent(inout) :: groff         ! runoff (kg/m^2/s = mm H2O/s)
 !lipscomb end mod
 
     ! Internal variables ----------------------------------------------------------------------------
@@ -749,10 +749,10 @@ contains
 !lipscomb mod
     real(rk), dimension(:,:,:), allocatable ::   &
        gfrac_temp    ,&! gfrac for a single instance
-       gthck_temp    ,&! gthck for a single instance
        gtopo_temp    ,&! gtopo for a single instance
-       ghflx_temp    ,&! ghflx for a single instance
-       groff_temp      ! groff for a single instance
+       grofi_temp    ,&! grofi for a single instance
+       grofl_temp    ,&! grofl for a single instance
+       ghflx_temp      ! ghflx for a single instance
 
     integer ::    &
         nxl, nyl,     &! local grid dimensions
@@ -873,10 +873,10 @@ contains
        allocate(win_temp(size(orog,1),size(orog,2)))
 !lipscomb mod
        allocate(gfrac_temp(nxg,nyg,nec))
-       allocate(gthck_temp(nxg,nyg,nec))
        allocate(gtopo_temp(nxg,nyg,nec))
+       allocate(grofi_temp(nxg,nyg,nec))
+       allocate(grofl_temp(nxg,nyg,nec))
        allocate(ghflx_temp(nxg,nyg,nec))
-       allocate(groff_temp(nxg,nyg,nec))
 !lipscomb end mod
 
        ! Populate output flag derived type
@@ -962,9 +962,9 @@ contains
 !lipscomb mod
                   tsfc_g = params%g_av_tsfc, qice_g = params%g_av_qice,  &
                   topo_g = params%g_av_topo, gmask  = params%g_grid%mask,&
-                  gfrac  = gfrac_temp,       gthck  = gthck_temp,        &
-                  gtopo  = gtopo_temp,       ghflx  = ghflx_temp,        &
-                  groff  = groff_temp)
+                  gfrac  = gfrac_temp,       gtopo  = gtopo_temp,        &
+                  grofi  = grofi_temp,       grofl  = grofl_temp,        &
+                  ghflx  = ghflx_temp  )
 !lipscomb end mod
 
           else 
@@ -1041,9 +1041,9 @@ contains
              call get_gcm_upscaled_fields(params%instances(i), nec,          &
                                           nxl,                 nyl,          &
                                           nxg,                 nyg,          &
-                                          gfrac_temp,          gthck_temp,   &
-                                          gtopo_temp,          ghflx_temp,   &
-                                          groff_temp)
+                                          gfrac_temp,          gtopo_temp,   &
+                                          grofi_temp,          grofl_temp,   &
+                                          ghflx_temp )
 
 !lipscomb - debug
              ig = itest
@@ -1054,10 +1054,10 @@ contains
                write(stdout,*) ' '
                write(stdout,*) 'n =', n
                write(stdout,*) 'gfrac(n) =', gfrac(ig,jg,n)
-               write(stdout,*) 'gthck(n) =', gthck(ig,jg,n)
                write(stdout,*) 'gtopo(n) =', gtopo(ig,jg,n)
+!!               write(stdout,*) 'grofi(n) =', grofi(ig,jg,n)
+!!               write(stdout,*) 'grofl(n) =', grofl(ig,jg,n)
 !!               write(stdout,*) 'ghflx(n) =', ghflx(ig,jg,n)
-!!               write(stdout,*) 'groff(n) =', groff(ig,jg,n)
              enddo
 
           ! Add this contribution to the global output
@@ -1069,23 +1069,23 @@ contains
                                             params%instances(i)%frac_coverage, &
                                             params%cov_normalise)
 
-                gthck(:,:,n) = splice_field(gthck(:,:,n),                      &
-                                            gthck_temp(:,:,n),                 &
-                                            params%instances(i)%frac_coverage, &
-                                            params%cov_normalise)
-
                 gtopo(:,:,n) = splice_field(gtopo(:,:,n),                      &
                                             gtopo_temp(:,:,n),                 &
                                             params%instances(i)%frac_coverage, &
                                             params%cov_normalise)
 
-                ghflx(:,:,n) = splice_field(ghflx(:,:,n),                      &
-                                            ghflx_temp(:,:,n),                 &
+                grofi(:,:,n) = splice_field(grofi(:,:,n),                      &
+                                            grofi_temp(:,:,n),                 &
                                             params%instances(i)%frac_coverage, &
                                             params%cov_normalise)
 
-                groff(:,:,n) = splice_field(groff(:,:,n),                      &
-                                            groff_temp(:,:,n),                 &
+                grofl(:,:,n) = splice_field(grofl(:,:,n),                      &
+                                            grofl_temp(:,:,n),                 &
+                                            params%instances(i)%frac_coverage, &
+                                            params%cov_normalise)
+
+                ghflx(:,:,n) = splice_field(ghflx(:,:,n),                      &
+                                            ghflx_temp(:,:,n),                 &
                                             params%instances(i)%frac_coverage, &
                                             params%cov_normalise)
 
@@ -1141,7 +1141,7 @@ contains
 
        deallocate(albedo_temp,if_temp,vf_temp,sif_temp,svf_temp,sd_temp,wout_temp,win_temp,orog_out_temp)
 !lipscomb mod
-       deallocate(gfrac_temp, gthck_temp, gtopo_temp, ghflx_temp, groff_temp)
+       deallocate(gfrac_temp, gtopo_temp, grofi_temp, grofl_temp, ghflx_temp)
 !lipscomb end mod
 
     endif

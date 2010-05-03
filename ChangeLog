@@ -1,4 +1,12 @@
 2010-05-03 William Lipscomb
+ * Changed the list of output fields returned to CCSM: removed ice thickness (gthck),
+   split runoff into ice and liquid components (grofi and grofl).  These files are
+   affected:
+ * libglint/glint_global_interp.F90
+ * libglint/glint_main.F90
+ * libglint/glint_timestep.F90
+
+2010-05-03 William Lipscomb
  Many changes required for coupling with CCSM:
  * libglimmer/glimmer_log.F90: new subroutine set_glimmer_unit
  * libglimmer/nc2config.F90: changed stdout to l_stdout to avoid conflict with CCSM

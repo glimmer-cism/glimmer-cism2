@@ -72,9 +72,9 @@ contains
                            orogflag,        ice_tstep,    &
                            tsfc_g,          qice_g,       &
                            topo_g,          gmask,        &
-                           gfrac,           gthck,        &
-                           gtopo,           ghflx,        &
-                           groff )
+                           gfrac,           gtopo,        &
+                           grofi,           grofl,        &
+                           ghflx )
 !lipscomb end mod
 
     !*FD Performs time-step of an ice model instance. Note that this 
@@ -138,10 +138,10 @@ contains
     real(rk),dimension(:,:,:),optional,intent(in)  :: topo_g    ! Surface elevation (m)
     integer, dimension(:,:),  optional,intent(in)  :: gmask     ! = 1 where global data are valid, else = 0
     real(rk),dimension(:,:,:),optional,intent(out) :: gfrac     ! ice fractional area [0,1]
-    real(rk),dimension(:,:,:),optional,intent(out) :: gthck     ! ice thickness (m)
     real(rk),dimension(:,:,:),optional,intent(out) :: gtopo     ! surface elevation (m)
+    real(rk),dimension(:,:,:),optional,intent(out) :: grofi     ! ice runoff (kg/m^2/s = mm H2O/s)
+    real(rk),dimension(:,:,:),optional,intent(out) :: grofl     ! liquid runoff (kg/m^2/s = mm H2O/s)
     real(rk),dimension(:,:,:),optional,intent(out) :: ghflx     ! heat flux (W/m^2, positive down)
-    real(rk),dimension(:,:,:),optional,intent(out) :: groff     ! runoff (kg/m^2/s = mm H2O/s)
 !lipscomb end mod
 !lipscomb - to do - Pass in a flag, glc_smb?
 
@@ -172,10 +172,10 @@ contains
     ! Zero outputs
 
     if (present(gfrac)) gfrac(:,:,:) = 0._rk
-    if (present(gthck)) gthck(:,:,:) = 0._rk
     if (present(gtopo)) gtopo(:,:,:) = 0._rk
+    if (present(grofi)) grofi(:,:,:) = 0._rk
+    if (present(grofl)) grofl(:,:,:) = 0._rk
     if (present(ghflx)) ghflx(:,:,:) = 0._rk
-    if (present(groff)) groff(:,:,:) = 0._rk
 !lipscomb end mod
 
 !lipscomb - debug
@@ -403,8 +403,8 @@ contains
 
           ! Add the calved ice to the ablation field
 
-!lipscomb - to do - Calving still needs to be added to the runoff field (groff)
-!                   Also add basal melting, bmlt?
+!lipscomb - to do - Calving still needs to be added to the ice runoff.
+!                   Also add basal melting (bmlt) to the liquid runoff.
 
           call glide_get_calving(instance%model,calve_temp)
           calve_temp = calve_temp * real(rhoi/rhow)
