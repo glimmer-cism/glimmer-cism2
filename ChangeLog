@@ -1,3 +1,24 @@
+2010-05-03 William Lipscomb
+ Many changes required for coupling with CCSM:
+ * libglimmer/glimmer_log.F90: new subroutine set_glimmer_unit
+ * libglimmer/nc2config.F90: changed stdout to l_stdout to avoid conflict with CCSM
+ * libglimmer/glimmer_paramets.F90: added variables for debugging
+ * libglide/glide.F90: added a comment
+ * libglide/glide_setup.F90: set there=.false. before inquire
+ * libglide/glimmer_ncio.F90: set model%numerics%tstart to value in hotstart file
+ * libglint/glint_main.F90: many changes associated with passing CCSM fields to
+	and from Glimmer
+ * libglint/glint_initialise.F90: minor stuff for debugging
+ * libglint/glint_global_grid.F90: added global mask for type global_grid
+ * libglint/glint_interp.F90: added local mask (lmask) for type downscale
+ * libglint/glint_mbal.F90: Added case(0) for whichacab (sfc mass balance from GCM)
+ * libglint/glint_mbal_coupling.F90: mods associated with getting SMB from GCM
+ * libglint/glint_timestep.F90: many changes associated with passing CCSM fields
+	to and from Glimmer
+ * libglint/glint_type.F90: added option whichacab = 0 (sfc mass balance from GCM)
+ * libglint/glint_global_interp.F90: added routines for upscaling and downscaling
+	CCSM fields between global and local grids
+	
 2010-03-23 Magnus Hagdorn
  * scripts/generate_ncvars.py: write to log when input variables are scaled
  * utils/compare.cpp: attempt to apply scales to netCDF files when present

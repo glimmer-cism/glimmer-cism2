@@ -49,6 +49,9 @@ module glint_global_interp
   use glint_global_grid
   use glimmer_global
 
+!lipscomb - debug
+    use glimmer_paramets, only: itest, jtest, jjtest, itest_local, jtest_local, stdout  
+
   implicit none
 
 contains
@@ -519,5 +522,505 @@ contains
     end if
 
   end subroutine err_check
+
+  !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+!lipscomb mod - three new subroutines
+! The next three subroutines are used to upscale and downscale fields between a global 
+! grid (with multiple elevation classes per gridcell) and the local Glimmer grid.
+! For coupling to the Community Climate System Model (CCSM), the global grid is the 
+! land surface grid, where the surface mass balance of ice sheets is computed for 
+! multiple elevation classes.
+
+ subroutine gcm_glint_downscaling (instance,            &
+                                   tsfc_g,     qice_g,  &
+                                   topo_g,     gmask)
+ 
+    use glimmer_paramets, only: thk0
+
+    use glint_type, only: glint_instance
+    use glint_interp, only: interp_to_local
+
+
+    ! Downscale fields from the global grid (with multiple elevation classes)
+    !  to the local grid.
+
+    type(glint_instance), intent(inout) :: instance
+    real(dp),dimension(:,:,:),intent(in) :: tsfc_g       ! Surface temperature (C)
+    real(dp),dimension(:,:,:),intent(in) :: qice_g       ! Surface mass balance (m)
+    real(dp),dimension(:,:,:),intent(in) :: topo_g       ! Surface elevation (m)
+    integer ,dimension(:,:),  intent(in),optional :: gmask ! = 1 where global data are valid
+                                                           ! = 0 elsewhere
+
+    real(dp), parameter :: maskval = 0.0_dp    ! value written to masked out gridcells
+
+    integer ::       &
+       nec,          &      ! number of elevation classes
+       i, j, n,      &      ! indices 
+       nxl, nyl             ! local grid dimensions
+ 
+    real(dp), dimension(:,:,:), allocatable ::   &
+       tsfc_l,    &! interpolation of global sfc temperature to local grid
+       qice_l,    &! interpolation of global mass balance to local grid
+       topo_l      ! interpolation of global topography in each elev class to local grid
+
+    real(dp) :: fact, usrf
+
+!lipscomb - to do - Lapse rate should be set to be consistent with CLM.
+!                   Read from namelist?
+    real(dp), parameter :: lapse = 0.0065_dp   ! atm lapse rate, deg/m
+
+    nec = size(qice_g,3)
+    nxl = instance%lgrid%size%pt(1)
+    nyl = instance%lgrid%size%pt(2)
+
+    allocate(tsfc_l(nxl,nyl,nec))
+    allocate(topo_l(nxl,nyl,nec))
+    allocate(qice_l(nxl,nyl,nec))
+
+!   Downscale global fields for each elevation class to local grid
+!   Set local fields to zero where interpolation from the global grid is invalid (instance%downs%lmask = 0).
+
+!lipscomb - to do - Is topo_g downscaled correctly?
+
+    if (present(gmask)) then   ! set local field = maskval where the global field is masked out
+
+       do n = 1, nec
+          call interp_to_local(instance%lgrid, tsfc_g(:,:,n), instance%downs, localdp=tsfc_l(:,:,n), &
+                               gmask = gmask, maskval=maskval)
+          call interp_to_local(instance%lgrid, topo_g(:,:,n), instance%downs, localdp=topo_l(:,:,n), &
+                               gmask = gmask, maskval=maskval)
+          call interp_to_local(instance%lgrid, qice_g(:,:,n), instance%downs, localdp=qice_l(:,:,n), &
+                               gmask = gmask, maskval=maskval)
+       enddo
+
+    else    ! global field values are assumed to be valid everywhere
+
+       do n = 1, nec
+          call interp_to_local(instance%lgrid, tsfc_g(:,:,n), instance%downs, localdp=tsfc_l(:,:,n))
+          call interp_to_local(instance%lgrid, topo_g(:,:,n), instance%downs, localdp=topo_l(:,:,n))
+          call interp_to_local(instance%lgrid, qice_g(:,:,n), instance%downs, localdp=qice_l(:,:,n))
+       enddo
+
+    endif
+
+!lipscomb - debug - Write topo in each elevation class of global cell
+!lipscomb - debug
+    write (stdout,*) ' ' 
+    write (stdout,*) 'Interpolate fields to local grid'
+    write(stdout,*) 'Global cell =', itest, jjtest
+    do n = 1, nec
+       write(stdout,*) n, topo_g(itest,jjtest, n)
+    enddo
+
+    do j = 1, nyl
+    do i = 1, nxl
+        if ( (instance%downs%xloc(i,j,1) == itest .and. instance%downs%yloc(i,j,1) == jjtest) .or.  &
+             (instance%downs%xloc(i,j,2) == itest .and. instance%downs%yloc(i,j,2) == jjtest) .or.  &
+             (instance%downs%xloc(i,j,3) == itest .and. instance%downs%yloc(i,j,3) == jjtest) .or.  &
+             (instance%downs%xloc(i,j,4) == itest .and. instance%downs%yloc(i,j,4) == jjtest) ) then
+            write(stdout,*) i, j, thk0 * instance%model%geometry%usrf(i,j)
+        endif
+    enddo
+    enddo
+    
+    i = itest_local
+    j = jtest_local
+    write (stdout,*) ' ' 
+    write (stdout,*) 'Interpolated to local cells: i, j =', i, j
+    do n = 1, nec
+       write (stdout,*) ' '
+       write (stdout,*) 'n =', n
+       write (stdout,*) 'tsfc_l =', tsfc_l(i,j,n)
+       write (stdout,*) 'topo_l =', topo_l(i,j,n)
+       write (stdout,*) 'qice_l =', qice_l(i,j,n)
+    enddo
+!lipscomb - end debug
+
+!   Interpolate tsfc and qice to local topography using values in the neighboring 
+!    elevation classes.
+!   If the local topography is outside the bounds of the global elevations classes,
+!    extrapolate the temperature using the prescribed lapse rate.
+
+    do j = 1, nyl
+    do i = 1, nxl
+
+       usrf = instance%model%geometry%usrf(i,j) * thk0   ! actual sfc elevation (m)
+
+       if (usrf <= topo_l(i,j,1)) then
+          instance%acab(i,j) = qice_l(i,j,1)
+          instance%artm(i,j) = tsfc_l(i,j,1) + lapse*(topo_l(i,j,1)-usrf)
+       elseif (usrf > topo_l(i,j,nec)) then
+          instance%acab(i,j) = qice_l(i,j,nec)
+          instance%artm(i,j) = tsfc_l(i,j,nec) - lapse*(usrf-topo_l(i,j,nec))
+       else
+          do n = 2, nec
+             if (usrf > topo_l(i,j,n-1) .and. usrf <= topo_l(i,j,n)) then
+                fact = (topo_l(i,j,n) - usrf) / (topo_l(i,j,n) - topo_l(i,j,n-1)) 
+                instance%acab(i,j) = fact*qice_l(i,j,n-1) + (1._dp-fact)*qice_l(i,j,n)
+                instance%artm(i,j) = fact*tsfc_l(i,j,n-1) + (1._dp-fact)*tsfc_l(i,j,n)
+                exit
+             endif
+          enddo
+       endif   ! usrf
+
+!lipscomb - debug
+          if (i==itest_local .and. j==jtest_local) then
+             n = 4  
+             write (stdout,*) ' '
+             write (stdout,*) 'Interpolated values, i, j, n =', i, j, n
+             write (stdout,*) 'usrf =', usrf
+             write (stdout,*) 'acab =', instance%acab(i,j)
+             write (stdout,*) 'artm =', instance%artm(i,j)
+             write (stdout,*) 'topo(n-1) =', topo_l(i,j,n-1)
+             write (stdout,*) 'topo(n) =', topo_l(i,j,n)
+             write (stdout,*) 'qice(n-1) =', qice_l(i,j,n-1)
+             write (stdout,*) 'qice(n) =', qice_l(i,j,n)
+             write (stdout,*) 'tsfc(n-1) =', tsfc_l(i,j,n-1)
+             write (stdout,*) 'tsfc(n) =', tsfc_l(i,j,n)
+             write (stdout,*) 'fact = ', (topo_l(i,j,n) - usrf) / (topo_l(i,j,n) - topo_l(i,j,n-1)) 
+          endif
+
+    enddo  ! i
+    enddo  ! j
+
+  end subroutine gcm_glint_downscaling
+
+  !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  subroutine get_gcm_upscaled_fields(instance,    nec,      &
+                                     nxl,         nyl,      &
+                                     nxg,         nyg,      &
+                                     gfrac,       gthck,    &
+                                     gtopo,       ghflx,    &
+                                     groff)
+
+    ! Upscale fields from the local grid to the global grid (with multiple elevation classes).
+    ! This subroutine is modeled on get_i_upscaled_fields in glint_type.F90.
+
+    use glint_type, only: glint_instance
+    use glimmer_paramets, only: thk0
+    use glimmer_log
+
+    ! Arguments ----------------------------------------------------------------------------
+ 
+    type(glint_instance),     intent(in)  :: instance      ! the model instance
+    integer,                  intent(in)  :: nec           ! number of elevation classes
+    integer,                  intent(in)  :: nxl,nyl       ! local grid dimensions 
+    integer,                  intent(in)  :: nxg,nyg       ! global grid dimensions 
+
+    real(dp),dimension(nxg,nyg,nec),intent(out) :: gfrac   ! ice-covered fraction [0,1]
+    real(dp),dimension(nxg,nyg,nec),intent(out) :: gthck   ! ice thickness (m)
+    real(dp),dimension(nxg,nyg,nec),intent(out) :: gtopo   ! surface elevation (m)
+    real(dp),dimension(nxg,nyg,nec),intent(out) :: ghflx   ! heat flux (m)
+    real(dp),dimension(nxg,nyg,nec),intent(out) :: groff   ! runoff/calving flux (kg/m^2/s)
+ 
+    ! Internal variables ----------------------------------------------------------------------
+ 
+    real(dp),dimension(nxl,nyl) :: local_field
+    real(dp),dimension(nxl,nyl) :: local_topo
+
+    integer :: i, j            ! indices
+ 
+    integer :: il, jl, ig, jg
+
+!lipscomb - to do - Pass topomax as an argument
+    real(dp), dimension(nec) :: topomax   ! upper elevation limit of each class
+
+    ! Given the value of nec, specify the upper and lower elevation boundaries of each class.
+    ! Note: These must be consistent with the values in the GCM.  Better to pass as an argument.
+    if (nec == 1) then
+       topomax = (/ 0._dp, 10000._dp, 10000._dp, 10000._dp, 10000._dp, 10000._dp,  &
+                           10000._dp, 10000._dp, 10000._dp, 10000._dp, 10000._dp /)
+    elseif (nec == 3) then
+       topomax = (/ 0._dp,  1000._dp,  2000._dp, 10000._dp, 10000._dp, 10000._dp,  &
+                           10000._dp, 10000._dp, 10000._dp, 10000._dp, 10000._dp /)
+    elseif (nec == 5) then
+       topomax = (/ 0._dp,   500._dp,  1000._dp,  1500._dp,  2000._dp, 10000._dp,  &
+                           10000._dp, 10000._dp, 10000._dp, 10000._dp, 10000._dp /)
+    elseif (nec == 10) then
+       topomax = (/ 0._dp,   200._dp,   400._dp,   700._dp,  1000._dp,  1300._dp,  &
+                            1600._dp,  2000._dp,  2500._dp,  3000._dp, 10000._dp /)
+    else
+       write(stdout,*) 'nec =', nec
+       call write_log('ERROR: Current supported values of nec (no. of elevation classes) are 1, 3, 5, or 10', &
+                       GM_FATAL,__FILE__,__LINE__)
+    endif
+
+    local_topo(:,:) = thk0 * instance%model%geometry%usrf(:,:)
+    
+!lipscomb - debug
+       ig = itest
+       jg = jjtest
+       il = itest_local
+       jl = jtest_local
+       write(stdout,*) 'In get_glc_upscaled_fields'
+       write(stdout,*) 'il, jl =', il, jl
+       write(stdout,*) 'ig, jg =', ig, jg
+       write(stdout,*) 'nxl, nyl =', nxl,nyl
+       write(stdout,*) 'nxg, nyg =', nxg,nyg
+       write(stdout,*) 'topo =', local_topo(il,jl) 
+       call flush(stdout)
+
+!lipscomb - to do - Is this mask needed?
+    ! temporary field
+
+    do j = 1, nyl
+    do i = 1, nxl
+       if (local_topo(i,j) > 0._dp) then
+          local_field(i,j) = 1._dp
+       else
+          local_field(i,j) = 0._dp
+       endif
+    enddo
+    enddo
+
+!lipscomb - debug
+       il = itest_local 
+       jl = jtest_local 
+       write(stdout,*) 'local ifrac =', local_field(il, jl)
+       write(stdout,*) 'local topo =', local_topo(il,jl)
+       write(stdout,*) 'local out_mask =', instance%out_mask(il,jl)
+
+    ! ice fraction
+
+    call mean_to_global_mec(instance%ups,                       &
+                            nxl,                nyl,            &
+                            nxg,                nyg,            &
+                            nec,                topomax,        &
+                            local_field,        gfrac,          &
+                            local_topo,         instance%out_mask)
+
+    ! ice thickness
+
+    local_field(:,:) = thk0 * instance%model%geometry%thck(:,:)
+
+    call mean_to_global_mec(instance%ups,                   &
+                            nxl,                nyl,        &
+                            nxg,                nyg,        &
+                            nec,                topomax,    &
+                            local_field,        gthck,      &
+                            local_topo,         instance%out_mask)
+
+
+    ! surface elevation
+
+    call mean_to_global_mec(instance%ups,                   &
+                            nxl,                 nyl,       &
+                            nxg,                 nyg,       &
+                            nec,                 topomax,   &
+                            local_topo,          gtopo,     &
+                            local_topo,          instance%out_mask)
+
+    ! heat flux
+
+!lipscomb - to do - Copy runoff into local_field array
+    local_field(:,:) = 0._dp
+
+    call mean_to_global_mec(instance%ups,                   &
+                            nxl,                 nyl,       &
+                            nxg,                 nyg,       &
+                            nec,                 topomax,   &
+                            local_field,         ghflx,     &
+                            local_topo,          instance%out_mask)
+ 
+!lipscomb - to do - Copy runoff into local_field array
+    local_field(:,:) = 0._dp
+
+    call mean_to_global_mec(instance%ups,                   &
+                            nxl,                 nyl,       &
+                            nxg,                 nyg,       &
+                            nec,                 topomax,   &
+                            local_field,         groff,     &
+                            local_topo,          instance%out_mask)
+
+!lipscomb - debug
+!       write(stdout,*) ' '
+!       write(stdout,*) 'global ifrac:'
+!       do n = 1, nec
+!          write(stdout,*) n, gfrac(ig, jg, n)
+!       enddo
+
+!       write(stdout,*) ' '
+!       write(stdout,*) 'global gtopo:'
+!       do n = 1, nec
+!          write(stdout,*) n, gtopo(ig, jg, n)
+!       enddo
+
+!       write(stdout,*) ' '
+!       write(stdout,*) 'global gthck:'
+!       do n = 1, nec
+!          write(stdout,*) n, gthck(ig, jg, n)
+!       enddo
+
+!       write(stdout,*) ' '
+!       write(stdout,*) 'global ghflx:'
+!       do n = 1, nec
+!          write(stdout,*) n, ghflx(ig, jg, n)
+!       enddo
+
+!       write(stdout,*) ' '
+!       write(stdout,*) 'global groff:'
+!       do n = 1, nec
+!          write(stdout,*) n, groff(ig, jg, n)
+!       enddo
+
+  end subroutine get_gcm_upscaled_fields
+
+  !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  subroutine mean_to_global_mec(ups,                &
+                                nxl,      nyl,      &
+                                nxg,      nyg,      &
+                                nec,      topomax,  &
+                                local,    global,   &
+                                ltopo,    mask)
+ 
+    ! Upscale from the local domain to a global domain with multiple elevation classes
+    ! by areal averaging.
+    !
+    ! This subroutine is adapted from subroutine mean_to_global in GLIMMER.
+    ! The difference is that local topography is upscaled to multiple elevation classes
+    !  in each global grid cell.
+    !
+    ! Note: This method is not the inverse of the interp_to_local routine.
+    ! Also note that each local grid cell is assumed to have the same area.
+    ! It would be better to have a more sophisticated routine.
+ 
+    use glint_interp, only: upscale
+    use glimmer_log
+
+    ! Arguments
+ 
+    type(upscale),            intent(in)    :: ups     ! upscaling indexing data
+    integer,                  intent(in)    :: nxl,nyl ! local grid dimensions 
+    integer,                  intent(in)    :: nxg,nyg ! global grid dimensions 
+    integer,                  intent(in)    :: nec     ! number of elevation classes 
+    real(dp),dimension(0:nec),intent(in)    :: topomax ! max elevation in each class 
+    real(dp),dimension(nxl,nyl),  intent(in)      :: local   ! data on local grid
+    real(dp),dimension(nxg,nyg,nec),intent(out)   :: global  ! data on global grid
+    real(dp),dimension(nxl,nyl),  intent(in)      :: ltopo   ! surface elevation on local grid (m)
+    integer, dimension(nxl,nyl),intent(in),optional :: mask ! mask for upscaling
+
+    ! Internal variables
+ 
+    integer ::  &
+       i, j, n,    &! indices
+       ig, jg       ! indices
+
+    integer, dimension(nxl,nyl) ::  &
+        tempmask,    &! temporary mask
+        gboxec        ! elevation class associated with local topography
+
+    integer, dimension(nxg,nyg,nec) ::  &
+        gnumloc       ! no. of local cells within each global cell in each elevation class
+
+
+    integer :: il, jl
+    real(dp) :: lsum, gsum
+ 
+    if (present(mask)) then
+       tempmask(:,:) = mask(:,:)
+    else
+       tempmask(:,:) = 1
+    endif
+ 
+    ! Compute global elevation class for each local grid cell
+    ! Also compute number of local cells within each global cell in each elevation class
+
+    gboxec(:,:) = 0
+    gnumloc(:,:,:) = 0
+
+    do n = 1, nec
+       do j = 1, nyl
+       do i = 1, nxl
+          if (ltopo(i,j) >= topomax(n-1) .and. ltopo(i,j) < topomax(n)) then
+             gboxec(i,j) = n
+             if (tempmask(i,j)==1) then
+                ig = ups%gboxx(i,j)
+                jg = ups%gboxy(i,j)
+                gnumloc(ig,jg,n) = gnumloc(ig,jg,n) + 1
+             endif
+          endif
+       enddo
+       enddo
+    enddo
+
+    global(:,:,:) = 0._dp
+
+    do j = 1, nyl
+    do i = 1, nxl
+       ig = ups%gboxx(i,j)
+       jg = ups%gboxy(i,j)
+       n = gboxec(i,j)
+!lipscomb - bug check
+       if (n==0) then
+          write(stdout,*) 'Upscaling error: local topography out of bounds'
+          write(stdout,*) 'i, j, topo:', i, j, ltopo(i,j)
+          write(stdout,*) 'topomax(0) =', topomax(0)
+          call write_log('Upscaling error: local topography out of bounds', &
+               GM_FATAL,__FILE__,__LINE__)
+       endif
+
+!lipscomb - debug
+       if (i==itest_local .and. j==jtest_local) then
+          write(stdout,*) ' '
+          write(stdout,*) 'il, jl =', i, j
+          write(stdout,*) 'ig, jg, n =', ig, jg, n
+          write(stdout,*) 'Old global val =', global(ig,jg,n)
+          write(stdout,*) 'local, mask =', local(i,j), tempmask(i,j)
+       endif
+
+       global(ig,jg,n) = global(ig,jg,n) + local(i,j)*tempmask(i,j)
+
+!lipscomb - debug
+       if (i==itest_local .and. j==jtest_local) then
+          write(stdout,*) 'New global val =', global(ig,jg,n)
+       endif
+
+    enddo
+    enddo
+ 
+    do n = 1, nec
+       do j = 1, nyg
+       do i = 1, nxg
+          if (gnumloc(i,j,n) /= 0) then
+             global(i,j,n) = global(i,j,n) / gnumloc(i,j,n)
+          else
+             global(i,j,n) = 0._dp
+          endif
+       enddo
+       enddo
+    enddo
+
+    ! conservation check
+
+    lsum = 0._dp
+    do j = 1, nyl
+    do i = 1, nxl
+       lsum = lsum + local(i,j)*tempmask(i,j)
+    enddo    
+    enddo
+
+    gsum = 0._dp
+    do n = 1, nec
+    do j = 1, nyg
+    do i = 1, nxg
+       gsum = gsum + global(i,j,n)*gnumloc(i,j,n)
+    enddo
+    enddo
+    enddo
+
+!lipscomb - to do - Use a less arbitrary error threshold
+    if (abs(gsum-lsum) > 1.0_dp) then 
+       write(stdout,*) 'local and global sums disagree'
+       write (stdout,*) 'lsum, gsum =', lsum, gsum 
+       call write_log('Upscaling error: local and glocal sums disagree', &
+            GM_FATAL,__FILE__,__LINE__)
+    endif
+
+  end subroutine mean_to_global_mec
+  
+  !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 end module glint_global_interp

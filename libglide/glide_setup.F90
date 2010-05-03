@@ -411,6 +411,11 @@ contains
           model%numerics%sigma(up) = glide_calc_sigma(real(up-1)/real(upn-1),2.)
        end do
     case(1)
+!lipscomb mod
+!lipscomb - On some machines, the inquire statement is ignored if model%funits%sigfile
+!            contains all blanks.  In this case, 'there' needs to be set to false.
+       there = .false.
+!lipscomb end mod
        inquire (exist=there,file=process_path(model%funits%sigfile))
        if (.not.there) then
           call write_log('Sigma levels file: '//trim(process_path(model%funits%sigfile))// &

@@ -54,11 +54,28 @@ module glint_timestep
 
 contains
 
-  subroutine glint_i_tstep(time,instance,g_temp,g_temp_range, &
-       g_precip,g_zonwind,g_merwind,g_humid,g_lwdown,g_swdown,g_airpress, &
-       g_orog,g_orog_out,g_albedo,g_ice_frac,g_veg_frac,g_snowice_frac,g_snowveg_frac,&
-       g_snow_depth,g_water_in,g_water_out,t_win,&
-       t_wout,ice_vol,out_f,orogflag,ice_tstep)
+  subroutine glint_i_tstep(time,            instance,       &
+                           g_temp,          g_temp_range,   &
+                           g_precip,        g_zonwind,      &
+                           g_merwind,       g_humid,        &
+                           g_lwdown,        g_swdown,       &
+                           g_airpress,      g_orog,         &
+                           g_orog_out,      g_albedo,       &
+                           g_ice_frac,      g_veg_frac,     &
+                           g_snowice_frac,  g_snowveg_frac, &
+                           g_snow_depth,                    &
+                           g_water_in,      g_water_out,    &
+                           t_win,           t_wout,         &
+                           ice_vol,         out_f,          &
+!lipscomb mod
+!!                           orogflag,        ice_tstep)
+                           orogflag,        ice_tstep,    &
+                           tsfc_g,          qice_g,       &
+                           topo_g,          gmask,        &
+                           gfrac,           gthck,        &
+                           gtopo,           ghflx,        &
+                           groff )
+!lipscomb end mod
 
     !*FD Performs time-step of an ice model instance. Note that this 
     !*FD code will need to be altered to take account of the 
@@ -76,6 +93,12 @@ contains
     use glint_routing
     use glimmer_log
     use glimmer_physcon, only: rhow,rhoi
+
+!lipscomb mod
+    use glint_global_interp, only: gcm_glint_downscaling
+    use glide_mask, only: glide_mask_ocean
+!lipscomb end mod
+
     implicit none
 
     ! ------------------------------------------------------------------------  
@@ -109,6 +132,18 @@ contains
     type(output_flags),     intent(in)   :: out_f        !*FD Flags to tell us whether to do output   
     logical,                intent(in)   :: orogflag     !*FD Set if we have new global orog
     logical,                intent(out)  :: ice_tstep    !*FD Set if we have done an ice time step
+!lipscomb mod
+    real(rk),dimension(:,:,:),optional,intent(in)  :: tsfc_g    ! Surface temperature (C)
+    real(rk),dimension(:,:,:),optional,intent(in)  :: qice_g    ! Depth of new ice (m)
+    real(rk),dimension(:,:,:),optional,intent(in)  :: topo_g    ! Surface elevation (m)
+    integer, dimension(:,:),  optional,intent(in)  :: gmask     ! = 1 where global data are valid, else = 0
+    real(rk),dimension(:,:,:),optional,intent(out) :: gfrac     ! ice fractional area [0,1]
+    real(rk),dimension(:,:,:),optional,intent(out) :: gthck     ! ice thickness (m)
+    real(rk),dimension(:,:,:),optional,intent(out) :: gtopo     ! surface elevation (m)
+    real(rk),dimension(:,:,:),optional,intent(out) :: ghflx     ! heat flux (W/m^2, positive down)
+    real(rk),dimension(:,:,:),optional,intent(out) :: groff     ! runoff (kg/m^2/s = mm H2O/s)
+!lipscomb end mod
+!lipscomb - to do - Pass in a flag, glc_smb?
 
     ! ------------------------------------------------------------------------  
     ! Internal variables
@@ -124,6 +159,30 @@ contains
     real(rk) :: start_volume,end_volume,flux_fudge
     integer :: i
 
+!lipscomb - debug
+    integer :: j, ii, jj, nx, ny, il, jl
+
+!lipscomb mod
+    real(rk),dimension(:,:),pointer :: ltopo_temp   => null() ! temp array for local topography
+    integer :: nec   ! no. of elevation classes
+!lipscomb end mod
+
+    if (present(qice_g)) nec = size(qice_g, 3)
+
+    ! Zero outputs
+
+    if (present(gfrac)) gfrac(:,:,:) = 0._rk
+    if (present(gthck)) gthck(:,:,:) = 0._rk
+    if (present(gtopo)) gtopo(:,:,:) = 0._rk
+    if (present(ghflx)) ghflx(:,:,:) = 0._rk
+    if (present(groff)) groff(:,:,:) = 0._rk
+!lipscomb end mod
+
+!lipscomb - debug
+    write(stdout,*) ' '
+    write(stdout,*) 'In glint_i_tstep, time =', time
+    write(stdout,*) 'next_time =', instance%next_time
+
     ! Check whether we're doing anything this time.
 
     if (time/=instance%next_time) then
@@ -138,10 +197,31 @@ contains
     call coordsystem_allocate(instance%lgrid,calve_temp)
     ice_tstep=.false.
 
+!lipscomb - to do - insert 'if' to choose between two downscaling routines
+
     ! Downscale input fields -------------------------------------------------
 
     call glint_downscaling(instance,g_temp,g_temp_range,g_precip,g_orog,g_zonwind,g_merwind, &
          g_humid,g_lwdown,g_swdown,g_airpress,orogflag)
+
+!lipscomb mod
+    ! Downscale input fields from global to local grid
+    ! This subroutine computes instance%acab and instance%artm, the key inputs to GLIDE.
+
+!lipscomb - to do - pass ccsm_flag?
+
+    if (present(qice_g)) then
+       if (present(gmask)) then
+          call gcm_glint_downscaling (instance,              &
+                                      tsfc_g,      qice_g,   &
+                                      topo_g,      gmask)
+       else
+          call gcm_glint_downscaling (instance,              &
+                                      tsfc_g,      qice_g,   &
+                                      topo_g)
+       endif
+    endif
+!lipscomb end mod
 
     ! ------------------------------------------------------------------------  
     ! Sort out some local orography and remove bathymetry. This relies on the 
@@ -157,8 +237,16 @@ contains
     ! sea-level and then back up to high-res orography
     ! ------------------------------------------------------------------------  
 
-    call glint_lapserate(instance%artm,real(instance%global_orog,rk),real(-instance%data_lapse_rate,rk))
-    call glint_lapserate(instance%artm,real(instance%local_orog,rk), real(instance%lapse_rate,rk))
+!lipscomb - to do - Replace with a glc_smb flag
+!lipscomb mod
+!!     call glint_lapserate(instance%artm,real(instance%global_orog,rk),real(-instance%data_lapse_rate,rk))
+!!     call glint_lapserate(instance%artm,real(instance%local_orog,rk), real(instance%lapse_rate,rk))
+
+    if (.not. present(qice_g)) then
+       call glint_lapserate(instance%artm,real(instance%global_orog,rk),real(-instance%data_lapse_rate,rk))
+       call glint_lapserate(instance%artm,real(instance%local_orog,rk), real(instance%lapse_rate,rk))
+    endif
+!lipscomb - end mod
 
     ! Process the precipitation field if necessary ---------------------------
     ! and convert from mm to m
@@ -167,20 +255,48 @@ contains
 
     ! Get ice thickness ----------------------------------------
 
+!lipscomb -  Note that thck_temp is single-precision. [to do - does this matter for exact restart?] 
+
     call glide_get_thk(instance%model,thck_temp)
 
     ! Do accumulation --------------------------------------------------------
 
-    call glint_accumulate(instance%mbal_accum,time,instance%artm,instance%arng,instance%prcp, &
-         instance%snowd,instance%siced,instance%xwind,instance%ywind, &
-         instance%local_orog,real(thck_temp,rk),instance%humid,instance%swdown,instance%lwdown, &
-         instance%airpress)
+!lipscomb - to do - Specify either CLM SMB option or PDD option?  Separate subroutine for PDD?
+!lipscomb mod
+!!    call glint_accumulate(instance%mbal_accum,time,instance%artm,instance%arng,instance%prcp, &
+!!         instance%snowd,instance%siced,instance%xwind,instance%ywind, &
+!!         instance%local_orog,real(thck_temp,rk),instance%humid,instance%swdown,instance%lwdown, &
+!!         instance%airpress)
+
+    if (present(qice_g)) then
+
+       call glint_accumulate(instance%mbal_accum, time, instance%artm, instance%arng, instance%prcp, &
+                             instance%snowd, instance%siced, instance%xwind, instance%ywind, &
+                             instance%local_orog, real(thck_temp,rk), instance%humid, instance%swdown, instance%lwdown, &
+                             instance%airpress, instance%acab)
+
+    else
+
+       call glint_accumulate(instance%mbal_accum, time, instance%artm, instance%arng, instance%prcp, &
+                             instance%snowd, instance%siced, instance%xwind, instance%ywind, &
+                             instance%local_orog, real(thck_temp,rk), instance%humid, instance%swdown, instance%lwdown, &
+                             instance%airpress)
+    endif
+!lipscomb end mod
 
     ! Initialise water budget quantities to zero. These will be over-ridden if
     ! there's an ice-model time-step
 
     t_win=0.0       ; t_wout=0.0
     g_water_out=0.0 ; g_water_in=0.0
+
+!lipscomb - debug
+    write(stdout,*) ' '
+    write(stdout,*) 'Check for ice dynamics timestep'
+    write(stdout,*) 'time =', time
+    write(stdout,*) 'start_time =', instance%mbal_accum%start_time
+    write(stdout,*) 'mbal_step =', instance%mbal_tstep
+    write(stdout,*) 'mbal_accum_time =', instance%mbal_accum_time
 
     ! ------------------------------------------------------------------------  
     ! ICE TIMESTEP begins HERE ***********************************************
@@ -205,14 +321,17 @@ contains
 
        ! Calculate the initial ice volume (scaled and converted to water equi)
        call glide_get_thk(instance%model,thck_temp)
-       thck_temp=thck_temp*real(rhoi/rhow)
-       start_volume=sum(thck_temp)
+       thck_temp = thck_temp*real(rhoi/rhow)
+       start_volume = sum(thck_temp)
 
        ! ---------------------------------------------------------------------
        ! do the different parts of the glint timestep
        ! ---------------------------------------------------------------------
 
        do i = 1,instance%n_icetstep
+
+!lipscomb - debug
+          write (stdout,*) 'GLIDE timestep, iteration =', i
 
           ! Calculate the initial ice volume (scaled and converted to water equi)
           call glide_get_thk(instance%model,thck_temp)
@@ -233,14 +352,44 @@ contains
              instance%ablt=instance%prcp
           end where
 
+!lipscomb mod
+          ! Set acab and artm to zero in gridcells where interpolation from global grid is invalid
+          ! These are local cells outside the domain of the global landmask.
+
+!lipscomb - to do - Is this needed, or is it handled by interp_to_local with maskval?
+          where (instance%downs%lmask == 0)
+             instance%acab = 0.0
+             instance%artm = 0.0
+          endwhere
+
+          ! Set acab to zero in ocean cells (bed below sea level, no ice present)
+
+          where (instance%model%geometry%thkmask == glide_mask_ocean)
+             instance%acab = 0.0
+          endwhere
+!lipscomb end mod
+
           ! Put climate inputs in the appropriate places, with conversion ----------
+
+!lipscomb - note - For this subroutine, input acab is in m/yr
+!                   This value is multiplied by tim0/(scyr*thk0) and copied to data%climate%acab
+!                  Input artm is in deg C
+!                   This value is copied to data%climate%artm (no unit conversion necessary)
+
           call glide_set_acab(instance%model,instance%acab*real(rhow/rhoi))
           call glide_set_artm(instance%model,instance%artm)
 
+!lipscomb - debug
+             il = itest_local
+             jl = jtest_local
+             write (stdout,*) ' '
+             write (stdout,*) 'After glide_set_acab, glide_set_artm: i, j =', il, jl
+             write (stdout,*) 'acab (m/y), artm (C) =', instance%acab(il,jl), instance%artm(il,jl)
+
           ! Adjust glint acab and ablt for output. 
-          where (instance%acab<-thck_temp.and.thck_temp>0.0)
-             instance%acab=-thck_temp
-             instance%ablt=thck_temp
+          where (instance%acab < -thck_temp .and. thck_temp > 0.0)
+             instance%acab = -thck_temp
+             instance%ablt =  thck_temp
           end where
 
           instance%glide_time=instance%glide_time+instance%model%numerics%tinc
@@ -254,6 +403,9 @@ contains
 
           ! Add the calved ice to the ablation field
 
+!lipscomb - to do - Calving still needs to be added to the runoff field (groff)
+!                   Also add basal melting, bmlt?
+
           call glide_get_calving(instance%model,calve_temp)
           calve_temp = calve_temp * real(rhoi/rhow)
 
@@ -261,10 +413,13 @@ contains
           instance%acab=instance%acab-calve_temp/instance%model%numerics%tinc
 
           ! Accumulate for water-budgeting
-          if (out_f%water_out.or.out_f%total_wout.or.out_f%water_in .or.out_f%total_win) then
+          if (out_f%water_out .or. out_f%total_wout .or. out_f%water_in .or. out_f%total_win) then
              accum_temp=accum_temp+instance%prcp*instance%model%numerics%tinc
              ablat_temp=ablat_temp+instance%ablt*instance%model%numerics%tinc
           endif
+
+!lipscomb - to do - Modify the above so it works for SMB option
+!                   Copy acab into instance%prcp?
 
           ! Save GLIDE output until now
           call glide_io_writeall(instance%model,instance%model)
@@ -274,7 +429,7 @@ contains
 
        ! Calculate flux fudge factor --------------------------------------------
 
-       if (out_f%water_out.or.out_f%total_wout.or.out_f%water_in .or.out_f%total_win) then
+       if (out_f%water_out .or. out_f%total_wout .or. out_f%water_in .or. out_f%total_win) then
 
           call coordsystem_allocate(instance%lgrid,fudge_mask)
 
@@ -313,14 +468,16 @@ contains
           endwhere
 
           call mean_to_global(instance%ups,   &
-               upscale_temp,   &
-               g_water_in,     &
-               instance%out_mask)
+                              upscale_temp,   &
+                              g_water_in,     &
+                              instance%out_mask)
           deallocate(upscale_temp)
           upscale_temp => null()
        endif
 
        ! Now water output (i.e. ablation) - and do routing
+
+!lipscomb - to do - Modify (skip?) the following for SMB option
 
        if (out_f%water_out) then
           call coordsystem_allocate(instance%lgrid,upscale_temp)

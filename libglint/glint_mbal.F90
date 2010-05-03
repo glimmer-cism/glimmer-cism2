@@ -111,6 +111,11 @@ contains
     ! Also check we have a valid value of which
 
     select case(which)
+!lipscomb - added case(0): receive surface mass balance from climate model
+!lipscomb - Assume accumulation time of one year unless otherwise specified
+!lipscomb - to do - Allow accumulation time to be set in config file, so we can do 5-day smoke tests.
+    case(0)
+       params%tstep=years2hours   ! mbal tstep = 1 year
     case(1)
        allocate(params%annual_pdd)
        call glimmer_pdd_init(params%annual_pdd,config)

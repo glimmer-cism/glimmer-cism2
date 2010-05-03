@@ -91,7 +91,7 @@ contains
     instance%ice_tstep=get_tinc(instance%model)*years2hours
     instance%glide_time=instance%model%numerics%tstart
     idts=instance%ice_tstep
- 
+
     ! read glint configuration
 
     call glint_i_readconfig(instance,config)    
@@ -156,10 +156,21 @@ contains
 
     instance%next_time = force_start-force_dt+instance%mbal_tstep
 
+!lipscomb - debug
+    write (6,*) 'Called glint_mbc_init'
+    write (6,*) 'mbal tstep =', mbts
+    write (6,*) 'next_time =', instance%next_time
+    write (6,*) 'start_time =', instance%mbal_accum%start_time
+
     ! Mass-balance accumulation length
 
     if (instance%mbal_accum_time==-1) then
        instance%mbal_accum_time = max(instance%ice_tstep,instance%mbal_tstep)
+!lipscomb - debug - set mbal_accum_time = mbal_tstep
+!lipscomb - Uncomment for short runs?
+!!       instance%mbal_accum_time = instance%mbal_tstep
+!!       write(6,*) 'WARNING: Seting mbal_accum_time =', instance%mbal_accum_time
+!lipscomb - end debug
     end if
 
     if (instance%mbal_accum_time<instance%mbal_tstep) then

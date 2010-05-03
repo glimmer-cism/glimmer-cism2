@@ -123,6 +123,9 @@ module glint_type
 
      !*FD Which mass-balance scheme: 
      !*FD \begin{description}
+!lipscomb mod
+     !*FD \item[0] Receive surface mass balance from climate model
+!lipscomb end mod
      !*FD \item[1] PDD mass-balance model
      !*FD \item[2] Accumulation only 
      !*FD \item[3] RAPID energy balance model

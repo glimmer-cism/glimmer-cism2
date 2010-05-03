@@ -446,6 +446,11 @@ contains
     character(len=msg_length) :: message
     real(sp) :: sub_time
 
+!lipscomb - restart mod
+    integer :: pos  ! to identify restart files
+    real(rk) :: restart_time   ! time of restart (yr)
+!lipscomb - end mod
+
     if (present(time)) then
        sub_time=time
     else
@@ -455,6 +460,21 @@ contains
     if (infile%current_time.le.infile%nt) then
        if (.not.NCI%just_processed) then
           call write_log_div
+!lipscomb - restart mod
+!lipscomb - Reset time if reading a restart file
+!lipscomb - to do - Allow for other strings (e.g., 'hot') to identify restart files?
+!                   Make these time variables double-precision?
+          write(message,*) 'Check for restart:', trim(infile%nc%filename)
+          call write_log(message)
+          pos = index(infile%nc%filename,'restart')
+          if (pos.ne.0) then   ! get the start time based on the current time slice
+             restart_time = real(infile%times(infile%current_time))  ! years
+             model%numerics%tstart = restart_time
+             model%numerics%time = restart_time
+             write(message,*) 'Restart: New tstart =', model%numerics%tstart
+             call write_log(message)
+          endif
+!lipscomb end mod
           write(message,*) 'Reading time slice ',infile%current_time,'(',infile%times(infile%current_time),') from file ', &
                trim(process_path(NCI%filename)), ' at time ', sub_time
           call write_log(message)

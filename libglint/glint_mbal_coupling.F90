@@ -160,9 +160,14 @@ contains
   end subroutine glint_mbc_init
 
   ! +++++++++++++++++++++++++++++++++++++++++++++++++
-
-  subroutine glint_accumulate(params,time,artm,arng,prcp,snowd,siced,xwind,ywind,local_orog, &
-       thck,humidity,SWdown,LWdown,Psurf)
+!lipscomb mod
+!!  subroutine glint_accumulate(params,time,artm,arng,prcp,snowd,siced,xwind,ywind,local_orog, &
+!!       thck,humidity,SWdown,LWdown,Psurf)
+  subroutine glint_accumulate(params, time,     artm,    arng,    prcp,       &
+                              snowd,  siced,    xwind,   ywind,   local_orog, &
+                              thck,   humidity, SWdown,  LWdown,  Psurf,      &
+                              acab_in)
+!lipscomb end mod
 
     type(glint_mbc)  :: params
     integer :: time
@@ -181,6 +186,10 @@ contains
     real(rk),dimension(:,:),intent(in) :: Psurf        !*FD Surface pressure (Pa)
 
     real(sp),dimension(size(artm,1),size(artm,2)) :: ablt,acab
+
+!lipscomb mod - added an optional input argument, acab_in
+    real(sp),dimension(:,:),intent(in), optional :: acab_in  ! Surface mass balance (m/s)
+!lipscomb end mod
 
     ! Things to do the first time
 
@@ -205,10 +214,27 @@ contains
 
     params%av_count=params%av_count+1
 
-    ! Call mass-balance
+!lipscomb mod
 
-    call glint_mbal_calc(params%mbal,artm,arng,prcp,(local_orog>0.0.or.thck>0.0),params%snowd, &
-         params%siced,ablt,acab,thck,xwind,ywind,humidity,SWdown,LWdown,Psurf) 
+!!    call glint_mbal_calc(params%mbal,artm,arng,prcp,(local_orog>0.0.or.thck>0.0),params%snowd, &
+!!         params%siced,ablt,acab,thck,xwind,ywind,humidity,SWdown,LWdown,Psurf) 
+
+    ! Set acab to acab_in, if present (mass balance computed already)
+    ! Otherwise, calculate the mass balance
+
+    if (present(acab_in)) then
+
+       acab = acab_in     !lipscomb - to do - Is it safe to assume that acab and acab_in are the same size?
+       ablt = 0.0         ! not computed in this case
+
+    else  ! Call mass-balance
+
+       call glint_mbal_calc(params%mbal,artm,arng,prcp,(local_orog>0.0.or.thck>0.0),params%snowd, &
+                            params%siced,ablt,acab,thck,xwind,ywind,humidity,SWdown,LWdown,Psurf)
+
+    endif
+
+!lipscomb end mod
 
     ! Accumulate
 

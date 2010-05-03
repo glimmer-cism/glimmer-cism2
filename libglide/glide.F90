@@ -156,8 +156,11 @@ contains
 
     ! open all input files
     call openall_in(model)
+
+!lipscomb - to do - If restarting, this subroutine should modify model%numerics%tstart.
     ! and read first time slice
     call glide_io_readall(model,model)
+
     ! Write projection info to log
     call glimmap_printproj(model%projection)
 
@@ -200,7 +203,7 @@ contains
     ! Currently the ice age is not computed.  Later, the plan is to advect ice age along
     !  with temperature using the remapping transport scheme.
     model%geometry%age(:,:,:) = 0._dp
-!lipscomb mod
+!lipscomb end mod
 
     if (model%options%hotstart.ne.1) then
        ! initialise Glen's flow parameter A using an isothermal temperature distribution
