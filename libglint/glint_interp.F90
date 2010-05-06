@@ -85,7 +85,6 @@ module glint_interp
 !lipscomb mod - added mask
      integer,dimension(:,:),pointer :: lmask => null()  !*FD mask = 1 where downscaling is valid 
                                                         !*FD mask = 0 elsewhere
-!lipscomb - to do - add lmask to glide_vars.def
 !lipscomb end mod
 
   end type downscale
@@ -163,7 +162,6 @@ contains
     call coordsystem_allocate(lgrid,downs%yin)
     call coordsystem_allocate(lgrid,upsm)
 !lipscomb mod - allocate and compute local mask
-!lipscomb - to do - does this array (and those above) need to be deallocated?  
     call coordsystem_allocate(lgrid,downs%lmask)
 !lipscomb - end mod 
 
@@ -333,30 +331,27 @@ contains
        call mean_preserve_interp(downs%mpint,global,g_loc,zeros)
     end if
 
-!lipscomb - to do - rearrange ifs and do loops?
-
     ! Main interpolation loop
 
     do i=1,lgrid%size%pt(1)
        do j=1,lgrid%size%pt(2)
 
 !lipscomb - debug
-          if (i==itest_local .and. j==jtest_local) then
-              write(stdout,*) ' '
-              write(stdout,*) 'Interpolating, i, j, lmask = ', i, j, downs%lmask(i,j)
-              write(stdout,*) 'xloc, yloc:'
-              do n = 1, 4
-                 write(stdout,*) downs%xloc(i,j,n), downs%yloc(i,j,n)
-              enddo
-              write(stdout,*) 'present(gmask) =', present(gmask)
-              write(stdout,*) 'present(maskval) =', present(maskval)
-              call flush(stdout)
-          endif
+!          if (i==itest_local .and. j==jtest_local) then
+!              write(stdout,*) ' '
+!              write(stdout,*) 'Interpolating, i, j, lmask = ', i, j, downs%lmask(i,j)
+!              write(stdout,*) 'xloc, yloc:'
+!              do n = 1, 4
+!                 write(stdout,*) downs%xloc(i,j,n), downs%yloc(i,j,n)
+!              enddo
+!          endif
 
-             ! Compile the temporary array f from adjacent points 
+          ! Compile the temporary array f from adjacent points 
 
 !lipscomb mod - added code to handle masked-out global gridcells
-
+!lipscomb - to do - This could be handled more efficiently by precomputing arrays that
+!  specify which neighbor gridcell supplies values in each masked-out global gridcell.
+ 
           if (present(gmask) .and. present(maskval)) then
 
              if (downs%lmask(i,j) == 0) then
@@ -449,17 +444,9 @@ contains
                 end if
              end if
 
-!lipscomb - debug
-          if (i==itest_local .and. j==jtest_local) then
-              write(stdout,*) ' '
-              write(stdout,*) 'f values:', f(:)
-              write(stdout,*) 'xfrac, yfrac =', downs%xfrac(i,j), downs%yfrac(i,j)
-              call flush(stdout)
-          endif
-
           endif  ! gmask and maskval present
 
-             ! Apply the bilinear interpolation
+          ! Apply the bilinear interpolation
 
           if (zc.and.zeros(downs%xin(i,j),downs%yin(i,j)).and.downs%use_mpint) then
              if (present(localsp)) localsp(i,j)=0.0_sp
@@ -721,6 +708,167 @@ contains
 
   end subroutine mean_to_global_dp
 
+  !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  subroutine mean_to_global_mec(ups,                &
+                                nxl,      nyl,      &
+                                nxg,      nyg,      &
+                                nec,      topomax,  &
+                                local,    global,   &
+                                ltopo,    mask)
+ 
+    ! Upscale from the local domain to a global domain with multiple elevation classes
+    ! by areal averaging.
+    !
+    ! This subroutine is adapted from subroutine mean_to_global in GLIMMER.
+    ! The difference is that local topography is upscaled to multiple elevation classes
+    !  in each global grid cell.
+    !
+    ! Note: This method is not the inverse of the interp_to_local routine.
+    ! Also note that each local grid cell is weighted equally.
+    ! In the future we will probably want to use the CCSM coupler for upscaling.
+ 
+    use glimmer_log
+
+    ! Arguments
+ 
+    type(upscale),            intent(in)    :: ups     ! upscaling indexing data
+    integer,                  intent(in)    :: nxl,nyl ! local grid dimensions 
+    integer,                  intent(in)    :: nxg,nyg ! global grid dimensions 
+    integer,                  intent(in)    :: nec     ! number of elevation classes 
+    real(dp),dimension(0:nec),intent(in)    :: topomax ! max elevation in each class 
+    real(dp),dimension(nxl,nyl),  intent(in)      :: local   ! data on local grid
+    real(dp),dimension(nxg,nyg,nec),intent(out)   :: global  ! data on global grid
+    real(dp),dimension(nxl,nyl),  intent(in)      :: ltopo   ! surface elevation on local grid (m)
+    integer, dimension(nxl,nyl),intent(in),optional :: mask ! mask for upscaling
+
+    ! Internal variables
+ 
+    integer ::  &
+       i, j, n,    &! indices
+       ig, jg       ! indices
+
+    integer, dimension(nxl,nyl) ::  &
+        tempmask,    &! temporary mask
+        gboxec        ! elevation class into which local data is upscaled
+
+    integer, dimension(nxg,nyg,nec) ::  &
+        gnumloc       ! no. of local cells within each global cell in each elevation class
+
+
+    integer :: il, jl
+    real(dp) :: lsum, gsum
+ 
+    if (present(mask)) then
+       tempmask(:,:) = mask(:,:)
+    else
+       tempmask(:,:) = 1
+    endif
+ 
+    ! Compute global elevation class for each local grid cell
+    ! Also compute number of local cells within each global cell in each elevation class
+
+    gboxec(:,:) = 0
+    gnumloc(:,:,:) = 0
+
+    do n = 1, nec
+       do j = 1, nyl
+       do i = 1, nxl
+          if (ltopo(i,j) >= topomax(n-1) .and. ltopo(i,j) < topomax(n)) then
+             gboxec(i,j) = n
+             if (tempmask(i,j)==1) then
+                ig = ups%gboxx(i,j)
+                jg = ups%gboxy(i,j)
+                gnumloc(ig,jg,n) = gnumloc(ig,jg,n) + 1
+             endif
+          endif
+       enddo
+       enddo
+    enddo
+
+    global(:,:,:) = 0._dp
+
+    do j = 1, nyl
+    do i = 1, nxl
+       ig = ups%gboxx(i,j)
+       jg = ups%gboxy(i,j)
+       n = gboxec(i,j)
+!lipscomb - bug check
+       if (n==0) then
+          write(stdout,*) 'Upscaling error: local topography out of bounds'
+          write(stdout,*) 'i, j, topo:', i, j, ltopo(i,j)
+          write(stdout,*) 'topomax(0) =', topomax(0)
+          call write_log('Upscaling error: local topography out of bounds', &
+               GM_FATAL,__FILE__,__LINE__)
+       endif
+
+!lipscomb - debug
+       if (i==itest_local .and. j==jtest_local) then
+          write(stdout,*) ' '
+          write(stdout,*) 'il, jl =', i, j
+          write(stdout,*) 'ig, jg, n =', ig, jg, n
+          write(stdout,*) 'Old global val =', global(ig,jg,n)
+          write(stdout,*) 'local, mask =', local(i,j), tempmask(i,j)
+       endif
+
+       global(ig,jg,n) = global(ig,jg,n) + local(i,j)*tempmask(i,j)
+
+!lipscomb - debug
+       if (i==itest_local .and. j==jtest_local) then
+          write(stdout,*) 'New global val =', global(ig,jg,n)
+       endif
+
+    enddo
+    enddo
+ 
+    do n = 1, nec
+       do j = 1, nyg
+       do i = 1, nxg
+          if (gnumloc(i,j,n) /= 0) then
+             global(i,j,n) = global(i,j,n) / gnumloc(i,j,n)
+          else
+             global(i,j,n) = 0._dp
+          endif
+       enddo
+       enddo
+    enddo
+
+    ! conservation check
+
+    lsum = 0._dp
+    do j = 1, nyl
+    do i = 1, nxl
+       lsum = lsum + local(i,j)*tempmask(i,j)
+    enddo    
+    enddo
+
+    gsum = 0._dp
+    do n = 1, nec
+    do j = 1, nyg
+    do i = 1, nxg
+       gsum = gsum + global(i,j,n)*gnumloc(i,j,n)
+    enddo
+    enddo
+    enddo
+
+    if (abs(lsum) > 1.e-10_dp) then
+       if (abs(gsum-lsum)/abs(lsum) > 1.e-10_dp) then 
+          write(stdout,*) 'local and global sums disagree'
+          write (stdout,*) 'lsum, gsum =', lsum, gsum 
+          call write_log('Upscaling error: local and glocal sums disagree', &
+               GM_FATAL,__FILE__,__LINE__)
+       endif
+    else  ! lsum is close to zero
+       if (abs(gsum-lsum) > 1.e-10_dp) then
+          write(stdout,*) 'local and global sums disagree'
+          write (stdout,*) 'lsum, gsum =', lsum, gsum 
+          call write_log('Upscaling error: local and glocal sums disagree', &
+               GM_FATAL,__FILE__,__LINE__)
+       endif
+    endif
+
+  end subroutine mean_to_global_mec
+  
   !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   real(rk) function bilinear_interp(xp,yp,f)

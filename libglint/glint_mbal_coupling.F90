@@ -160,14 +160,10 @@ contains
   end subroutine glint_mbc_init
 
   ! +++++++++++++++++++++++++++++++++++++++++++++++++
-!lipscomb mod
-!!  subroutine glint_accumulate(params,time,artm,arng,prcp,snowd,siced,xwind,ywind,local_orog, &
-!!       thck,humidity,SWdown,LWdown,Psurf)
+
   subroutine glint_accumulate(params, time,     artm,    arng,    prcp,       &
                               snowd,  siced,    xwind,   ywind,   local_orog, &
-                              thck,   humidity, SWdown,  LWdown,  Psurf,      &
-                              acab_in)
-!lipscomb end mod
+                              thck,   humidity, SWdown,  LWdown,  Psurf)
 
     type(glint_mbc)  :: params
     integer :: time
@@ -186,10 +182,6 @@ contains
     real(rk),dimension(:,:),intent(in) :: Psurf        !*FD Surface pressure (Pa)
 
     real(sp),dimension(size(artm,1),size(artm,2)) :: ablt,acab
-
-!lipscomb mod - added an optional input argument, acab_in
-    real(sp),dimension(:,:),intent(in), optional :: acab_in  ! Surface mass balance (m/s)
-!lipscomb end mod
 
     ! Things to do the first time
 
@@ -214,27 +206,8 @@ contains
 
     params%av_count=params%av_count+1
 
-!lipscomb mod
-
-!!    call glint_mbal_calc(params%mbal,artm,arng,prcp,(local_orog>0.0.or.thck>0.0),params%snowd, &
-!!         params%siced,ablt,acab,thck,xwind,ywind,humidity,SWdown,LWdown,Psurf) 
-
-    ! Set acab to acab_in, if present (mass balance computed already)
-    ! Otherwise, calculate the mass balance
-
-    if (present(acab_in)) then
-
-       acab = acab_in     !lipscomb - to do - Is it safe to assume that acab and acab_in are the same size?
-       ablt = 0.0         ! not computed in this case
-
-    else  ! Call mass-balance
-
-       call glint_mbal_calc(params%mbal,artm,arng,prcp,(local_orog>0.0.or.thck>0.0),params%snowd, &
-                            params%siced,ablt,acab,thck,xwind,ywind,humidity,SWdown,LWdown,Psurf)
-
-    endif
-
-!lipscomb end mod
+    call glint_mbal_calc(params%mbal,artm,arng,prcp,(local_orog>0.0.or.thck>0.0),params%snowd, &
+         params%siced,ablt,acab,thck,xwind,ywind,humidity,SWdown,LWdown,Psurf) 
 
     ! Accumulate
 
@@ -259,6 +232,46 @@ contains
   end subroutine glint_accumulate
 
   ! +++++++++++++++++++++++++++++++++++++++++++++++++
+!lipscomb mod - new subroutine
+
+  subroutine glint_accumulate_ccsm(params, time, acab, artm)
+
+    type(glint_mbc)  :: params
+    integer :: time
+
+    real(sp),dimension(:,:),intent(in), optional :: acab   ! Surface mass balance (m/s)
+    real(sp),dimension(:,:),intent(inout) :: artm          ! Mean air temperature (degC)
+
+    ! Things to do the first time
+
+    if (params%new_accum) then
+
+       params%new_accum = .false.
+       params%av_count  = 0
+
+       ! Initialise
+
+       params%acab_save = 0.0
+       params%artm_save = 0.0
+       params%start_time = time
+
+    end if
+
+    params%av_count = params%av_count + 1
+
+    ! Accumulate
+
+    params%acab_save = params%acab_save + acab
+    params%artm_save = params%artm_save + artm
+
+    ! Copy instantaneous fields
+
+    params%acab = acab
+    params%artm = artm
+
+  end subroutine glint_accumulate_ccsm
+!lipscomb end mod
+  ! +++++++++++++++++++++++++++++++++++++++++++++++++
 
   subroutine glint_get_mbal(params,artm,prcp,ablt,acab,snowd,siced,dt)
 
@@ -274,17 +287,17 @@ contains
     integer,                intent(in)    :: dt     !*FD accumulation time in hours
 
     if (.not.params%new_accum) then
-       params%artm_save=params%artm_save/real(params%av_count)
+       params%artm_save = params%artm_save/real(params%av_count)
     end if
 
     params%new_accum=.true.
 
-    artm=params%artm_save
-    prcp=params%prcp_save/real(dt*hours2years,sp)
-    ablt=params%ablt_save/real(dt*hours2years,sp)
-    acab=params%acab_save/real(dt*hours2years,sp)
-    snowd=params%snowd
-    siced=params%siced
+    artm  = params%artm_save
+    prcp  = params%prcp_save/real(dt*hours2years,sp)
+    ablt  = params%ablt_save/real(dt*hours2years,sp)
+    acab  = params%acab_save/real(dt*hours2years,sp)
+    snowd = params%snowd
+    siced = params%siced
 
     where (snowd<0.0) snowd=0.0
     where (siced<0.0) siced=0.0

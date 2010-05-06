@@ -26,12 +26,4 @@ units:         degree_Celsius
 long_name:     lithosphere temperature
 data:          data%lithot%temp
 coordinates:   lon lat
-
-[litho_temp_hot]
-dimensions:    time, lithoz, y1, x1
-units:         degree_Celsius
-long_name:     lithosphere temperature
-data:          data%lithot%temp
-coordinates:   lon lat
 hot:           1
-type:          double

@@ -56,12 +56,13 @@ module glint_main
   use glimmer_anomcouple
 
 !lipscomb mod
-  use glint_global_interp, only: get_gcm_upscaled_fields
+  use glint_global_interp, only: get_i_upscaled_fields_ccsm
+  use glimmer_paramets, only: stdout
 !lipscomb - end mod
 
 !lipscomb - debug
   use glide_diagnostics
-  use glimmer_paramets, only: itest, jtest, jjtest, stdout, idiag, jdiag  
+  use glimmer_paramets, only: itest, jtest, jjtest, idiag, jdiag  
 
   ! ------------------------------------------------------------
   ! GLIMMER_PARAMS derived type definition
@@ -112,10 +113,10 @@ module glint_main
      real(rk),pointer,dimension(:,:) :: g_av_swdown  => null()  !*FD globally averaged downwelling shortwave (W/m$^2$)
      real(rk),pointer,dimension(:,:) :: g_av_airpress => null() !*FD globally averaged surface air pressure (Pa)
 !lipscomb mod
-     real(rk),pointer,dimension(:,:,:) :: g_av_tsfc => null()   ! globally averaged surface temperature (deg C)
      real(rk),pointer,dimension(:,:,:) :: g_av_qice => null()   ! globally averaged surface mass balance (kg m-2 s-1)
+     real(rk),pointer,dimension(:,:,:) :: g_av_tsfc => null()   ! globally averaged surface temperature (deg C)
      real(rk),pointer,dimension(:,:,:) :: g_av_topo => null()   ! globally averaged surface elevation   (m)
-     integer                           :: glc_nec = 1           ! number of elevation classes
+     integer  	      	      	       :: glc_nec = 1  	        ! number of elevation classes
 !lipscomb end mod
 
 
@@ -158,6 +159,41 @@ module glint_main
 !MH!#undef RST_GLINT_MAIN
 !MH!#endif
 
+!lipscomb mod
+    !---------------------------------------------------------------------------------------
+    ! Some notes on coupling to the Community Climate System Model (CCSM):
+    !
+    ! If ccsm_smb is true, then Glint receives three fields from the CCSM coupler on a global grid
+    ! in each of several elevation classes:
+    !   qice = surface mass balance (kg/m^2/s)
+    !   tsfc = surface ground temperature (deg C)
+    !   topo = surface elevation (m)
+    ! Both qice and tsfc are computed in the CCSM land model.
+    ! Five fields are returned to CCSM on the global grid for each elevation class:
+    !   gfrac = fractional ice coverage
+    !   gtopo = surface elevation (m)
+    !   grofi = ice runoff (i.e., calving) (kg/m^2/s)
+    !   grofl = liquid runoff (i.e., basal melting; the land model handles sfc runoff) (kg/m^2/s)
+    !   ghflx = heat flux from the ice interior to the surface (W/m^2)
+    ! The land model has the option to update its ice coverage and surface elevation, given
+    ! the fields returned from Glint.
+    !
+    ! If ccsm_smb is false, then the CCSM wrapper that calls Glint receives three fields of the same name
+    ! from the coupler, but the meanings of qice and tsfc are different:
+    !   qice = net precipitation (kg/m^2/s)
+    !   tsfc = 2-m air temperature (deg C)
+    !   topo = surface elevation (m)
+    ! These fields are received for a single elevation class.  The precip and 2-m temperature are
+    ! sent to Glint as inputs to a daily PDD scheme.  Glint does not return values for gfrac, 
+    ! gtopo, etc., and the land model will not update its ice coverage and surface elevation.
+    ! 
+    ! Glimmer-CISM will normally be coupled to CCSM with ccsm_smb = T.
+    ! The PDD option is included for comparison to other models with PDD schemes.
+    !
+    ! It is hoped that other GCMs will be able to adopt a similar Glint interface.
+    !---------------------------------------------------------------------------------------
+!lipscomb mod
+
 contains
 
 !MH!#ifdef RESTARTS
@@ -166,14 +202,25 @@ contains
 !MH!#undef RST_GLINT_MAIN
 !MH!#endif
 
-  subroutine initialise_glint(params,lats,longs,time_step,paramfile,latb,lonb,orog,albedo, &
-                              ice_frac,veg_frac,snowice_frac,snowveg_frac,snow_depth,      &
-                              orog_lats,orog_longs,orog_latb,orog_lonb,output_flag,        &
-                              daysinyear,snow_model,ice_dt,extraconfigs,start_time,        &
+  subroutine initialise_glint(params,                     &
+                              lats,         longs,        &
+                              time_step,    paramfile,    &
+                              latb,         lonb,         &
+                              orog,         albedo,       &
+                              ice_frac,     veg_frac,     &
+                              snowice_frac, snowveg_frac, &
+                              snow_depth,                 &
+                              orog_lats,    orog_longs,   &
+                              orog_latb,    orog_lonb,    &
+                              output_flag,  daysinyear,   &
+                              snow_model,   ice_dt,       &
+                              extraconfigs, start_time,   &
 !lipscomb mod
-                              ccsm_flag_in, gfrac, gtopo, grofi, grofl, ghflx, gmask)
+                              ccsm_smb_in,                &
+                              gfrac,        gtopo,        &
+                              grofi,        grofl,        &
+                              ghflx,        gmask)
 !lipscomb end mod
-
 
     !*FD Initialises the model
 
@@ -218,7 +265,7 @@ contains
                                                                   !*FD config data read from files
     integer,                optional,intent(in)    :: start_time  !*FD Time of first call to glint (hours)
 !lipscomb mod
-    logical,                  optional,intent(in)  :: ccsm_flag_in !*FD if true, upscale the following five fields
+    logical,                  optional,intent(in)  :: ccsm_smb_in !*FD true if getting sfc mass balance from CCSM
     real(rk),dimension(:,:,:),optional,intent(out) :: gfrac       !*FD ice fractional area [0,1]
     real(rk),dimension(:,:,:),optional,intent(out) :: gtopo       !*FD surface elevation (m)
     real(rk),dimension(:,:,:),optional,intent(out) :: grofi       !*FD ice runoff (kg/m^2/s = mm H2O/s)
@@ -234,41 +281,41 @@ contains
     character(fname_length),dimension(:),pointer :: config_fnames=>null()    ! array of config filenames
     type(ConfigSection), pointer :: econf
     integer :: i
-    real(rk),dimension(:,:),allocatable :: orog_temp,if_temp,vf_temp,sif_temp,svf_temp,sd_temp,alb_temp ! Temporary output arrays
+    real(rk),dimension(:,:),allocatable :: orog_temp, if_temp, vf_temp, sif_temp,  &
+                                           svf_temp,  sd_temp, alb_temp      ! Temporary output arrays
     integer,dimension(:),allocatable :: mbts,idts ! Array of mass-balance and ice dynamics timesteps
     logical :: anomaly_check ! Set if we've already initialised anomaly coupling
 
 !lipscomb mod
     real(rk),dimension(:,:,:),allocatable ::   &
-               gfrac_temp, gtopo_temp, grofi_temp, grofl_temp, ghflx_temp ! Temporary output arrays
+               gfrac_temp, gtopo_temp, grofi_temp, grofl_temp, ghflx_temp    ! Temporary output arrays
     integer :: nec       ! number of elevation classes
     integer :: nxg, nyg  ! global grid dimensions
     integer :: nxl, nyl  ! local grid dimensions
     integer :: n
-    logical :: ccsm_flag
+    logical :: ccsm_smb  ! true if getting sfc mass balance from CCSM    
+!lipscomb end mod
 
 !lipscomb - debug
     real(rk) :: timeyr
     integer :: j, ii, jj
     write(stdout,*) 'Starting initialise_glint'
-    
-    if (present(ccsm_flag_in)) then
-       ccsm_flag = ccsm_flag_in
+
+!lipscomb mod
+    ! Initialization for coupled runs using CCSM
+ 
+    if (present(ccsm_smb_in)) then
+       ccsm_smb = ccsm_smb_in
     else
-       ccsm_flag = .false.
+       ccsm_smb = .false.
     endif
 
-    if (ccsm_flag) then
+    if (ccsm_smb) then
        nxg = size(gfrac,1)
        nyg = size(gfrac,2)
        nec = size(gfrac,3)
-    else
-       nxg = 1
-       nyg = 1
-       nec = 1
+       params%glc_nec = nec
     endif
-
-    params%glc_nec = nec
 !lipscomb end mod
 
     ! Initialise start time and calling model time-step ----------------------------------------
@@ -302,11 +349,10 @@ contains
     ! Initialise main global grid --------------------------------------------------------------
 
 !lipscomb mod - added mask option
-!!    call new_global_grid(params%g_grid,longs,lats,lonb=lonb,latb=latb)
     if (present(gmask)) then
-       call new_global_grid(params%g_grid,longs,lats,lonb=lonb,latb=latb,mask=gmask)
+       call new_global_grid(params%g_grid, longs, lats, lonb=lonb, latb=latb, mask=gmask)
     else
-       call new_global_grid(params%g_grid,longs,lats,lonb=lonb,latb=latb)
+       call new_global_grid(params%g_grid, longs, lats, lonb=lonb, latb=latb)
     endif
 !lipscomb end mod
 
@@ -329,21 +375,27 @@ contains
        write (stdout,*)
        write (stdout,*) 'j, g_grid%mask =', j, params%g_grid%mask(:,j)
     enddo
-!lipscomb - end debug
 
     ! Initialise orography grid ------------------------------------
 
-    call check_init_args(orog_lats,orog_longs,orog_latb,orog_lonb)
+    call check_init_args(orog_lats, orog_longs, orog_latb, orog_lonb)
 
-    if (present(orog_lats).and.present(orog_longs)) then
-       call new_global_grid(params%g_grid_orog,orog_longs,orog_lats,lonb=orog_lonb,latb=orog_latb)
+    if (present(orog_lats) .and. present(orog_longs)) then
+       call new_global_grid(params%g_grid_orog, orog_longs, orog_lats,  &
+                            lonb=orog_lonb, latb=orog_latb)
     else
-       call copy_global_grid(params%g_grid,params%g_grid_orog)
+       call copy_global_grid(params%g_grid, params%g_grid_orog)
     end if
 
     ! Allocate arrays -----------------------------------------------
 
     call glint_allocate_arrays(params)
+
+!lipscomb - to do - not sure the above arrays will ever be used for CCSM runs
+
+!lipscomb mod 
+    if (ccsm_smb) call glint_allocate_arrays_ccsm(params)
+!lipscomb end mod
 
     ! Initialise arrays ---------------------------------------------
 
@@ -358,10 +410,13 @@ contains
     params%g_av_lwdown  = 0.0
     params%g_av_swdown  = 0.0
     params%g_av_airpress = 0.0
+
 !lipscomb mod
-    params%g_av_tsfc    = 0.0
-    params%g_av_qice    = 0.0
-    params%g_av_topo    = 0.0
+    if (ccsm_smb) then
+       params%g_av_qice    = 0.0
+       params%g_av_tsfc    = 0.0
+       params%g_av_topo    = 0.0
+    endif
 !lipscomb end mod
 
     ! ---------------------------------------------------------------
@@ -369,11 +424,11 @@ contains
     ! orography grid
     ! ---------------------------------------------------------------
 
-    params%total_coverage=0.0
-    params%total_cov_orog=0.0
+    params%total_coverage = 0.0
+    params%total_cov_orog = 0.0
 
-    params%cov_normalise=0.0
-    params%cov_norm_orog=0.0
+    params%cov_normalise = 0.0
+    params%cov_norm_orog = 0.0
 
 !lipscomb - debug
        write(stdout,*) 'Read paramfile'
@@ -384,21 +439,21 @@ contains
     ! configuration files we've been provided with
     ! ---------------------------------------------------------------
 
-    if (size(paramfile)==1) then
-       call ConfigRead(process_path(paramfile(1)),global_config)    ! Load the configuration file into the linked list
-       call glint_readconfig(global_config,params%ninstances,config_fnames,paramfile) ! Parse the list
+    if (size(paramfile) == 1) then
+       call ConfigRead(process_path(paramfile(1)), global_config)    ! Load the configuration file into the linked list
+       call glint_readconfig(global_config, params%ninstances, config_fnames, paramfile) ! Parse the list
     else
-       params%ninstances=size(paramfile)
+       params%ninstances = size(paramfile)
        allocate(config_fnames(params%ninstances))
-       config_fnames=paramfile
+       config_fnames = paramfile
     end if
 
     allocate(params%instances(params%ninstances))
-    allocate(mbts(params%ninstances),idts(params%ninstances))
+    allocate(mbts(params%ninstances), idts(params%ninstances))
 
 !lipscomb - debug
-       write(stdout,*) 'Number of instances =', params%ninstances
-       write(stdout,*) 'Read config files and initialize each instance'
+    write(stdout,*) 'Number of instances =', params%ninstances
+    write(stdout,*) 'Read config files and initialize each instance'
 
     ! ---------------------------------------------------------------
     ! Read config files, and initialise instances accordingly
@@ -411,40 +466,38 @@ contains
 
     do i=1,params%ninstances
 
-!lipscomb - debug
-       write(stdout,*) 'Initialize instance', i
-
        call ConfigRead(process_path(config_fnames(i)),instance_config)
        if (present(extraconfigs)) then
           if (size(extraconfigs)>=i) then
              call ConfigCombine(instance_config,extraconfigs(i))
           end if
        end if
-       call glint_i_initialise(instance_config,    params%instances(i),  &
+ 
+      call glint_i_initialise(instance_config,     params%instances(i),  &
                                params%g_grid,      params%g_grid_orog,   &
                                mbts(i),            idts(i),              &
-                               params%need_winds,  params%enmabal,      &
+                               params%need_winds,  params%enmabal,       &
                                params%start_time,  params%time_step)
 
        params%total_coverage = params%total_coverage + params%instances(i)%frac_coverage
        params%total_cov_orog = params%total_cov_orog + params%instances(i)%frac_cov_orog
 
-       where (params%total_coverage>0.0) params%cov_normalise=params%cov_normalise+1.0
-       where (params%total_cov_orog>0.0) params%cov_norm_orog=params%cov_norm_orog+1.0
+       where (params%total_coverage > 0.0) params%cov_normalise = params%cov_normalise + 1.0
+       where (params%total_cov_orog > 0.0) params%cov_norm_orog = params%cov_norm_orog + 1.0
 
 !lipscomb mod 
        ! Write initial diagnostics for this instance
-       timeyr = real(params%start_time/8760)
+       timeyr = real(params%start_time/8760.)
        write(stdout,*) 'Write diagnostics, time (yr)=', timeyr
        call glide_write_diag(params%instances(i)%model, timeyr, idiag, jdiag)
 !lipscomb end mod
 
        ! Initialise anomaly coupling
        if (.not.anomaly_check) then 
-          call anomaly_init(params%anomaly_params,instance_config)
-          if (params%anomaly_params%enabled.and. &
-               (params%anomaly_params%nx/=params%g_grid%nx.or. &
-               params%anomaly_params%ny/=params%g_grid%ny)) then
+          call anomaly_init(params%anomaly_params, instance_config)
+          if (params%anomaly_params%enabled .and. &
+               (params%anomaly_params%nx/=params%g_grid%nx .or. &
+                params%anomaly_params%ny/=params%g_grid%ny) ) then
              call write_log("Anomaly coupling grids have different "// &
                   "sizes to GLINT coupling grids",GM_FATAL,__FILE__,__LINE__)
           end if
@@ -456,9 +509,9 @@ contains
     ! Check that all mass-balance time-steps are the same length and 
     ! assign that value to the top-level variable
 
-    params%tstep_mbal=check_mbts(mbts)
+    params%tstep_mbal = check_mbts(mbts)
     if (present(ice_dt)) then
-       ice_dt=check_mbts(idts)
+       ice_dt = check_mbts(idts)
     end if
 
 !lipscomb - debug
@@ -466,7 +519,6 @@ contains
        write(stdout,*) 'start_time =', params%start_time
        write(stdout,*) 'time_step =',  params%time_step
        if (present(ice_dt)) write(stdout,*) 'ice_dt =', ice_dt
-       call flush(stdout)
 
     ! Check time-steps divide into one another appropriately.
 
@@ -478,105 +530,103 @@ contains
 
     ! Check we don't have coverage greater than one at any point.
 
-    where (params%total_coverage>1.0) params%total_coverage=1.0
-    where (params%total_cov_orog>1.0) params%total_cov_orog=1.0
+    where (params%total_coverage > 1.0) params%total_coverage = 1.0
+    where (params%total_cov_orog > 1.0) params%total_cov_orog = 1.0
     params%coverage_calculated=.true.
 
     ! Zero optional outputs, if present
 
-    if (present(orog))     orog=0.0
-    if (present(albedo))   albedo=0.0
-    if (present(ice_frac)) ice_frac=0.0
-    if (present(veg_frac)) veg_frac=0.0
-    if (present(snowice_frac)) snowice_frac=0.0
-    if (present(snowveg_frac)) snowveg_frac=0.0
-    if (present(snow_depth)) snow_depth=0.0
+    if (present(orog)) orog = 0.0
+    if (present(albedo)) albedo = 0.0
+    if (present(ice_frac)) ice_frac = 0.0
+    if (present(veg_frac)) veg_frac = 0.0
+    if (present(snowice_frac)) snowice_frac = 0.0
+    if (present(snowveg_frac)) snowveg_frac = 0.0
+    if (present(snow_depth)) snow_depth = 0.0
 
 !lipscomb mod
-    if (present(gfrac))    gfrac = 0.0
-    if (present(gtopo))    gtopo = 0.0
-    if (present(grofi))    grofi = 0.0
-    if (present(grofl))    grofl = 0.0
-    if (present(ghflx))    ghflx = 0.0
+    if (present(gfrac)) gfrac = 0.0
+    if (present(gtopo)) gtopo = 0.0
+    if (present(grofi)) grofi = 0.0
+    if (present(grofl)) grofl = 0.0
+    if (present(ghflx)) ghflx = 0.0
 !lipscomb end mod
-
-!lipscomb - debug
-    write(stdout,*) 'Allocate arrays'
-    call flush(stdout)
 
     ! Allocate arrays
 
-    allocate(orog_temp(params%g_grid_orog%nx,params%g_grid_orog%ny))
-    allocate(alb_temp(params%g_grid%nx,params%g_grid%ny))
-    allocate(if_temp(params%g_grid%nx,params%g_grid%ny))
-    allocate(vf_temp(params%g_grid%nx,params%g_grid%ny))
-    allocate(sif_temp(params%g_grid%nx,params%g_grid%ny))
-    allocate(svf_temp(params%g_grid%nx,params%g_grid%ny))
-    allocate(sd_temp(params%g_grid%nx,params%g_grid%ny))
+    allocate(orog_temp(params%g_grid_orog%nx, params%g_grid_orog%ny))
+    allocate(alb_temp (params%g_grid%nx, params%g_grid%ny))
+    allocate(if_temp  (params%g_grid%nx, params%g_grid%ny))
+    allocate(vf_temp  (params%g_grid%nx, params%g_grid%ny))
+    allocate(sif_temp (params%g_grid%nx, params%g_grid%ny))
+    allocate(svf_temp (params%g_grid%nx, params%g_grid%ny))
+    allocate(sd_temp  (params%g_grid%nx, params%g_grid%ny))
 
 !lipscomb mod
-    allocate(gfrac_temp(nxg,nyg,nec))
-    allocate(gtopo_temp(nxg,nyg,nec))
-    allocate(grofi_temp(nxg,nyg,nec))
-    allocate(grofl_temp(nxg,nyg,nec))
-    allocate(ghflx_temp(nxg,nyg,nec))
+    if (ccsm_smb) then
+       allocate(gfrac_temp(nxg,nyg,nec))
+       allocate(gtopo_temp(nxg,nyg,nec))
+       allocate(grofi_temp(nxg,nyg,nec))
+       allocate(grofl_temp(nxg,nyg,nec))
+       allocate(ghflx_temp(nxg,nyg,nec))
+    endif
 !lipscomb end mod
 
 !lipscomb - debug
-    write(stdout,*) 'Get initial fields'
-    call flush(stdout)
+    write(stdout,*) 'Upscale and splice the initial fields'
 
     ! Get initial fields from instances, splice together and return
 
     do i=1,params%ninstances
-       call get_i_upscaled_fields(params%instances(i),orog_temp, &
-            alb_temp,if_temp,vf_temp,sif_temp,svf_temp,sd_temp)
+
+       call get_i_upscaled_fields(params%instances(i),   &
+                                  orog_temp,   alb_temp, &
+                                  if_temp,     vf_temp,  &
+                                  sif_temp,    svf_temp, &
+                                  sd_temp)
 
        if (present(orog)) &
-            orog=splice_field(orog,orog_temp,params%instances(i)%frac_cov_orog, &
+            orog = splice_field(orog, orog_temp, params%instances(i)%frac_cov_orog, &
             params%cov_norm_orog)
 
        if (present(albedo)) &
-            albedo=splice_field(albedo,alb_temp,params%instances(i)%frac_coverage, &
+            albedo = splice_field(albedo, alb_temp, params%instances(i)%frac_coverage, &
             params%cov_normalise)
 
        if (present(ice_frac)) &
-            ice_frac=splice_field(ice_frac,if_temp,params%instances(i)%frac_coverage, &
+            ice_frac = splice_field(ice_frac, if_temp, params%instances(i)%frac_coverage, &
             params%cov_normalise)
 
        if (present(veg_frac)) &
-            veg_frac=splice_field(veg_frac,vf_temp,params%instances(i)%frac_coverage, &
+            veg_frac = splice_field(veg_frac, vf_temp, params%instances(i)%frac_coverage, &
             params%cov_normalise)
 
        if (present(snowice_frac)) &
-            snowice_frac=splice_field(snowice_frac,sif_temp,params%instances(i)%frac_coverage, &
+            snowice_frac = splice_field(snowice_frac,sif_temp,params%instances(i)%frac_coverage, &
             params%cov_normalise)
 
        if (present(snowveg_frac)) &
-            snowveg_frac=splice_field(snowveg_frac,svf_temp,params%instances(i)%frac_coverage, &
+            snowveg_frac = splice_field(snowveg_frac,svf_temp,params%instances(i)%frac_coverage, &
             params%cov_normalise)
 
        if (present(snow_depth)) &
-            snow_depth=splice_field(snow_depth,sd_temp,params%instances(i)%frac_coverage, &
+            snow_depth = splice_field(snow_depth,sd_temp,params%instances(i)%frac_coverage, &
             params%cov_normalise)
 
 !lipscomb mod
 
-       if (ccsm_flag) then
-
-!lipscomb - debug
-          write(stdout,*) 'Upscale initial ice sheet fields'
-          call flush(stdout)
+       if (ccsm_smb) then
 
           nxl = params%instances(i)%lgrid%size%pt(1)
           nyl = params%instances(i)%lgrid%size%pt(2)
 
-          call get_gcm_upscaled_fields(params%instances(i), nec,          &
-                                       nxl,                 nyl,          &
-                                       nxg,                 nyg,          &
-                                       gfrac_temp,          gtopo_temp,   &
-                                       grofi_temp,          grofl_temp,   &
-                                       ghflx_temp)
+!lipscomb - to do - Compute these temporary arrays in the subroutine call
+          call get_i_upscaled_fields_ccsm(params%instances(i), nec,          &
+                                          nxl,                 nyl,          &
+                                          nxg,                 nyg,          &
+                                          gfrac_temp,          gtopo_temp,   &
+                                          grofi_temp,          grofl_temp,   &
+                                          ghflx_temp)
 
           do n = 1, nec
 
@@ -612,39 +662,35 @@ contains
 
           enddo  ! nec
 
-       endif     ! ccsm_flag
+       endif     ! ccsm_smb
 !lipscomb end mod
 
     end do
 
     ! Deallocate
 
-    deallocate(orog_temp,alb_temp,if_temp,vf_temp,sif_temp,svf_temp,sd_temp)
+    deallocate(orog_temp, alb_temp, if_temp, vf_temp, sif_temp, svf_temp,sd_temp)
 !lipscomb mod
-    deallocate(gfrac_temp, gtopo_temp, grofi_temp, grofl_temp, ghflx_temp)
+    if (ccsm_smb) deallocate(gfrac_temp, gtopo_temp, grofi_temp, grofl_temp, ghflx_temp)
 !lipscomb end mod
 
     ! Sort out snow_model flag
 
     if (present(snow_model)) then
-       snow_model=.false.
-       do i=1,params%ninstances
-          snow_model=(snow_model.or.glint_has_snow_model(params%instances(i)))
+       snow_model = .false.
+       do i=1, params%ninstances
+          snow_model = (snow_model .or. glint_has_snow_model(params%instances(i)))
        end do
     end if
 
     ! Set output flag
 
-    if (present(output_flag)) output_flag=.true.
+    if (present(output_flag)) output_flag = .true.
 
   end subroutine initialise_glint
 
   !================================================================================
 
-!lipscomb mod
-!  subroutine glint(params,time,rawtemp,rawprecip,orog,zonwind,merwind,humid,lwdown,swdown,airpress, &
-!       output_flag,orog_out,albedo,ice_frac,veg_frac,snowice_frac,snowveg_frac,snow_depth,water_in, &
-!       water_out,total_water_in,total_water_out,ice_volume,ice_tstep)
   subroutine glint(params,         time,            &
                    rawtemp,        rawprecip,       &
                    orog,                            &
@@ -659,13 +705,14 @@ contains
                    water_in,       water_out,       &
                    total_water_in, total_water_out, &
                    ice_volume,     ice_tstep,       &
-                   ccsm_flag_in,   tsfc,            &
-                   qice,           topo,            &
-                   gfrac,          gtopo,           &
-                   grofi,          grofl,           &
-                   ghflx  )
-
+!lipscomb mod
+                   ccsm_smb_in,                     &
+                   qice,           tsfc,            &
+                   topo,           gfrac,           &
+                   gtopo,          grofi,           &
+                   grofl,          ghflx)
 !lipscomb end mod
+
     !*FD Main Glimmer subroutine.
     !*FD
     !*FD This should be called daily or hourly, depending on
@@ -691,7 +738,7 @@ contains
 
     type(glint_params),              intent(inout) :: params          !*FD parameters for this run
     integer,                         intent(in)    :: time            !*FD Current model time        (hours)
-    real(rk),dimension(:,:),target,  intent(in)    :: rawtemp         !*FD Surface temperature field (celsius)
+    real(rk),dimension(:,:),target,  intent(in)    :: rawtemp         !*FD Surface temperature field (deg C)
     real(rk),dimension(:,:),target,  intent(in)    :: rawprecip       !*FD Precipitation rate        (mm/s)
     real(rk),dimension(:,:),         intent(in)    :: orog            !*FD The large-scale orography (m)
     real(rk),dimension(:,:),optional,intent(in)    :: zonwind,merwind !*FD Zonal and meridional components 
@@ -717,9 +764,9 @@ contains
                                                                       !*FD water balance information is available
 
 !lipscomb mod
-    logical,                  optional,intent(in)    :: ccsm_flag_in  ! if true, exchange the following fields
-    real(rk),dimension(:,:,:),optional,intent(in)    :: tsfc          ! surface ground temperature (C)
+    logical,                  optional,intent(in)    :: ccsm_smb_in   ! true if getting sfc mass balance from CCSM
     real(rk),dimension(:,:,:),optional,intent(in)    :: qice          ! flux of glacier ice (kg/m^2/s)
+    real(rk),dimension(:,:,:),optional,intent(in)    :: tsfc          ! surface ground temperature (deg C)
     real(rk),dimension(:,:,:),optional,intent(in)    :: topo          ! surface elevation (m)
     real(rk),dimension(:,:,:),optional,intent(inout) :: gfrac         ! ice fractional area [0,1]
     real(rk),dimension(:,:,:),optional,intent(inout) :: gtopo         ! surface elevation (m)
@@ -730,9 +777,9 @@ contains
 
     ! Internal variables ----------------------------------------------------------------------------
 
-    integer :: i
-    real(rk),dimension(:,:),allocatable :: albedo_temp,if_temp,vf_temp,sif_temp,svf_temp,  &
-                                           sd_temp,wout_temp,orog_out_temp,win_temp
+    integer :: i, n
+    real(rk),dimension(:,:),allocatable :: albedo_temp, if_temp, vf_temp, sif_temp, svf_temp,  &
+                                           sd_temp, wout_temp, orog_out_temp, win_temp
     real(rk) :: twin_temp,twout_temp,icevol_temp
     type(output_flags) :: out_f
     logical :: icets
@@ -759,25 +806,11 @@ contains
         nxg, nyg,     &! global grid dimensions
         nec            ! no. of elevation classes
 
-    integer :: n, j, ig, jg
-    logical :: ccsm_flag
-    
-    if (present(ccsm_flag_in)) then
-       ccsm_flag = ccsm_flag_in
-    else
-       ccsm_flag = .false.
-    endif
-
-    if (ccsm_flag) then
-       nxg = size(qice,1)
-       nyg = size(qice,2)
-       nec = size(qice,3)
-    else
-       nxg = 1
-       nyg = 1
-       nec = 1
-    endif
+    logical :: ccsm_smb  ! true if getting sfc mass balance from CCSM
 !lipscomb end mod
+
+!lipscomb - debug    
+    integer :: j, ig, jg
 
 !lipscomb - debug
 !       write (stdout,*) 'In subroutine glint, current time (hr) =', time
@@ -793,30 +826,47 @@ contains
           params%av_start_time = time
           params%new_av = .false.
        else
-          write(message,*) 'Unexpected calling of GLINT at time ',time
+          write(message,*) 'Unexpected calling of GLINT at time ', time
           call write_log(message,GM_FATAL,__FILE__,__LINE__)
        end if
     else
        if (mod(time-params%av_start_time,params%time_step)/=0) then
-          write(message,*) 'Unexpected calling of GLINT at time ',time
+          write(message,*) 'Unexpected calling of GLINT at time ', time
           call write_log(message,GM_FATAL,__FILE__,__LINE__)
        end if
     end if
 
+!lipscomb mod
+    ! Set CCSM variables
+
+    if (present(ccsm_smb_in)) then
+       ccsm_smb = ccsm_smb_in
+    else
+       ccsm_smb = .false.
+    endif
+
+    if (ccsm_smb) then
+       nxg = size(qice,1)
+       nyg = size(qice,2)
+       nec = size(qice,3)
+    endif
+
+!lipscomb end mod
+
     ! Check input fields are correct ----------------------------------------------------------------
 
-    call check_input_fields(params,humid,lwdown,swdown,airpress,zonwind,merwind)
+    call check_input_fields(params, humid, lwdown, swdown, airpress, zonwind, merwind)
 
     ! Reset output flag
 
-    if (present(output_flag)) output_flag=.false.
-    if (present(ice_tstep))   ice_tstep=.false.
+    if (present(output_flag)) output_flag = .false.
+    if (present(ice_tstep))   ice_tstep = .false.
 
     ! Sort out anomaly coupling
 
     if (params%anomaly_params%enabled) then
-       yearfrac=real(mod(time,days_in_year),rk)/real(days_in_year,rk)
-       call anomaly_calc(params%anomaly_params,yearfrac,rawtemp,rawprecip,anomtemp,anomprecip)
+       yearfrac = real(mod(time,days_in_year),rk)/real(days_in_year,rk)
+       call anomaly_calc(params%anomaly_params, yearfrac, rawtemp, rawprecip, anomtemp, anomprecip)
        precip => anomprecip
        temp   => anomtemp
     else
@@ -826,27 +876,31 @@ contains
 
     ! Do averaging and so on...
 
-    call accumulate_averages(params,temp,precip,zonwind,merwind,humid,lwdown,swdown,airpress, &
+    call accumulate_averages(params,           &
+                             temp,    precip,  &
+                             zonwind, merwind, &
+                             humid,   lwdown,  &
+                             swdown,  airpress)
 !lipscomb mod
-                             tsfc, qice, topo)
+    if (ccsm_smb) call accumulate_averages_ccsm(params, qice, tsfc, topo)
 !lipscomb end mod
 
     ! Increment step counter
 
-    params%av_steps=params%av_steps+1
+    params%av_steps = params%av_steps + 1
 
     ! ---------------------------------------------------------
     ! If this is a mass balance timestep, prepare global fields, and do a timestep
     ! for each model instance
     ! ---------------------------------------------------------
 
-    if (time-params%av_start_time+params%time_step.gt.params%tstep_mbal) then
+    if (time-params%av_start_time+params%time_step > params%tstep_mbal) then
 
        write(message,*) &
             'Incomplete forcing of GLINT mass-balance time-step detected at time ', time
        call write_log(message,GM_FATAL,__FILE__,__LINE__)
 
-    else if (time-params%av_start_time+params%time_step.eq.params%tstep_mbal) then
+    else if (time-params%av_start_time+params%time_step == params%tstep_mbal) then
 
        ! Set output_flag
 
@@ -854,14 +908,14 @@ contains
        ! that involved least change to the code. However, it might be good
        ! to change the output to occur with user-specified frequency.
 
-       if (present(output_flag)) output_flag=.true.
+       if (present(output_flag)) output_flag = .true.
 
        ! Allocate output fields
 
        if (present(orog_out)) then
           allocate(orog_out_temp(size(orog_out,1),size(orog_out,2)))
        else
-          allocate(orog_out_temp(params%g_grid_orog%nx,params%g_grid_orog%ny))
+          allocate(orog_out_temp(params%g_grid_orog%nx, params%g_grid_orog%ny))
        end if
        allocate(albedo_temp(size(orog,1),size(orog,2)))
        allocate(if_temp(size(orog,1),size(orog,2)))
@@ -872,17 +926,25 @@ contains
        allocate(wout_temp(size(orog,1),size(orog,2)))
        allocate(win_temp(size(orog,1),size(orog,2)))
 !lipscomb mod
-       allocate(gfrac_temp(nxg,nyg,nec))
-       allocate(gtopo_temp(nxg,nyg,nec))
-       allocate(grofi_temp(nxg,nyg,nec))
-       allocate(grofl_temp(nxg,nyg,nec))
-       allocate(ghflx_temp(nxg,nyg,nec))
+       if (ccsm_smb) then
+          allocate(gfrac_temp(nxg,nyg,nec))
+          allocate(gtopo_temp(nxg,nyg,nec))
+          allocate(grofi_temp(nxg,nyg,nec))
+          allocate(grofl_temp(nxg,nyg,nec))
+          allocate(ghflx_temp(nxg,nyg,nec))
+       endif
 !lipscomb end mod
 
        ! Populate output flag derived type
 
-       call populate_output_flags(out_f,orog_out,albedo,ice_frac,veg_frac,snowice_frac, &
-            snowveg_frac,snow_depth,water_in,water_out,total_water_in,total_water_out,ice_volume)
+       call populate_output_flags(out_f,                           &
+                                  orog_out,       albedo,          &
+                                  ice_frac,       veg_frac,        &
+                                  snowice_frac,   snowveg_frac,    &
+                                  snow_depth,                      &
+                                  water_in,       water_out,       &
+                                  total_water_in, total_water_out, &
+                                  ice_volume)
 
        ! Zero outputs if present
 
@@ -898,11 +960,21 @@ contains
        if (present(total_water_in))  total_water_in  = 0.0
        if (present(total_water_out)) total_water_out = 0.0
        if (present(ice_volume))      ice_volume      = 0.0
+!lipscomb mod
+       if (present(gfrac)) gfrac = 0.0
+       if (present(gtopo)) gtopo = 0.0
+       if (present(grofi)) grofi = 0.0
+       if (present(grofl)) grofl = 0.0
+       if (present(ghflx)) ghflx = 0.0
+!lipscomb end mod
 
        ! Calculate averages by dividing by number of steps elapsed
        ! since last model timestep.
 
        call calculate_averages(params)
+!lipscomb mod
+       if (ccsm_smb) call calculate_averages_ccsm(params)
+!lipscomb end mod
 
        ! Calculate total accumulated precipitation - multiply
        ! by time since last model timestep
@@ -920,28 +992,32 @@ contains
            write(stdout,*) 'av_steps =', real(params%av_steps,rk)
            write(stdout,*) 'tstep_mbal (hr) =', params%tstep_mbal
            write(stdout,*) 'i, j =', i, j
-           do n = 1, nec
+           if (ccsm_smb) then
+            do n = 1, nec
               write (stdout,*) ' '
               write (stdout,*) 'n =', n
+              write (stdout,*) 'g_av_qice (kg m-2 s-1) =', params%g_av_qice(i,j,n)
               write (stdout,*) 'g_av_tsfc (Celsius) =',    params%g_av_tsfc(i,j,n)
               write (stdout,*) 'g_av_topo (m) =',          params%g_av_topo(i,j,n)
-              write (stdout,*) 'g_av_qice (kg m-2 s-1) =', params%g_av_qice(i,j,n)
-           enddo
+            enddo
+           endif
            write(stdout,*) 'call glint_i_tstep'
 
 !lipscomb mod
-       ! Calculate total ice accumulated or ablated - multiply by time since last model timestep
-       ! Divide by 1000 to convert from mm to m
-       ! Note that tstep_mbal is measured in hours
+       ! Calculate total surface mass balance - multiply by time since last model timestep
+       ! Note on units: We want g_av_qice to have units of m per time step.
+       ! Divide by 1000 to convert from mm to m.
+       ! Multiply by 3600 to convert from 1/s to 1/hr.  (tstep_mbal has units of hours)
 
-       params%g_av_qice(:,:,:) = params%g_av_qice(:,:,:) * params%tstep_mbal * hours2seconds / 1000._rk
+       if (ccsm_smb) &
+          params%g_av_qice(:,:,:) = params%g_av_qice(:,:,:) * params%tstep_mbal * hours2seconds / 1000._rk
 !lipscomb end mod
 
        ! Do a timestep for each instance
 
        do i=1,params%ninstances
 
-          if (ccsm_flag) then
+          if (ccsm_smb) then
 
 !lipscomb - to do - Make some of these arguments optional?
 
@@ -960,7 +1036,8 @@ contains
                   icevol_temp,             out_f,                        &
                   .true.,                  icets,                        &
 !lipscomb mod
-                  tsfc_g = params%g_av_tsfc, qice_g = params%g_av_qice,  &
+                  ccsm_smb_in = ccsm_smb,                                &
+                  qice_g = params%g_av_qice, tsfc_g = params%g_av_tsfc,  &
                   topo_g = params%g_av_topo, gmask  = params%g_grid%mask,&
                   gfrac  = gfrac_temp,       gtopo  = gtopo_temp,        &
                   grofi  = grofi_temp,       grofl  = grofl_temp,        &
@@ -969,20 +1046,20 @@ contains
 
           else 
 
-             call glint_i_tstep(time,      params%instances(i),          &
-                  params%g_av_temp,        params%g_temp_range,          &
-                  params%g_av_precip,      params%g_av_zonwind,          &
-                  params%g_av_merwind,     params%g_av_humid,            &
-                  params%g_av_lwdown,      params%g_av_swdown,           &
-                  params%g_av_airpress,                                  &
-                  orog,                    orog_out_temp,                &
-                  albedo_temp,             if_temp,                      &
-                  vf_temp,                 sif_temp,                     &
-                  svf_temp,                sd_temp,                      &
-                  win_temp,                wout_temp,                    &
-                  twin_temp,               twout_temp,                   &
-                  icevol_temp,             out_f,                        &
-                  .true.,                  icets)
+             call glint_i_tstep(time,                    params%instances(i),       &
+                                params%g_av_temp,        params%g_temp_range,       &
+                                params%g_av_precip,      params%g_av_zonwind,       &
+                                params%g_av_merwind,     params%g_av_humid,         &
+                                params%g_av_lwdown,      params%g_av_swdown,        &
+                                params%g_av_airpress,                               &
+                                orog,                    orog_out_temp,             &
+                                albedo_temp,             if_temp,                   &
+                                vf_temp,                 sif_temp,                  &
+                                svf_temp,                sd_temp,                   &
+                                win_temp,                wout_temp,                 &
+                                twin_temp,               twout_temp,                &
+                                icevol_temp,             out_f,                     &
+                                .true.,                  icets)
 
            endif
 
@@ -1027,23 +1104,23 @@ contains
 
           ! Set flag
           if (present(ice_tstep)) then
-             ice_tstep=(ice_tstep.or.icets)
+             ice_tstep = (ice_tstep .or. icets)
           end if
 
 !lipscomb mod
           ! Upscale the output to elevation classes on the global grid
 
-          if (ccsm_flag) then
+          if (ccsm_smb) then
 
              nxl = params%instances(i)%lgrid%size%pt(1)
              nyl = params%instances(i)%lgrid%size%pt(2)
 
-             call get_gcm_upscaled_fields(params%instances(i), nec,          &
-                                          nxl,                 nyl,          &
-                                          nxg,                 nyg,          &
-                                          gfrac_temp,          gtopo_temp,   &
-                                          grofi_temp,          grofl_temp,   &
-                                          ghflx_temp )
+             call get_i_upscaled_fields_ccsm(params%instances(i), nec,          &
+                                             nxl,                 nyl,          &
+                                             nxg,                 nyg,          &
+                                             gfrac_temp,          gtopo_temp,   &
+                                             grofi_temp,          grofl_temp,   &
+                                             ghflx_temp )
 
 !lipscomb - debug
              ig = itest
@@ -1091,28 +1168,30 @@ contains
 
              enddo   ! nec
 
-          endif   ! ccsm_flag
+          endif   ! ccsm_smb
 
           ! write ice sheet diagnostics
           if (mod(params%instances(i)%model%numerics%timecounter,  &
                   params%instances(i)%model%numerics%ndiag)==0)  then
              timeyr = time / (days_in_year*24.d0) 
 
-!lipscomb - debug - write ice sheet diagnostics 
+!lipscomb - debug
              write(stdout,*) 'Write diagnostics, time (yr)=', timeyr     
+
              call glide_write_diag(params%instances(i)%model, timeyr, idiag, jdiag)
           endif
+
 !lipscomb end mod
 
        enddo
 
        ! Scale output water fluxes to be in mm/s
 
-       if (present(water_in)) water_in=water_in/ &
-            (params%tstep_mbal*hours2seconds)
+       if (present(water_in))  water_in  = water_in/ &
+                                           (params%tstep_mbal*hours2seconds)
 
-       if (present(water_out)) water_out=water_out/ &
-            (params%tstep_mbal*hours2seconds)
+       if (present(water_out)) water_out = water_out/ &
+                                           (params%tstep_mbal*hours2seconds)
 
        ! ---------------------------------------------------------
        ! Reset averaging fields, flags and counters
@@ -1130,9 +1209,11 @@ contains
        params%g_max_temp   = -1000.0
        params%g_min_temp   = 1000.0
 !lipscomb mod
-       params%g_av_tsfc    = 0.0
-       params%g_av_qice    = 0.0
-       params%g_av_topo    = 0.0
+       if (ccsm_smb) then
+          params%g_av_qice    = 0.0
+          params%g_av_tsfc    = 0.0
+          params%g_av_topo    = 0.0
+       endif
 !lipscomb end mod
 
        params%av_steps      = 0
@@ -1141,7 +1222,7 @@ contains
 
        deallocate(albedo_temp,if_temp,vf_temp,sif_temp,svf_temp,sd_temp,wout_temp,win_temp,orog_out_temp)
 !lipscomb mod
-       deallocate(gfrac_temp, gtopo_temp, grofi_temp, grofl_temp, ghflx_temp)
+       if (ccsm_smb) deallocate(gfrac_temp, gtopo_temp, grofi_temp, grofl_temp, ghflx_temp)
 !lipscomb end mod
 
     endif
@@ -1150,7 +1231,7 @@ contains
 
   !===================================================================
 
-  subroutine end_glint(params)
+  subroutine end_glint(params, close_glimmer_unit)
 
     !*FD perform tidying-up operations for glimmer
     use glint_initialise
@@ -1158,22 +1239,48 @@ contains
     implicit none
 
     type(glint_params),intent(inout) :: params          !*FD parameters for this run
+!lipscomb mod
+    logical, optional, intent(in) :: close_glimmer_unit
+!lipscomb end mod
 
     integer i
+
+!lipscomb mod
+    character(len=8) :: date
+    character(len=10) :: time
+!lipscomb end mod
+
     ! end individual instances
 
     do i=1,params%ninstances
        call glint_i_end(params%instances(i))
     enddo
 
-!lipscomb - to do - Comment out this call for coupled runs?  Jon did this in CCSM version.
-    call close_log
+!lipscomb - to do - figure out a clean way to handle this
+! Currently, the close_log command must be commented out for CCSM runs
+!lipscomb mod
+!    if (present(close_glimmer_unit)) then
+!       if (.not. close_glimmer_unit) then   ! do not close glimmer_unit as is done by close_log
+
+!          ! code copied from subroutine close_log
+!          call date_and_time(date,time)
+!          call write_log_div
+!          write(unit=stdout,fmt="(a,a4,'-',a2,'-',a2,' ',a2,':',a2,':',a6)") ' Finished logging at ',&
+!               date(1:4),date(5:6),date(7:8),time(1:2),time(3:4),time(5:10)
+!          call write_log_div
+!       else
+!          call close_log
+!       endif
+!    else
+       call close_log
+!    endif
+!lipscomb end mod
 
   end subroutine end_glint
 
   !=====================================================
 
-  integer function glint_coverage_map(params,coverage,cov_orog)
+  integer function glint_coverage_map(params, coverage, cov_orog)
 
     !*FD Retrieve ice model fractional 
     !*FD coverage map. This function is provided so that glimmer may
@@ -1192,19 +1299,19 @@ contains
     real(rk),dimension(:,:),intent(out) :: cov_orog !*FD Orography coverage
 
     if (.not.params%coverage_calculated) then
-       glint_coverage_map=1
+       glint_coverage_map = 1
        return
     endif
 
-    if (size(coverage,1).ne.params%g_grid%nx.or. &
-         size(coverage,2).ne.params%g_grid%ny) then
-       glint_coverage_map=2
+    if ( size(coverage,1) /= params%g_grid%nx .or. &
+         size(coverage,2) /= params%g_grid%ny) then
+       glint_coverage_map = 2
        return
     endif
 
-    glint_coverage_map=0
-    coverage=params%total_coverage
-    cov_orog=params%total_cov_orog
+    glint_coverage_map = 0
+    coverage = params%total_coverage
+    cov_orog = params%total_cov_orog
 
   end function glint_coverage_map
 
@@ -1369,21 +1476,34 @@ contains
 
     allocate(params%total_coverage(params%g_grid%nx, params%g_grid%ny))
     allocate(params%cov_normalise (params%g_grid%nx, params%g_grid%ny))
-
     allocate(params%total_cov_orog(params%g_grid_orog%nx, params%g_grid_orog%ny))
     allocate(params%cov_norm_orog (params%g_grid_orog%nx, params%g_grid_orog%ny))
-
-!lipscomb mod
-    allocate(params%g_av_tsfc (params%g_grid%nx, params%g_grid%ny, params%glc_nec))
-    allocate(params%g_av_qice (params%g_grid%nx, params%g_grid%ny, params%glc_nec))
-    allocate(params%g_av_topo (params%g_grid%nx, params%g_grid%ny, params%glc_nec))
-!lipscomb end mod
 
   end subroutine glint_allocate_arrays
 
   !========================================================
+!lipscomb mod - new subroutine for ccsm arrays
 
-  function splice_field(global,local,coverage,normalise)
+  subroutine glint_allocate_arrays_ccsm(params)
+
+    !*FD allocates glimmer arrays for CCSM input fields
+
+    implicit none
+
+    type(glint_params),intent(inout) :: params !*FD ice model parameters
+
+    ! input fields from CCSM
+
+    allocate(params%g_av_qice (params%g_grid%nx, params%g_grid%ny, params%glc_nec))
+    allocate(params%g_av_tsfc (params%g_grid%nx, params%g_grid%ny, params%glc_nec))
+    allocate(params%g_av_topo (params%g_grid%nx, params%g_grid%ny, params%glc_nec))
+
+  end subroutine glint_allocate_arrays_ccsm
+
+!lipscomb end mod
+  !========================================================
+
+  function splice_field(global, local, coverage, normalise)
 
     !*FD Splices an upscaled field into a global field
 
@@ -1404,7 +1524,7 @@ contains
 
   !========================================================
 
-  subroutine glint_readconfig(config,ninstances,fnames,infnames)
+  subroutine glint_readconfig(config, ninstances, fnames, infnames)
 
     !*FD Determine whether a given config file is a
     !*FD top-level glint config file, and return parameters
@@ -1459,7 +1579,7 @@ contains
 
   !========================================================
 
-  subroutine calc_bounds(lon,lat,lonb,latb)
+  subroutine calc_bounds(lon, lat, lonb, latb)
 
     !*FD Calculates the boundaries between
     !*FD global grid-boxes. Note that we assume that the boundaries lie 
@@ -1551,7 +1671,7 @@ contains
 
   !========================================================
 
-  subroutine check_init_args(orog_lats,orog_longs,orog_latb,orog_lonb)
+  subroutine check_init_args(orog_lats, orog_longs, orog_latb, orog_lonb)
 
     !*FD Checks which combination arguments have been supplied to
     !*FD define the global grid, and rejects unsuitable combinations
@@ -1582,7 +1702,7 @@ contains
 
   !========================================================
 
-  subroutine check_input_fields(params,humid,lwdown,swdown,airpress,zonwind,merwind)
+  subroutine check_input_fields(params, humid, lwdown, swdown, airpress, zonwind, merwind)
 
     use glimmer_log
 
@@ -1610,13 +1730,12 @@ contains
 
   end subroutine check_input_fields
 
-  subroutine accumulate_averages(params,temp,precip,zonwind,merwind,humid,lwdown,swdown,airpress,  &
-!lipscomb - glc mod
-                                 tsfc, qice, topo)
-!lipscomb - end glc mod
+  !========================================================
+
+  subroutine accumulate_averages(params, temp, precip, zonwind, merwind, humid, lwdown, swdown, airpress)
 
     type(glint_params),              intent(inout) :: params   !*FD parameters for this run
-    real(rk),dimension(:,:),         intent(in)    :: temp     !*FD Surface temperature field (celcius)
+    real(rk),dimension(:,:),         intent(in)    :: temp     !*FD Surface temperature field (celsius)
     real(rk),dimension(:,:),         intent(in)    :: precip   !*FD Precipitation rate        (mm/s)
     real(rk),dimension(:,:),optional,intent(in)    :: zonwind  !*FD Zonal component of the wind field (m/s)
     real(rk),dimension(:,:),optional,intent(in)    :: merwind  !*FD Meridional component of the wind field (m/s)
@@ -1624,12 +1743,6 @@ contains
     real(rk),dimension(:,:),optional,intent(in)    :: lwdown   !*FD Downwelling longwave (W/m$^2$)
     real(rk),dimension(:,:),optional,intent(in)    :: swdown   !*FD Downwelling shortwave (W/m$^2$)
     real(rk),dimension(:,:),optional,intent(in)    :: airpress !*FD surface air pressure (Pa)
-!lipscomb mods
-    real(rk),dimension(:,:,:),optional,intent(in)  :: tsfc     ! surface ground temperature (C)
-    real(rk),dimension(:,:,:),optional,intent(in)  :: qice     ! flux of glacier ice (kg/m^2/s)
-    real(rk),dimension(:,:,:),optional,intent(in)  :: topo     ! surface elevation (m)
-!lipscomb end mod
-
 
     params%g_av_temp    = params%g_av_temp    + temp
     params%g_av_precip  = params%g_av_precip  + precip
@@ -1644,19 +1757,33 @@ contains
        params%g_av_airpress = params%g_av_airpress + airpress
     endif
 
-!lipscomb mod
-!lipscomb - to do - accumulate if params%glc_smb? (instead of 'if present')
-    if (present(tsfc)) params%g_av_tsfc(:,:,:) = params%g_av_tsfc(:,:,:) + tsfc(:,:,:)
-    if (present(qice)) params%g_av_qice(:,:,:) = params%g_av_qice(:,:,:) + qice(:,:,:)
-    if (present(topo)) params%g_av_topo(:,:,:) = params%g_av_topo(:,:,:) + topo(:,:,:)
-!lipscomb end mod
-
     ! Ranges of temperature
 
-    where (temp > params%g_max_temp) params%g_max_temp=temp
-    where (temp < params%g_min_temp) params%g_min_temp=temp
+    where (temp > params%g_max_temp) params%g_max_temp = temp
+    where (temp < params%g_min_temp) params%g_min_temp = temp
 
   end subroutine accumulate_averages
+
+  !========================================================
+
+!lipscomb mod - new subroutine
+  subroutine accumulate_averages_ccsm(params, qice, tsfc, topo)
+
+    type(glint_params),              intent(inout) :: params   !*FD parameters for this run
+    real(rk),dimension(:,:,:),optional,intent(in)  :: qice     ! flux of glacier ice (kg/m^2/s)
+    real(rk),dimension(:,:,:),optional,intent(in)  :: tsfc     ! surface ground temperature (C)
+    real(rk),dimension(:,:,:),optional,intent(in)  :: topo     ! surface elevation (m)
+
+    if (present(qice)) params%g_av_qice(:,:,:) = params%g_av_qice(:,:,:) + qice(:,:,:)
+    if (present(tsfc)) params%g_av_tsfc(:,:,:) = params%g_av_tsfc(:,:,:) + tsfc(:,:,:)
+    if (present(topo)) params%g_av_topo(:,:,:) = params%g_av_topo(:,:,:) + topo(:,:,:)
+
+!lipscomb - to do - No need to accumulate topo?
+
+  end subroutine accumulate_averages_ccsm
+
+!lipscomb end mod
+  !========================================================
 
   subroutine calculate_averages(params)
 
@@ -1673,16 +1800,27 @@ contains
        params%g_av_airpress = params%g_av_airpress/real(params%av_steps)
     endif
 
-!lipscomb mod
-!lipscomb - to do - add flag, params%glc_smb
+  end subroutine calculate_averages
+
+  !========================================================
+
+!lipscomb mod - new subroutine
+
+  subroutine calculate_averages_ccsm(params)
+
+    type(glint_params),              intent(inout) :: params   !*FD parameters for this run
+
 !lipscomb - to do - do not average topo?
-!lipscomb - to do - averaging above does not use 'rk'
-    params%g_av_tsfc(:,:,:) = params%g_av_tsfc(:,:,:) / real(params%av_steps,rk)
+!lipscomb - to do - remove 'rk' here?
     params%g_av_qice(:,:,:) = params%g_av_qice(:,:,:) / real(params%av_steps,rk)
+    params%g_av_tsfc(:,:,:) = params%g_av_tsfc(:,:,:) / real(params%av_steps,rk)
     params%g_av_topo(:,:,:) = params%g_av_topo(:,:,:) / real(params%av_steps,rk)
+
+  end subroutine calculate_averages_ccsm
+
 !lipscomb end mod
 
-  end subroutine calculate_averages
+  !========================================================
 
 end module glint_main
 
