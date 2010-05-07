@@ -1,3 +1,8 @@
+2010-05-07 Magnus Hagdorn
+ * libglide/glide_lithot_vars.def: swap around definitions to reduce diff with
+   trunk
+ * libglide/glide_vars.def: ditto
+
 2010-05-06 William Lipscomb
  General code cleanup, plus the following specific changes:
  * libglint/glint_main.F90: added subroutines glint_allocate_arrays_ccsm,
