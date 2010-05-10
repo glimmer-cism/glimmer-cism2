@@ -411,11 +411,7 @@ contains
           model%numerics%sigma(up) = glide_calc_sigma(real(up-1)/real(upn-1),2.)
        end do
     case(1)
-!lipscomb mod
-!lipscomb - On some machines, the inquire statement is ignored if model%funits%sigfile
-!            contains all blanks.  In this case, 'there' needs to be set to false.
        there = .false.
-!lipscomb end mod
        inquire (exist=there,file=process_path(model%funits%sigfile))
        if (.not.there) then
           call write_log('Sigma levels file: '//trim(process_path(model%funits%sigfile))// &
@@ -511,9 +507,8 @@ contains
     call GetValue(section,'ntem',model%numerics%ntem)
     call GetValue(section,'nvel',model%numerics%nvel)
     call GetValue(section,'profile',model%numerics%profile_period)
-!lipscomb - debug
     call GetValue(section,'ndiag',model%numerics%ndiag)
-!lipscomb - end debug
+
   end subroutine handle_time
   
   subroutine print_time(model)
@@ -537,10 +532,8 @@ contains
     call write_log(message)
     write(message,*) 'profile frequency : ',model%numerics%profile_period
     call write_log(message)
-!lipscomb - debug
     write(message,*) 'diag frequency    : ',model%numerics%ndiag
     call write_log(message)
-!lipscomb - end debug
     call write_log('')
   end subroutine print_time
 

@@ -249,7 +249,7 @@ contains
     case(1) ! Do full temperature solution ---------------------------------------------
 
 
-!lipscomb - restart mod - This is now done at the end of tstep_p3, so that wgrd
+!lipscomb - restart mod - These routines are now called at the end of tstep_p3, so that wgrd
 !                         can be written to the hotstart file and used for restart.
                          
        ! Calculate time-derivatives of thickness and upper surface elevation ------------
@@ -277,8 +277,6 @@ contains
 !!            model%geomderv,        &
 !!            model%geometry%thck,   &
 !!            model%velocity%wgrd)
-
-!lipscomb - end restart mod
 
        ! Calculate the actual vertical velocity; method depends on whichwvel ------------
 

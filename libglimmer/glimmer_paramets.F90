@@ -67,7 +67,7 @@ module glimmer_paramets
 
   real(sp), parameter :: conv = tim0 / scyr
 
-!lipscomb - debug
+! some parameters for debugging
    integer, parameter ::   &
       itest = 133, jtest = 84,  &          ! in Greenland (FV2), lat 67.3 N, lon 330 E
                   jjtest = 97 - jtest,  &  ! reversed for N to S indexing (FV2, ny = 96)
@@ -75,7 +75,6 @@ module glimmer_paramets
 
    integer, parameter :: idiag = 30, jdiag = 50  ! point for diagnostic output
    integer, parameter :: stdout = 6
-!lipscomb - end debug
 
 !MH!  !MAKE_RESTART
 !MH!#ifdef RESTARTS

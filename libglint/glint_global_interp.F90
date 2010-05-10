@@ -49,9 +49,6 @@ module glint_global_interp
   use glint_global_grid
   use glimmer_global
 
-!lipscomb - debug
-    use glimmer_paramets, only: itest, jtest, jjtest, itest_local, jtest_local, stdout  
-
   implicit none
 
 contains

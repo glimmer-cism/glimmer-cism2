@@ -207,11 +207,10 @@ contains
 
     endif
 
-!lipscomb - debug - Write topo in each elevation class of global cell
-!lipscomb - debug
+#ifdef GLC_DEBUG
     write (stdout,*) ' ' 
     write (stdout,*) 'Interpolate fields to local grid'
-    write(stdout,*) 'Global cell =', itest, jjtest
+    write (stdout,*) 'Global cell =', itest, jjtest
     do n = 1, nec
        write(stdout,*) n, topo_g(itest,jjtest, n)
     enddo
@@ -238,7 +237,7 @@ contains
        write (stdout,*) 'tsfc_l =', tsfc_l(i,j,n)
        write (stdout,*) 'topo_l =', topo_l(i,j,n)
     enddo
-!lipscomb - end debug
+#endif
 
 !   Interpolate tsfc and qice to local topography using values in the neighboring 
 !    elevation classes.
@@ -267,7 +266,7 @@ contains
           enddo
        endif   ! usrf
 
-!lipscomb - debug
+#ifdef GLC_DEBUG
           if (i==itest_local .and. j==jtest_local) then
              n = 4  
              write (stdout,*) ' '
@@ -283,6 +282,7 @@ contains
              write (stdout,*) 'tsfc(n) =', tsfc_l(i,j,n)
              write (stdout,*) 'fact = ', (topo_l(i,j,n) - usrf) / (topo_l(i,j,n) - topo_l(i,j,n-1)) 
           endif
+#endif
 
     enddo  ! i
     enddo  ! j

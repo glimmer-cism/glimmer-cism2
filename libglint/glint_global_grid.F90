@@ -86,11 +86,9 @@ module glint_global_grid
      !*FD The areas of the grid-boxes (m$^2$). This is a two-dimensional array to take
      !*FD account of the possibility of a grid irregularly spaced in longitude
 
-!lipscomb mod - added mask for global grid
      integer,pointer,dimension(:,:) :: mask => null()
      !*FD This mask = 1 where the global data are valid, = 0 elsewhere
      !*FD (e.g., over ocean, where the GCM does not compute a surface mass balance)
-!lipscomb - end glc mod
 
   end type global_grid
 
@@ -139,9 +137,7 @@ contains
 !MH!#undef RST_GLINT_GLOBAL_GRID
 !MH!#endif
 
-!lipscomb mod - added optional argument 'mask'
   subroutine new_global_grid(grid, lons, lats, lonb, latb, radius, correct, mask)
-!lipscomb end mod
 
     use glimmer_log
 
@@ -154,9 +150,7 @@ contains
     real(rk),dimension(:),optional,intent(in)    :: latb !*FD Latitudinal boundaries of grid-boxes (degrees)
     real(rk),             optional,intent(in)    :: radius !*FD The radius of the Earth (m)
     logical,              optional,intent(in)    :: correct !*FD Set to correct for boundaries (default is .true.)
-!lipscomb mod
     integer,dimension(:,:),optional,intent(in)   :: mask 
-!lipscomb end mod
 
     ! Internal variables
 
@@ -179,9 +173,7 @@ contains
     if (associated(grid%lat_bound)) deallocate(grid%lat_bound)
     if (associated(grid%lon_bound)) deallocate(grid%lon_bound)
     if (associated(grid%box_areas)) deallocate(grid%box_areas)
-!lipscomb mod
     if (associated(grid%mask))      deallocate(grid%mask)
-!lipscomb end mod
 
     ! Find size of grid
 
@@ -194,9 +186,7 @@ contains
     allocate(grid%lon_bound(grid%nx+1))
     allocate(grid%lat_bound(grid%ny+1))
     allocate(grid%box_areas(grid%nx,grid%ny))
-!lipscomb mod
     allocate(grid%mask(grid%nx,grid%ny))
-!lipscomb end mod
 
     ! Check dimensions of boundary arrays, if supplied
 
@@ -250,7 +240,6 @@ contains
        enddo
     enddo
 
-!lipscomb mod
     ! Specify mask
 
     if (present(mask)) then
@@ -258,7 +247,6 @@ contains
     else
        grid%mask(:,:) = 1   ! assume global data are valid everywhere 
     endif
-!lipscomb end mod
 
   end subroutine new_global_grid
 
@@ -283,9 +271,7 @@ contains
     if (associated(out%lat_bound)) deallocate(out%lat_bound)
     if (associated(out%lon_bound)) deallocate(out%lon_bound)
     if (associated(out%box_areas)) deallocate(out%box_areas)
-!lipscomb mod
     if (associated(out%mask))      deallocate(out%mask)
-!lipscomb end mod
 
 
     allocate(out%lons(out%nx))
@@ -293,9 +279,7 @@ contains
     allocate(out%lon_bound(out%nx+1))
     allocate(out%lat_bound(out%ny+1))
     allocate(out%box_areas(out%nx,out%ny))
-!lipscomb mod
     allocate(out%mask(out%nx,out%ny))
-!lipscomb end mod
 
     ! Copy data
 
@@ -304,9 +288,7 @@ contains
     out%lat_bound=in%lat_bound
     out%lon_bound=in%lon_bound
     out%box_areas=in%box_areas
-!lipscomb mod
     out%mask     =in%mask
-!lipscomb end mod
 
   end subroutine copy_global_grid
 
@@ -570,9 +552,7 @@ contains
     if (associated(a%lat_bound)) deallocate(a%lat_bound)
     if (associated(a%lon_bound)) deallocate(a%lon_bound)
     if (associated(a%box_areas)) deallocate(a%box_areas)
-!lipscomb mod
-    if (associated(a%mask)) deallocate(a%mask)
-!lipscomb end mod
+    if (associated(a%mask))      deallocate(a%mask)
 
     ! reallocate arrays
 
@@ -581,9 +561,7 @@ contains
     allocate(a%lat_bound(size(b%lat_bound)))
     allocate(a%lon_bound(size(b%lon_bound)))
     allocate(a%box_areas(size(b%box_areas,1),size(b%box_areas,2)))
-!lipscomb mod
     allocate(a%mask(size(b%mask,1),size(b%mask,2)))
-!lipscomb end mod
 
     ! Copy contents
 
@@ -592,9 +570,7 @@ contains
     a%lat_bound=b%lat_bound
     a%lon_bound=b%lon_bound
     a%box_areas=b%box_areas
-!lipscomb mod
     a%mask=b%mask
-!lipscomb end mod
 
   end subroutine grid_assign
 
@@ -619,9 +595,7 @@ contains
 
     if (any(a%lats.ne.b%lats).or. &
          any(a%lons.ne.b%lons).or. &
-!lipscomb mod
          any(a%mask.ne.b%mask).or. &
-!lipscomb end mod
          any(a%box_areas.ne.b%box_areas)) then
        grid_equiv=.false.
        return
@@ -651,9 +625,7 @@ contains
          associated(a%lons).and. &
          associated(a%lat_bound).and. &
          associated(a%lon_bound).and. &
-!lipscomb mod
          associated(a%mask).and. &
-!lipscomb end mod
          associated(a%box_areas)) then
        check_associated=.true.
     else

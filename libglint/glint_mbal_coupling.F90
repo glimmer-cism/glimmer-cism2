@@ -232,7 +232,6 @@ contains
   end subroutine glint_accumulate
 
   ! +++++++++++++++++++++++++++++++++++++++++++++++++
-!lipscomb mod - new subroutine
 
   subroutine glint_accumulate_ccsm(params, time, acab, artm)
 
@@ -270,7 +269,7 @@ contains
     params%artm = artm
 
   end subroutine glint_accumulate_ccsm
-!lipscomb end mod
+
   ! +++++++++++++++++++++++++++++++++++++++++++++++++
 
   subroutine glint_get_mbal(params,artm,prcp,ablt,acab,snowd,siced,dt)

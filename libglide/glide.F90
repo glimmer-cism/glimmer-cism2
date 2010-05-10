@@ -56,11 +56,11 @@ module glide
   use glide_profile
   use glimmer_config
 
-!lipscomb - debug
+#ifdef GLC_DEBUG
     use glimmer_paramets, only: itest, jtest, thk0
+#endif
 
   integer, private, parameter :: dummyunit=99
-
 
 contains
 
@@ -124,8 +124,9 @@ contains
 
     character(len=100), external :: glimmer_version_char
 
-!lipscomb - debug
+#ifdef GLC_DEBUG
   integer :: i, j, k
+#endif
 
     call write_log(trim(glimmer_version_char()))
 
@@ -157,17 +158,17 @@ contains
     ! open all input files
     call openall_in(model)
 
-!lipscomb - to do - If restarting, this subroutine should modify model%numerics%tstart.
     ! and read first time slice
     call glide_io_readall(model,model)
 
     ! Write projection info to log
     call glimmap_printproj(model%projection)
 
-!lipscomb - debug
+#ifdef GLC_DEBUG
     write(6,*) 'Opened input files'
     write(6,*) 'i, j, thck, thck(m):', itest, jtest, &
             model%geometry%thck(itest,jtest), model%geometry%thck(itest,jtest)*thk0
+#endif
 
     ! read lithot if required
     if (model%options%gthf.gt.0) then
@@ -198,12 +199,10 @@ contains
        call init_lithot(model)
     end if
 
-!lipscomb mod
     ! initialise ice age
-    ! Currently the ice age is not computed.  Later, the plan is to advect ice age along
-    !  with temperature using the remapping transport scheme.
+    ! This is a placeholder; currently the ice age is not computed.  
+    !lipscomb - to do - Compute and advect the ice age.
     model%geometry%age(:,:,:) = 0._dp
-!lipscomb end mod
 
     if (model%options%hotstart.ne.1) then
        ! initialise Glen's flow parameter A using an isothermal temperature distribution
@@ -211,29 +210,24 @@ contains
     end if
 
     ! calculate mask
-!lipscomb - restart mod - do not set this mask if restarting from hot file
-!    call glide_set_mask(model)
-    if (model%options%hotstart.ne.1) then
+    if (model%options%hotstart.ne.1) then  ! setting the mask destroys exact restart
        call glide_set_mask(model)
     end if
-!lipscomb - end restart mod
 
     ! and calculate lower and upper ice surface
     call glide_calclsrf(model%geometry%thck, model%geometry%topg, model%climate%eus,model%geometry%lsrf)
     model%geometry%usrf = model%geometry%thck + model%geometry%lsrf
 
-!lipscomb - restart mod
     ! initialise thckwk variables; used in timeders subroutine
     model%thckwk%olds(:,:,1) = model%geometry%thck(:,:)
     model%thckwk%olds(:,:,2) = model%geometry%usrf(:,:)
-!lipscomb - end restart mod
 
     ! initialise profile
 #ifdef PROFILING
     call glide_prof_init(model)
 #endif
 
-!lipscomb - debug
+#ifdef GLC_DEBUG
        write(6,*) ' '
        write(6,*) 'End of glide_init'
        i = itest
@@ -246,6 +240,7 @@ contains
             write(6,300) k, model%temper%temp(k,i,j)
        enddo
   300  format(i3, Z24.20)
+#endif
 
   end subroutine glide_initialise
   
@@ -259,11 +254,8 @@ contains
     use glide_temp
     use glide_mask
     use glimmer_deriv, only : df_field_2d_staggered
-
-!lipscomb - restart mod
     use glimmer_paramets, only: tim0
     use glimmer_physcon, only: scyr
-!lipscomb - end restart mod
 
     implicit none
 
@@ -274,15 +266,14 @@ contains
     model%numerics%time = time  
     model%temper%newtemps = .false.
 
-!lipscomb - restart mod
     model%thckwk%oldtime = model%numerics%time - (model%numerics%dt * tim0/scyr)
 
-!lipscomb - debug
+#ifdef GLC_DEBUG
     write(6,*) ' '
     write(6,*) 'time =', model%numerics%time
     write(6,*) 'tinc =', model%numerics%tinc
     write(6,*) 'oldtime =', model%thckwk%oldtime
-!lipscomb - end restart mod
+#endif
 
     ! ------------------------------------------------------------------------ 
     ! Calculate various derivatives...
@@ -354,9 +345,7 @@ contains
   end subroutine glide_tstep_p1
 
 !----------------------------------------------------------------------------- 
-!lipscomb - restart mod - removed optional argument no_write
 
-!!  subroutine glide_tstep_p2(model,no_write)
   subroutine glide_tstep_p2(model)
     !*FD Performs second part of time-step of an ice model instance.
     !*FD Calculate thickness evolution
@@ -369,30 +358,6 @@ contains
     implicit none
 
     type(glide_global_type) :: model        !*FD model instance
-
-!lipscomb - restart mod - do not write output here, because restart will not be exact
-!           Moved the following code to end of glide_tstep_p3
-
-!!    logical,optional :: no_write
-
-!!    logical nw
-
-    ! ------------------------------------------------------------------------ 
-    ! write to netCDF file
-    ! ------------------------------------------------------------------------ 
-
-!!    if (present(no_write)) then
-!!       nw=no_write
-!!    else
-!!       nw=.false.
-!!    end if
-
-!!    if (.not. nw) then
-!!       call glide_io_writeall(model,model)
-!!       if (model%options%gthf.gt.0) then
-!!          call glide_lithot_io_writeall(model,model)
-!!       end if
-!!    end if
 
     ! ------------------------------------------------------------------------ 
     ! Calculate flow evolution by various different methods
@@ -465,38 +430,31 @@ contains
   end subroutine glide_tstep_p2
 
 !----------------------------------------------------------------------------- 
-!lipscomb - restart mod - added optional argument no_write
 
-!!  subroutine glide_tstep_p3(model)
   subroutine glide_tstep_p3(model, no_write)
     !*FD Performs third part of time-step of an ice model instance:
     !*FD calculate isostatic adjustment and upper and lower ice surface
     use isostasy
     use glide_setup
-!lipscomb - restart mod
     use glide_velo, only: gridwvel
     use glide_thck, only: timeders    
-!lipscomb - end restart mod
 
     implicit none
     type(glide_global_type) :: model        !*FD model instance
     
-!lipscomb - restart mod - new optional argument
     logical,optional, intent(in) :: no_write
-
     logical nw
-!lipscomb - end restart mod
 
-!lipscomb - debug
+#ifdef GLC_DEBUG
     integer :: k
     integer :: i, j, upn 
     upn = model%general%upn
 
-!lipscomb - debug
-       i = itest
-       j = jtest
-       write(6,*) ' '
-       write(6,*) 'Starting tstep_p3, i, j, thck =', i, j, model%geometry%thck(i,j)
+    i = itest
+    j = jtest
+    write(6,*) ' '
+    write(6,*) 'Starting tstep_p3, i, j, thck =', i, j, model%geometry%thck(i,j)
+#endif
 
     ! ------------------------------------------------------------------------ 
     ! Calculate isostasy
@@ -514,12 +472,12 @@ contains
     ! ------------------------------------------------------------------------
     ! calculate upper and lower ice surface
     ! ------------------------------------------------------------------------
-    call glide_calclsrf(model%geometry%thck, model%geometry%topg, model%climate%eus, model%geometry%lsrf)
+    call glide_calclsrf(model%geometry%thck, model%geometry%topg,  &
+                        model%climate%eus,   model%geometry%lsrf)
     model%geometry%usrf = max(0.d0,model%geometry%thck + model%geometry%lsrf)
 
-!lipscomb - restart mod
-!lipscomb - Compute wgrd here and write it to the hotstart file.
-!           This is easier than writing thckwk quantities to the restart file.
+       ! For exact restart, compute wgrd here and write it to the hotstart file.
+       ! (This is easier than writing thckwk quantities to the restart file.)
 
        ! Calculate time-derivatives of thickness and upper surface elevation ------------
 
@@ -547,7 +505,7 @@ contains
             model%geometry%thck,   &
             model%velocity%wgrd)
 
-!lipscomb - debug
+#ifdef GLC_DEBUG
        i = itest
        j = jtest
        write(6,*) ' '
@@ -559,8 +517,7 @@ contains
             write(6,300) k, model%temper%temp(k,i,j)
        enddo
   300  format(i3, Z24.20)
-
-!lipscomb - restart mod - write hotstart file at end of timestep
+#endif
 
     ! ------------------------------------------------------------------------ 
     ! write to netCDF file
@@ -578,7 +535,6 @@ contains
           call glide_lithot_io_writeall(model,model)
        end if
     end if
-!lipscomb - end restart mods
 
     ! increment time counter
     model%numerics%timecounter = model%numerics%timecounter + 1

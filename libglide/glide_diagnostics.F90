@@ -45,8 +45,6 @@ module glide_diagnostics
   ! Author: William Lipscomb, LANL 
  
 contains
-
-!lipscomb - new subroutine to write glide diagnostic output
  
   subroutine glide_write_diag (model, time, idiag, jdiag)
     !*FD Writes diagnostic output
@@ -317,24 +315,28 @@ contains
                'Layer    Speed (m/yr)  Temperature (C)     Age (yr) '
           call write_log(trim(message), type = GM_DIAGNOSTIC)
  
+
           do k = 1, upn-1
              spd = sqrt(model%velocity%uvel(k,i,j)**2   &
                       + model%velocity%vvel(k,i,j)**2) * vel0*scyr
-             age = model%geometry%age(k,i,j)*tim0/scyr
-             write (message,'(i4,f24.16,f24.16,f24.16)')  &
-                k, spd, model%temper%temp(k,i,j), age
+             write (message,'(i4,2f24.16)')  &
+                k, spd, model%temper%temp(k,i,j)
+!             age = model%geometry%age(k,i,j)*tim0/scyr  ! uncomment when age is computed
+!             write (message,'(i4,3f24.16)')  &
+!                k, spd, model%temper%temp(k,i,j), age
              call write_log(trim(message), type = GM_DIAGNOSTIC)
           enddo
 
-!lipscomb - debug - write hex output to check BFB
+#ifdef GLC_DEBUG
           do k = 1, upn-1
              spd = sqrt(model%velocity%uvel(k,i,j)**2   &
                       + model%velocity%vvel(k,i,j)**2) * vel0*scyr
+
              write (message,'(i4,Z24.20,Z24.20)')  &
                 k, spd, model%temper%temp(k,i,j)
              call write_log(trim(message), type = GM_DIAGNOSTIC)
           enddo
-!lipscomb - end debug
+#endif
  
        endif  ! idiag and jdiag in bounds
     endif     ! idiag and jdiag present

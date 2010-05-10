@@ -123,9 +123,7 @@ module glint_type
 
      !*FD Which mass-balance scheme: 
      !*FD \begin{description}
-!lipscomb mod
      !*FD \item[0] Receive surface mass balance from climate model
-!lipscomb end mod
      !*FD \item[1] PDD mass-balance model
      !*FD \item[2] Accumulation only 
      !*FD \item[3] RAPID energy balance model
@@ -276,8 +274,6 @@ contains
 
     ! Output mask
 
-!lipscomb - bug fix - out_mask is an integer
-!!    allocate(instance%out_mask(ewn,nsn)); instance%out_mask = 1.0    
     allocate(instance%out_mask(ewn,nsn)); instance%out_mask = 1
 
   end subroutine glint_i_allocate
@@ -591,7 +587,9 @@ contains
        topomax = (/ 0._dp,   200._dp,   400._dp,   700._dp,  1000._dp,  1300._dp,  &
                             1600._dp,  2000._dp,  2500._dp,  3000._dp, 10000._dp /)
     else
+#ifdef GLC_DEBUG
        write(stdout,*) 'nec =', nec
+#endif
        call write_log('ERROR: Current supported values of nec (no. of elevation classes) are 1, 3, 5, or 10', &
                        GM_FATAL,__FILE__,__LINE__)
     endif
@@ -599,7 +597,7 @@ contains
     local_topo(:,:) = thk0 * instance%model%geometry%usrf(:,:)
     local_thck(:,:) = thk0 * instance%model%geometry%thck(:,:)
         
-!lipscomb - debug
+#ifdef GLC_DEBUG
        ig = itest
        jg = jjtest
        il = itest_local
@@ -612,7 +610,7 @@ contains
        write(stdout,*) 'topo =', local_topo(il,jl) 
        write(stdout,*) 'thck =', local_thck(il,jl) 
        write(stdout,*) 'local out_mask =', instance%out_mask(il,jl)
-       call flush(stdout)
+#endif
 
     ! temporary field: = 1 where ice thickness exceeds threshold, else = 0
 
@@ -679,7 +677,7 @@ contains
                             local_field,         ghflx,     &
                             local_topo,          instance%out_mask)
  
-!lipscomb - debug
+#ifdef GLC_DEBUG
 !       write(stdout,*) ' '
 !       write(stdout,*) 'global ifrac:'
 !       do n = 1, nec
@@ -709,6 +707,7 @@ contains
 !       do n = 1, nec
 !          write(stdout,*) n, ghflx(ig, jg, n)
 !       enddo
+#endif
 
   end subroutine get_i_upscaled_fields_ccsm
 

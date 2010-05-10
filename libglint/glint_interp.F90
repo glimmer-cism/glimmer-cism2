@@ -52,8 +52,9 @@ module glint_interp
   use glimmer_map_types
   use glint_mpinterp
 
-!lipscomb - debug
+#ifdef GLC_DEBUG
   use glimmer_paramets, only: stdout, itest, jtest, jjtest, itest_local, jtest_local
+#endif
 
   implicit none
 
@@ -82,10 +83,8 @@ module glint_interp
      real(rk),dimension(:,:),pointer :: costheta => NULL()  !*FD coses of grid angle relative to north.
      type(mpinterp) :: mpint !*FD Parameters for mean-preserving interpolation
      logical :: use_mpint = .false. !*FD set true if we're using mean-preserving interpolation
-!lipscomb mod - added mask
      integer,dimension(:,:),pointer :: lmask => null()  !*FD mask = 1 where downscaling is valid 
                                                         !*FD mask = 0 elsewhere
-!lipscomb end mod
 
   end type downscale
 
@@ -161,19 +160,14 @@ contains
     call coordsystem_allocate(lgrid,downs%xin)
     call coordsystem_allocate(lgrid,downs%yin)
     call coordsystem_allocate(lgrid,upsm)
-!lipscomb mod - allocate and compute local mask
     call coordsystem_allocate(lgrid,downs%lmask)
-!lipscomb - end mod 
 
     ! index local boxes
 
-!lipscomb mod - added optional argument lmask
-!!   call index_local_boxes(downs%xloc,downs%yloc,downs%xfrac,downs%yfrac,ggrid,proj,lgrid)
     call index_local_boxes(downs%xloc,  downs%yloc,   &
                            downs%xfrac, downs%yfrac,  &
                            ggrid, proj, lgrid,        &
                            downs%lmask )
-!lipscomb end mod
 
     ! Calculate grid angle
 
@@ -245,13 +239,10 @@ contains
 
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-!lipscomb mod - added optional input argument 'maskval'
-!!  subroutine interp_to_local(lgrid,global,downs,localsp,localdp,localrk,global_fn,z_constrain)
   subroutine interp_to_local (lgrid,     global,      downs,   &
                               localsp,   localdp,     localrk, &
                               global_fn, z_constrain,          &
                               gmask,     maskval)
-!lipscomb end mod
 
     !*FD Interpolate a global scalar field onto a projected grid. 
     !*FD 
@@ -262,7 +253,6 @@ contains
     !*FD Either localsp or localdp must be present (or both), depending
     !*FD which precision output is required.
 
-!lipscomb - added diagram
 ! Cell indexing for (xloc,yloc) is as follows:
 !
 !       4---------3
@@ -291,10 +281,8 @@ contains
                                                                !*FD In these circumstances, \texttt{global}
                                                                !*FD may be of any size, and its contents are irrelevant.
     logical,optional :: z_constrain
-!lipscomb mod
     integer, dimension(:,:), intent(in),optional  :: gmask     !*FD = 1 where global data are valid, else = 0
     real(dp), intent(in), optional                :: maskval   !*FD Value to write for masked-out cells 
-!lipscomb end mod
 
     ! Local variable declarations
 
@@ -305,13 +293,12 @@ contains
     logical,  dimension(size(global,1),size(global,2)) :: zeros
     logical :: zc
 
-!lipscomb mod
     integer :: x1, x2, x3, x4
     integer :: y1, y2, y3, y4
-!lipscomb end mod
 
-!lipscomb - debug
+#ifdef GLC_DEBUG
     integer :: n
+#endif
 
     if (present(z_constrain)) then
        zc=z_constrain
@@ -336,7 +323,7 @@ contains
     do i=1,lgrid%size%pt(1)
        do j=1,lgrid%size%pt(2)
 
-!lipscomb - debug
+#ifdef GLC_DEBUG
 !          if (i==itest_local .and. j==jtest_local) then
 !              write(stdout,*) ' '
 !              write(stdout,*) 'Interpolating, i, j, lmask = ', i, j, downs%lmask(i,j)
@@ -345,10 +332,10 @@ contains
 !                 write(stdout,*) downs%xloc(i,j,n), downs%yloc(i,j,n)
 !              enddo
 !          endif
+#endif
 
           ! Compile the temporary array f from adjacent points 
 
-!lipscomb mod - added code to handle masked-out global gridcells
 !lipscomb - to do - This could be handled more efficiently by precomputing arrays that
 !  specify which neighbor gridcell supplies values in each masked-out global gridcell.
  
@@ -420,8 +407,6 @@ contains
                 endif
 
              endif    ! lmask = 0
-
-!lipscomb end mod
 
           else        ! gmask and maskval not present
 
@@ -788,21 +773,23 @@ contains
 
     global(:,:,:) = 0._dp
 
+
     do j = 1, nyl
     do i = 1, nxl
        ig = ups%gboxx(i,j)
        jg = ups%gboxy(i,j)
        n = gboxec(i,j)
-!lipscomb - bug check
        if (n==0) then
+#ifdef GLC_DEBUG
           write(stdout,*) 'Upscaling error: local topography out of bounds'
           write(stdout,*) 'i, j, topo:', i, j, ltopo(i,j)
           write(stdout,*) 'topomax(0) =', topomax(0)
+#endif
           call write_log('Upscaling error: local topography out of bounds', &
                GM_FATAL,__FILE__,__LINE__)
        endif
 
-!lipscomb - debug
+#ifdef GLC_DEBUG
        if (i==itest_local .and. j==jtest_local) then
           write(stdout,*) ' '
           write(stdout,*) 'il, jl =', i, j
@@ -810,13 +797,14 @@ contains
           write(stdout,*) 'Old global val =', global(ig,jg,n)
           write(stdout,*) 'local, mask =', local(i,j), tempmask(i,j)
        endif
-
+#endif
        global(ig,jg,n) = global(ig,jg,n) + local(i,j)*tempmask(i,j)
 
-!lipscomb - debug
+#ifdef GLC_DEBUG
        if (i==itest_local .and. j==jtest_local) then
           write(stdout,*) 'New global val =', global(ig,jg,n)
        endif
+#endif
 
     enddo
     enddo
@@ -853,15 +841,19 @@ contains
 
     if (abs(lsum) > 1.e-10_dp) then
        if (abs(gsum-lsum)/abs(lsum) > 1.e-10_dp) then 
+#ifdef GLC_DEBUG
           write(stdout,*) 'local and global sums disagree'
           write (stdout,*) 'lsum, gsum =', lsum, gsum 
+#endif
           call write_log('Upscaling error: local and glocal sums disagree', &
                GM_FATAL,__FILE__,__LINE__)
        endif
     else  ! lsum is close to zero
        if (abs(gsum-lsum) > 1.e-10_dp) then
+#ifdef GLC_DEBUG
           write(stdout,*) 'local and global sums disagree'
           write (stdout,*) 'lsum, gsum =', lsum, gsum 
+#endif
           call write_log('Upscaling error: local and glocal sums disagree', &
                GM_FATAL,__FILE__,__LINE__)
        endif
@@ -946,10 +938,7 @@ contains
 
   !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-!lipscomb mod
-!!  subroutine index_local_boxes(xloc,yloc,xfrac,yfrac,ggrid,proj,lgrid)
   subroutine index_local_boxes (xloc, yloc, xfrac, yfrac, ggrid, proj, lgrid, lmask)
-!lipscomb end mod
 
     !*FD Indexes the corners of the
     !*FD global grid box in which each local grid box sits.
@@ -966,16 +955,14 @@ contains
     type(global_grid),        intent(in)  :: ggrid       !*FD Global grid to be used
     type(glimmap_proj),       intent(in)  :: proj        !*FD Projection to be used
     type(coordsystem_type),   intent(in)  :: lgrid       !*FD Local grid
-!lipscomb mod
-    integer, dimension(:,:), intent(out)  :: lmask  !*FD Mask of local cells for which interpolation is valid
-!lipscomb end mod
+    integer, dimension(:,:),  intent(out) :: lmask  !*FD Mask of local cells for which interpolation is valid
 
     ! Internal variables
 
     integer :: i,j,il,jl,temp
     real(rk) :: ilon,jlat,xa,ya,xb,yb,xc,yc,xd,yd
 
-!lipscomb - debug
+#ifdef GLC_DEBUG
     integer :: nx, ny, nxg, nyg, n
     nx = lgrid%size%pt(1)
     ny = lgrid%size%pt(2)
@@ -986,7 +973,7 @@ contains
     write(stdout,*) 'nx,  ny =', nx, ny
     write(stdout,*) 'nxg, nyg =', nxg, nyg
     write(stdout,*) 'Indexing local boxes'
-!lipscomb - end debug
+#endif
 
     do i=1,lgrid%size%pt(1)
        do j=1,lgrid%size%pt(2)
@@ -1048,7 +1035,7 @@ contains
 
           endif
 
-!lipscomb - debug
+#ifdef GLC_DEBUG
           if (i==itest_local .and. j==jtest_local) then
              write(stdout,*) ' '
              write(stdout,*) 'Index local boxes, i, j =', i, j
@@ -1057,6 +1044,7 @@ contains
                 write(stdout,*) xloc(i,j,n), yloc(i,j,n)
              enddo
           endif
+#endif
 
           ! Now, find out where each of those points is on the projected
           ! grid, and calculate fractional displacements accordingly
@@ -1069,7 +1057,6 @@ contains
           call calc_fractional(xfrac(i,j),yfrac(i,j),real(i,rk),real(j,rk), &
                xa,ya,xb,yb,xc,yc,xd,yd)
 
-!lipscomb mod - check for masked out global points
           ! If all four global gridcells surrounding this local gridcell
           ! are masked out, then mask out the local gridcell
 
@@ -1081,19 +1068,18 @@ contains
           else
              lmask(i,j) = 1
           endif
-!lipscomb end mod
 
        enddo
     enddo
 
-!lipscomb - debug
+#ifdef GLC_DEBUG
           write(stdout,*) ' '
           write(stdout,*) 'Mask in neighborhood of i, j = ', itest_local, jtest_local
           do j = jtest_local-1, jtest_local+1
              write(stdout,*) lmask(itest_local-1:itest_local+1,j)
           enddo
 
-         write(stdout,*) ' '
+          write(stdout,*) ' '
           write(stdout,*) 'Global mask near Greenland'
           do j = 1, 20
              write(stdout,150) ggrid%mask(nxg-29:nxg,j)
@@ -1108,7 +1094,7 @@ contains
   100     format(144i2)
   150     format(30i2)
   200     format(76i2)
-!lipscomb - end debug
+#endif
 
   end subroutine index_local_boxes
 
@@ -1352,7 +1338,8 @@ contains
 
     y=(yp-ya-x*(yb-ya))/(yd+x*(yc-yd-yb+ya)-ya)
 
-!lipscomb - debug - Can use this code if points are degenerate (a=b, c=d, etc.)
+#ifdef GLC_DEBUG
+! Could use the following code if points are degenerate (a=b, c=d, etc.)
 !    if (abs(a) > small) then
 !       x=(-b-sqrt(b**2-4*a*c))/(2*a)
 !    elseif (abs(b) > small) then
@@ -1366,6 +1353,7 @@ contains
 !    else
 !       y=0._rk
 !    endif
+#endif
 
   end subroutine calc_fractional
 

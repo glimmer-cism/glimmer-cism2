@@ -1,3 +1,28 @@
+2010-05-09 William Lipscomb
+ More code cleanup:  Removed most '!lipscomb' comments, and put ifdefs around
+	debugging write statements.  The remaining comments indicate where I have
+	questions or where there is still work to do.  At this point the code is
+	ready to be merged into the glimmer-cism2 trunk.
+ * libglide/glide.F90
+ * libglide/glide_setup.F90
+ * libglide/glimmer_ncio.F90
+ * libglide/glide_types.F90
+ * libglide/glide_temp.F90
+ * libglide/glide_diagnostics.F90
+ * libglimmer/glimmer_paramets.F90
+ * libglimmer/glimmer_log.F90
+ * libglimmer/nc2config.F90
+ * libglint/glint_timestep.F90
+ * libglint/glint_initialise.F90
+ * libglint/glint_interp.F90
+ * libglint/glint_global_grid.F90
+ * libglint/glint_mbal.F90
+ * libglint/glint_mbal_coupling.F90
+ * libglint/glint_climate.F90
+ * libglint/glint_global_interp.F90
+ * libglint/glint_type.F90
+ * libglint/glint_main.F90
+
 2010-05-07 Magnus Hagdorn
  * libglide/glide_lithot_vars.def: swap around definitions to reduce diff with
    trunk

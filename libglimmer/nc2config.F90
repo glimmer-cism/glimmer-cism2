@@ -65,8 +65,6 @@ program nc2config
   implicit none
 
   character(100) :: infile, outfile
-!lipscomb - here and below, changed stdout to l_stdout (in CCSM, stdout is a unit number)
-!!  logical :: stdout = .true.
   logical :: l_stdout = .true.
   character(10000) :: config
   integer :: status,ncid,attlen,unit,i,ellen

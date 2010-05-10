@@ -175,21 +175,25 @@ contains
 
     instance%next_time = force_start-force_dt+instance%mbal_tstep
 
-!lipscomb - debug
+#ifdef GLC_DEBUG
     write (6,*) 'Called glint_mbc_init'
     write (6,*) 'mbal tstep =', mbts
     write (6,*) 'next_time =', instance%next_time
     write (6,*) 'start_time =', instance%mbal_accum%start_time
+#endif
 
     ! Mass-balance accumulation length
 
     if (instance%mbal_accum_time == -1) then
        instance%mbal_accum_time = max(instance%ice_tstep,instance%mbal_tstep)
-!lipscomb - debug - set mbal_accum_time = mbal_tstep
+#ifdef GLC_DEBUG
+!Set mbal_accum_time = mbal_tstep
 !lipscomb - Uncomment for short runs?
+! to do - Make it easy to run Glimmer/Glint for ~5 days, e.g. for CCSM smoke tests,
+!         with all major components exercised. 
 !!       instance%mbal_accum_time = instance%mbal_tstep
 !!       write(6,*) 'WARNING: Seting mbal_accum_time =', instance%mbal_accum_time
-!lipscomb - end debug
+#endif
     end if
 
     if (instance%mbal_accum_time < instance%mbal_tstep) then
@@ -221,20 +225,19 @@ contains
        instance%n_icetstep = instance%ice_tstep_multiply
     end if
 
-!lipscomb - restart mod - commented out because it destroys exact restart
+!This was commented out because it destroys exact restart
 !lipscomb - to do - Find another way to set thk to snowd?
     ! Copy snow-depth to thickness if no thickness is present
 
 !!    allocate(thk(get_ewn(instance%model),get_nsn(instance%model)))
 !!    call glide_get_thk(instance%model,thk)
-!!    where (instance%snowd>0.0.and.thk==0.0)
+!!    where (instance%snowd>0.0 .and. thk==0.0)
 !!       thk=instance%snowd
 !!    elsewhere
 !!       thk=thk
 !!    endwhere
 !!    call glide_set_thk(instance%model,thk)
 !!    deallocate(thk)
-!lipscomb - end restart mod
 
     call glide_io_writeall(instance%model, instance%model)
     call glint_io_writeall(instance, instance%model)
