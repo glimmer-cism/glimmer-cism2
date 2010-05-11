@@ -1,4 +1,8 @@
 2010-05-11 Magnus Hagdorn
+ * configure.in: create new Makefile
+ * move extensions/erosion to extensions/erosion/src
+
+2010-05-11 Magnus Hagdorn
  * Makefile.am: add new sub directory
  * configure.in: add check whether erosion extension should be built, create
    new Makefiles
