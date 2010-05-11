@@ -1,4 +1,10 @@
 2010-05-11 Magnus Hagdorn
+ * configure.in: create new Makefile
+ * extensions/erosion/tests: import erosion tests from old repo
+ * extensions/erosion/tests/Makefile.am: fix glimmer launcher
+ * extensions/erosion/Makefile.am: decent into new directory
+
+2010-05-11 Magnus Hagdorn
  * configure.in: create Makefiles in new subdirectories
  * doc/ext.tex, doc/ext_pdf.tex, doc/ext_ps.tex: new top level document for
    extensions
