@@ -1,4 +1,14 @@
 2010-05-11 Magnus Hagdorn
+ * configure.in: create Makefiles in new subdirectories
+ * doc/ext.tex, doc/ext_pdf.tex, doc/ext_ps.tex: new top level document for
+   extensions
+ * doc/Makefile.am: add new files
+ * doc/glimmer.bib: add new references
+ * doc/glimmer.tex: include new chapter
+ * doc/ext/erosion: import erosion documentation from old repo
+ * doc/ug/glide.tex: fix typo
+
+2010-05-11 Magnus Hagdorn
  * configure.in: create new Makefile
  * move extensions/erosion to extensions/erosion/src
 
