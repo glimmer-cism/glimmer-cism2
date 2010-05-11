@@ -1,4 +1,16 @@
 2010-05-11 Magnus Hagdorn
+ * Makefile.am: add new sub directory
+ * configure.in: add check whether erosion extension should be built, create
+   new Makefiles
+ * extensions: new directory for extensions
+ * extensions/erosion: copied from old branch
+ * extensions/erosion/erosion_version.F90.in: removed - unused
+ * extensions/erosion/erosion_sediment.F90: fix module references
+ * extensions/erosion/erosion.F90: ditto
+ * extensions/erosion/Makefile.am: fix references to various libs and scripts
+ * tests/EISMINT/src/Makefile.am: make EISMINT1/2 climate driver a library
+
+2010-05-11 Magnus Hagdorn
  * m4macros/glimmer.m4: fix macro to look for new config script
 
 2010-05-10 Magnus Hagdorn
