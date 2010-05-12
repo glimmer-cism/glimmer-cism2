@@ -1,9 +1,9 @@
-graphics = ice_velo.eps erosion_layers.eps pressure_stress_strain.eps 
+graphics = ice_velo.eps erosion_layers.eps pressure_stress_strain.eps plot_basal.eps
 EXTRA_DIST = ice_velo.fig erosion_layers.fig pressure_stress_strain.fig $(graphics)
 BUILT_SOURCES = $(graphics)
 
-plot_basal.ps:	plot_basal.py
-	$(PYTHON) plot_basal.py
+plot_basal.eps:	plot_basal.py
+	$(PYTHON) plot_basal.py $@
 
 sediments.ps:	../../../tests/fenscan.nc
 		$(PYTHON) ../../../python/plot_seds.py -T -1 -p fenscan.prof --not_p $< $@

@@ -1,4 +1,10 @@
 2010-05-12 Magnus Hagdorn
+ * doc/ext/erosion/transport.tex: re-enable figure
+ * doc/ext/erosion/figs/Makefile.am: generate figure
+ * doc/ext/erosion/figs/plot_basal.py: rewrite to use matplotlib instead of
+   PyGMT and PyCF
+
+2010-05-12 Magnus Hagdorn
  * extensions/erosion/src/eis_erosion.F90: use new command line handler
  * extensions/erosion/src/simple_erosion.F90: ditto
  * extensions/erosion/src/erosion.F90: fix repository link

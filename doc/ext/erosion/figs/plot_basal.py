@@ -1,7 +1,9 @@
 #! /usr/bin/env python
 # plot basal sediment models
 
-import Numeric, PyGMT, math
+import matplotlib.pyplot
+import matplotlib
+import numpy, math, sys
 from  pygsl import integrate
 
 def calc_alpha(Nz,phi):
@@ -29,11 +31,11 @@ def calc_za(tau,N0,Nz,c,phi):
     c: cohesion
     phi: angle of internal friction"""
 
-    za = Numeric.zeros(len(tau),Numeric.Float)
+    za = numpy.zeros(len(tau),numpy.float)
     beta  = calc_beta(N0,Nz,c,phi)
     alpha = calc_alpha(Nz,phi)
     
-    za = Numeric.minimum(0., alpha*tau+beta)
+    za = numpy.minimum(0., alpha*tau+beta)
     
     return za
 
@@ -94,7 +96,7 @@ def flow2(z,params):
 def calc_vsld(tau,A,m,n,N0,Nz,c,phi,sigma=False):
 
     za = calc_za(tau,N0,Nz,c,phi)
-    v = Numeric.zeros(len(tau),Numeric.Float)
+    v = numpy.zeros(len(tau),numpy.float)
 
     if sigma:
         f = flow2
@@ -122,7 +124,7 @@ def calc_vavg(tau,A,m,n,N0,Nz,c,phi,sigma=False):
     phi: angle of internal friction"""
 
     za = calc_za(tau,N0,Nz,c,phi)
-    v = Numeric.zeros(len(tau),Numeric.Float)
+    v = numpy.zeros(len(tau),numpy.float)
     
     if sigma:
         f = flow2
@@ -142,66 +144,47 @@ if __name__ == '__main__':
 
     c   = [3.75,15,30,70,70,150,150,250]
     phi = [32,30,27,32,30,32,32,35]
+    tau = numpy.arange(0.,100.,1.,numpy.float)
+    
+    fig = matplotlib.pyplot.figure(figsize=(10,10))
 
+    # create axes
+    axprops = {}
+    za = fig.add_subplot(3,1,3,**axprops)
+    za.set_ylabel("depth of deforming\nsediment layer [m]")
+    za.set_xlabel("shear stress [kPa]")
+    axprops['sharex'] = za
+    
+    vsld = fig.add_subplot(3,1,2,**axprops)
+    vsld.set_ylabel("sliding velocity [m/a]")
 
-    plot = PyGMT.Canvas('plot_basal.ps',size='A4')
-    plot.defaults['LABEL_FONT_SIZE']='12p'
-    plot.defaults['ANOT_FONT_SIZE']='10p'
-
-    ay = 4.
-    dy = 0.5
-
-    leg = 4
-
-    bigarea = PyGMT.AreaXY(plot,size=[30,30],pos=[0,0])
-
-
-    tau = Numeric.arange(0.,100.,1.,Numeric.Float)
-
-    key = PyGMT.KeyArea(bigarea,size=[15,2.5])
-    key.num = [2,4]
-
-    area_za = PyGMT.AutoXY(bigarea,size=[15,ay],pos=[0,leg])
-    area_za.xlabel="shear stress [kPa]"
-    area_za.ylabel="depth of deforming sediment layer [m]"
-    area_za.axis = 'WeSn'
-
-    area_vsld = PyGMT.AutoXY(bigarea,size=[15,ay],pos=[0,leg+ay+dy])
-    area_vsld.ylabel="sliding velocity [m/a]"
-    area_vsld.axis = 'Wesn'
-
-    area_vavg = PyGMT.AutoXY(bigarea,size=[15,ay],pos=[0,leg+2*(ay+dy)])
-    area_vavg.ylabel="average sediment velocity [m/a]"
-    area_vavg.axis = 'Wesn'
+    vavg = fig.add_subplot(3,1,1,**axprops)
+    vavg.set_ylabel("average sediment velocity [m/a]")
 
     def p(tau,N0,Nz,c,phi, colour, name):
-        key.plot_line(name,'-W2/%s'%colour)
+        za.plot(tau,calc_za(tau, N0,Nz,c,phi),color=colour,label=name)
+        vsld.plot(tau,calc_vsld(tau,107.11,1.35,0.77 ,N0,Nz,c,phi,True),color=colour)
+        vsld.plot(tau,calc_vsld(tau, 380.86,2,1,N0,Nz,c,phi,True),color=colour,ls=':')
+
+        vavg.plot(tau,calc_vavg(tau, 34.8,1.8,1.33, N0,Nz,c,phi,False),color=colour)
+        vavg.plot(tau,calc_vavg(tau, 380.86,2,1,N0,Nz,c,phi,True),color=colour,ls=':')
         
-        area_za.line('-W2/%s'%colour,tau,calc_za(tau, N0,Nz,c,phi))
-        #area_vsld.line('-W2/%s'%colour,tau,calc_vsld(tau, 34.8,1.8,1.33, N0,Nz,c,phi,False))
-        area_vsld.line('-W2/%st'%colour,tau,calc_vsld(tau,107.11,1.35,0.77 ,N0,Nz,c,phi,True))
-        area_vsld.line('-W2/%sta'%colour,tau,calc_vsld(tau, 380.86,2,1,N0,Nz,c,phi,True))
-
-        #area_vavg.line('-W2/%s'%colour,tau,calc_vavg(tau, 34.8,1.8,1.33, N0,Nz,c,phi,False))
-        area_vavg.line('-W2/%s'%colour,tau,calc_vavg(tau,107.11,1.35,0.77 ,N0,Nz,c,phi,True))
-        area_vavg.line('-W2/%sta'%colour,tau,calc_vavg(tau, 380.86,2,1,N0,Nz,c,phi,True))
-
-
+    
     # Breidamerkurkoekull
-    p(tau,50., -10., 3.75, 32., '255/0/0', "Breidamerkurkoekull, N=50kPa")
+    p(tau,50., -10., 3.75, 32., 'red', "Breidamerkurkoekull, N=50kPa")
 
     # typical till
-    p(tau,50., -10., 15, 30, '0/255/0', "typical till, N=50kPa")
+    p(tau,50., -10., 15, 30, 'green', "typical till, N=50kPa")
 
     # Breidamerkurkoekull
-    p(tau,20., -10., 3.75, 32., '0/0/255', "Breidamerkurkoekull, N=20kPa")
+    p(tau,20., -10., 3.75, 32., 'blue', "Breidamerkurkoekull, N=20kPa")
 
     # typical till
-    p(tau,20., -10., 15, 30, '0/255/255', "typical till, N=20kPa")
+    p(tau,20., -10., 15, 30, 'cyan', "typical till, N=20kPa")
     
-    area_za.coordsystem()
-    area_vsld.coordsystem()
-    area_vavg.coordsystem()
-    
-    plot.close()
+    za.legend(loc=3)
 
+    if len(sys.argv)<2:
+        matplotlib.pyplot.show()
+    else:
+        matplotlib.pyplot.savefig(sys.argv[1])
