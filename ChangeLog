@@ -1,3 +1,11 @@
+2010-05-12 Magnus Hagdorn
+ * extensions/erosion/src/eis_erosion.F90: use new command line handler
+ * extensions/erosion/src/simple_erosion.F90: ditto
+ * extensions/erosion/src/erosion.F90: fix repository link
+ * extensions/erosion/src/erosion_sediment.F90: ditto
+ * extensions/erosion/src/erosion_setup.F90: ditto
+ * extensions/erosion/src/erosion_types.F90: ditto
+
 2010-05-11 Magnus Hagdorn
  * configure.in: create new Makefile
  * extensions/erosion/tests: import erosion tests from old repo
