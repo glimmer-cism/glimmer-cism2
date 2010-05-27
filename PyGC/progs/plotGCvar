@@ -1,0 +1,88 @@
+#! /usr/bin/env python
+
+# Copyright 2004, Magnus Hagdorn
+# 
+# This file is part of GLIMMER.
+# 
+# GLIMMER is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# GLIMMER is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with GLIMMER; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+"""A simple plot of CF fields."""
+
+import PyGC
+import matplotlib.pyplot
+from mpl_toolkits.basemap import Basemap
+import numpy,math
+
+# creating option parser
+parser = PyGC.GCOptParser()
+parser.variable()
+parser.time()
+parser.region()
+parser.plot()
+opts = PyGC.GCOptions(parser,-1)
+
+infile = opts.gcfile()
+var  = opts.vars(infile)
+time = opts.times(infile)
+clip = opts.options.clip
+
+linear = (infile.projection=='lin')
+
+if linear:
+    fig = matplotlib.pyplot.Figure()
+    m = matplotlib.pyplot.axes()
+    extent = numpy.array([infile.ll_xy[0],infile.ur_xy[0],infile.ll_xy[1],infile.ur_xy[1]])/1000
+else:
+    longs = numpy.arange(math.ceil(infile.minmax_long[0]/10.), math.floor(infile.minmax_long[1]/10.))*10.
+    lats = numpy.arange(math.ceil(infile.minmax_lat[0]/10.), math.floor(infile.minmax_lat[1]/10.))*10.
+
+    # turn projection parameters into parameters for setting up basemap plot
+    params = {}
+    for p in infile.projection.proj4_params():
+        p = p.split('=')
+        k=p[0]
+        v=p[1]
+        if k=='proj':
+            params['projection'] = v
+        elif k in ['ellps','y_0','x_0']:
+            pass
+        else:
+            params[k] = float(v)
+    params['llcrnrlon']=infile.ll_geo[0]
+    params['llcrnrlat']=infile.ll_geo[1]
+    params['urcrnrlon']=infile.ur_geo[0]
+    params['urcrnrlat']=infile.ur_geo[1]
+    params['resolution']='l'
+    extent = None
+
+    m = Basemap(**params)
+    
+
+norm,cmap,title = opts.colourmap(infile)
+
+im = m.imshow(var.get2Dfield(time),norm=norm,cmap=cmap,extent=extent)
+
+cb = matplotlib.pyplot.colorbar(im, extend='both', spacing='uniform',orientation='horizontal', shrink=0.8)
+cb.set_label(title)
+
+if linear:
+    m.set_aspect('equal')
+else:
+    m.drawcoastlines()
+    m.drawparallels(lats,labels=[1,1,0,1])
+    m.drawmeridians(longs,labels=[1,1,0,1])
+
+matplotlib.pyplot.show()
+

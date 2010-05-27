@@ -28,7 +28,6 @@ glimmer_FFLAGS=$FFLAGS
 AC_DEFINE_UNQUOTED(GLIMMER_FCFLAGS,"${glimmer_FCFLAGS}",[fortran compiler flags the model is configured with])
 
 # we are building fortran libraries so, let's make them static
-AC_DISABLE_SHARED
 AC_PROG_LIBTOOL
 AC_PROG_CC
 AC_PROG_CXX
@@ -101,6 +100,29 @@ FCFLAGS="$FCFLAGS"
 FFLAGS="$FFLAGS"
 
 dnl Checking for python
+build_python=1
+AC_MSG_CHECKING(if we should build python bindings)
+AC_ARG_ENABLE(python, AS_HELP_STRING([--disable-python], [Do not build Python modules]),
+ [case "${enableval}" in
+   yes) build_python=1  
+        AC_MSG_RESULT([yes]);;
+   no)  build_python=0
+        AC_MSG_RESULT([no])  ;;
+   *) AC_MSG_ERROR(bad value ${enableval} for --disable-python) ;;
+ esac],[AC_MSG_RESULT([yes])])
+if test "$build_python" == 1; then
+  AC_PYTHON_DEVEL([>= '2.3'])
+  proj_ok=no
+  AC_LANG_PUSH([C])
+  AC_CHECK_HEADER(projects.h,proj_ok=yes,proj_ok=no)
+  AC_SEARCH_LIBS(pj_fwd,proj,proj_ok=yes,proj_ok=no)
+  if test x"$proj_ok"x != xyesx; then
+    AC_MSG_ERROR(libproj unusable)
+  fi
+  AC_LANG_POP([C])
+fi
+AM_CONDITIONAL([BUILD_PYTHON], [test "$build_python" == "1"])
+
 AM_PATH_PYTHON([2.3],,[AC_MSG_RESULT(need at least python 2.3)])
 
 # checking for BLAS library
@@ -312,6 +334,8 @@ AC_CONFIG_FILES([Makefile m4macros/Makefile scripts/Makefile \
                 tests/exact-isothermal/Makefile tests/exact-isothermal/src/Makefile \
                 tests/exact-isothermal/matlab/Makefile tests/exact-isothermal/scripts/Makefile \
                 tests/exact-isothermal/tests/Makefile \
+                PyGC/Makefile PyGC/PyGC/Makefile PyGC/PyGC/IO/Makefile PyGC/src/Makefile PyGC/progs/Makefile \
+                PyGC/data/Makefile \
                 example-drivers/eis/Makefile example-drivers/eis/src/Makefile \
                 example-drivers/eis/fenscan/Makefile example-drivers/EISMINT-3/EISMINT-3/Makefile \
                 example-drivers/EISMINT-3/Makefile example-drivers/EISMINT-3/src/Makefile \
