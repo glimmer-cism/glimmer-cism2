@@ -22,6 +22,7 @@
 
 import PyGC
 import matplotlib.pyplot
+import matplotlib.cm, matplotlib.colors
 from mpl_toolkits.basemap import Basemap
 import numpy,math
 
@@ -71,8 +72,16 @@ else:
     
 
 norm,cmap,title = opts.colourmap(infile)
-
 im = m.imshow(var.get2Dfield(time),norm=norm,cmap=cmap,extent=extent)
+
+# shade plot
+if opts.options.illuminate!=None:
+    ls = matplotlib.colors.LightSource()
+    v = ls.shade(infile.getvar(opts.options.illuminate).get2Dfield(time),cmap=matplotlib.cm.gray)
+    v[:,:,3] = (1-v[:,:,0])*0.8
+    v[:,:,0:3] = 0.05
+    m.imshow(v)
+
 
 cb = matplotlib.pyplot.colorbar(im, extend='both', spacing='uniform',orientation='horizontal', shrink=0.8)
 cb.set_label(title)

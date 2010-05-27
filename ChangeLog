@@ -1,4 +1,8 @@
 2010-05-27 Magnus Hagdorn
+ * PyGC/progs/plotGCvar: shade surface
+ * PyGC/PyGC/Makefile.am: forgot file
+
+2010-05-27 Magnus Hagdorn
  * Makefile.am: conditionally add new subdirectory
  * configure.in: add option to build and install PyGC
  * PyGC: copying some files from PyCF and porting it to matplotlib
