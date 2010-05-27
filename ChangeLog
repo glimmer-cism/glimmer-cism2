@@ -1,3 +1,10 @@
+2010-05-28 Magnus Hagdorn
+ * PyGC/PyGC/GC_options.py: legend option is now a choice - choose between
+   horizontal or vertical legend
+ * PyGC/progs/plotGCvar: check if basemap toolkit is available, if not, do not
+   plot geographic coord system and coastlines
+ * various Makefile.am: make sure libraries are static
+
 2010-05-27 Magnus Hagdorn
  * PyGC/progs/plotGCvar: shade surface
  * PyGC/PyGC/Makefile.am: forgot file

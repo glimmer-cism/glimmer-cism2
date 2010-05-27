@@ -23,7 +23,11 @@
 import PyGC
 import matplotlib.pyplot
 import matplotlib.cm, matplotlib.colors
-from mpl_toolkits.basemap import Basemap
+have_basemap=True
+try:
+    from mpl_toolkits.basemap import Basemap
+except:
+    have_basemap=False
 import numpy,math
 
 # creating option parser
@@ -41,7 +45,7 @@ clip = opts.options.clip
 
 linear = (infile.projection=='lin')
 
-if linear:
+if linear or not have_basemap:
     fig = matplotlib.pyplot.Figure()
     m = matplotlib.pyplot.axes()
     extent = numpy.array([infile.ll_xy[0],infile.ur_xy[0],infile.ll_xy[1],infile.ur_xy[1]])/1000
@@ -72,7 +76,7 @@ else:
     
 
 norm,cmap,title = opts.colourmap(infile)
-im = m.imshow(var.get2Dfield(time),norm=norm,cmap=cmap,extent=extent)
+im = m.imshow(var.get2Dfield(time),norm=norm,cmap=cmap,extent=extent,origin='lower')
 
 # shade plot
 if opts.options.illuminate!=None:
@@ -80,13 +84,18 @@ if opts.options.illuminate!=None:
     v = ls.shade(infile.getvar(opts.options.illuminate).get2Dfield(time),cmap=matplotlib.cm.gray)
     v[:,:,3] = (1-v[:,:,0])*0.8
     v[:,:,0:3] = 0.05
-    m.imshow(v)
+    m.imshow(v,origin='lower',extent=extent)
 
 
-cb = matplotlib.pyplot.colorbar(im, extend='both', spacing='uniform',orientation='horizontal', shrink=0.8)
-cb.set_label(title)
+if opts.options.legend!=None:
+    if opts.options.legend=='v':
+        orientation='vertical'
+    else:
+        orientation='horizontal'
+    cb = matplotlib.pyplot.colorbar(im, extend='both', spacing='uniform',orientation=orientation, shrink=0.8)
+    cb.set_label(title)
 
-if linear:
+if linear or not have_basemap:
     m.set_aspect('equal')
 else:
     m.drawcoastlines()

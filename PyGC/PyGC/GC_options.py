@@ -104,7 +104,7 @@ class GCOptParser(optparse.OptionParser):
         except:
             pass
         try:
-            self.add_option("--legend",action="store_true", dest="dolegend",default=False,help="Plot a colour legend")
+            self.add_option("--legend",type="choice",choices=['h','v'],default=None,help="Plot a colour legend, specify 'h' for a horizontal or 'v' for a vertical legend")
         except:
             pass
             
