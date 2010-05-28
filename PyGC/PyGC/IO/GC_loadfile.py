@@ -524,7 +524,7 @@ class GCvariable(object):
         return self.xdimension=='x0'
     isvelogrid = property(__get_isvelogrid)
 
-    def get2Dfield(self,time,level=0,velogrid=False):
+    def get2Dfield(self,time,level=0,velogrid=False,clip=None):
         """Get a 2D field.
 
         time: time slice
@@ -538,18 +538,18 @@ class GCvariable(object):
             grid = numpy.zeros((len(self.xdim),len(self.ydim)),'f')
 
             sigma = self.file.variables['level']
-            sliceup = self.__get2Dfield(time,level=-1,velogrid=velogrid)
+            sliceup = self.__get2Dfield(time,level=-1,velogrid=velogrid,clip=clip)
             for k in range(len(sigma)-2,-1,-1):
-                g_slice = self.__get2Dfield(time,level=k,velogrid=velogrid)
+                g_slice = self.__get2Dfield(time,level=k,velogrid=velogrid,clip=clip)
                 grid = grid+(sliceup+g_slice)*(sigma[k+1]-sigma[k])
-                sliceup = self.__get2Dfield(time,level=k,velogrid=velogrid)
+                sliceup = self.__get2Dfield(time,level=k,velogrid=velogrid,clip=clip)
             grid = 0.5*grid
         else:
-            grid = self.__get2Dfield(time,level=level,velogrid=velogrid)
+            grid = self.__get2Dfield(time,level=level,velogrid=velogrid,clip=clip)
 
         return grid
     
-    def __get2Dfield(self,time,level=0,velogrid=False):
+    def __get2Dfield(self,time,level=0,velogrid=False,clip=None):
         """Get a 2D field.
 
         time: time slice
@@ -606,8 +606,14 @@ class GCvariable(object):
 
         if velogrid:
             if not self.isvelogrid:
-                g_inter = 0.25*(grid[:-1,:-1]+grid[1:,1:]+grid[:-1,1:]+grid[1:,:-1])
-                grid = g_inter
+                grid = 0.25*(grid[:-1,:-1]+grid[1:,1:]+grid[:-1,1:]+grid[1:,:-1])
+        if clip!=None:
+            m = GCvariable(self.cffile,clip).get2Dfield(time,level=level)
+            if grid.shape[0]!=m.shape[0]:
+                m = 0.25*(m[:-1,:-1]+m[1:,1:]+m[:-1,1:]+m[1:,:-1])
+            maskArray = numpy.where(m>0.,False,True)
+            
+            grid = numpy.ma.array(grid,mask=maskArray)            
         return grid
 
 ##     def spline(self,pos,time,level=0):

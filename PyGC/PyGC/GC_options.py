@@ -98,6 +98,7 @@ class GCOptParser(optparse.OptionParser):
         
         self.add_option("-c","--clip",metavar='VAR',type="choice",dest='clip',choices=['thk','topg','usurf','is'],help="display variable only where ['thk','topg','usurf','is']>0.")
         self.add_option("-i","--illuminate",metavar='VAR',type="choice",dest='illuminate',choices=['thk','topg','usurf','is'],help="illuminate surface using gradient of ['thk','topg','usurf','is']")
+        self.add_option("--vectors",action="store_true",default=False,help="plot velocity vectors")
         self.add_option("--land",action="store_true", dest="land",default=False,help="Indicate area above SL")
         try:
             self.add_option("--colourmap",type="string",dest="colourmap",help="name of GMT cpt file to be used (autogenerate one when set to None)")

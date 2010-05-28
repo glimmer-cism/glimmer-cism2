@@ -38,6 +38,11 @@ parser.region()
 parser.plot()
 opts = PyGC.GCOptions(parser,-1)
 
+if opts.options.level == None:
+    level = 0
+else:
+    level = opts.options.level
+
 infile = opts.gcfile()
 var  = opts.vars(infile)
 time = opts.times(infile)
@@ -74,9 +79,16 @@ else:
 
     m = Basemap(**params)
     
+# indicate area above sea level
+if opts.options.land:
+    v = infile.getvar('topg').get2Dfield(time)
+    l = numpy.zeros([v.shape[0],v.shape[1],4])+100
+    l[:,:,3] = numpy.where(v>0,1,0)
+    m.imshow(l)
 
+# plot the data
 norm,cmap,title = opts.colourmap(infile)
-im = m.imshow(var.get2Dfield(time),norm=norm,cmap=cmap,extent=extent,origin='lower')
+im = m.imshow(var.get2Dfield(time,level=level,clip=opts.options.clip),norm=norm,cmap=cmap,extent=extentorigin='lower')
 
 # shade plot
 if opts.options.illuminate!=None:
@@ -86,6 +98,16 @@ if opts.options.illuminate!=None:
     v[:,:,0:3] = 0.05
     m.imshow(v,origin='lower',extent=extent)
 
+# plot velo vectors
+if opts.options.vectors:
+    u = infile.getvar('uvel').get2Dfield(time,level=level,clip='vel')
+    v = infile.getvar('vvel').get2Dfield(time,level=level,clip='vel')
+    x,y = numpy.meshgrid(infile.file.variables['x0'],infile.file.variables['y0'])
+    if linear:
+        x=x/1000.
+        y=y/1000.
+        v=-v
+    m.quiver(x,y,u,v,units='x')
 
 if opts.options.legend!=None:
     if opts.options.legend=='v':

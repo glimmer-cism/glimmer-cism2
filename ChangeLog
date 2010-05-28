@@ -1,4 +1,9 @@
 2010-05-28 Magnus Hagdorn
+ * PyGC/PyGC/GC_options.py: add option to plot vectors
+ * PyGC/PyGC/IO/GC_loadfile.py: add functionality to clip variables
+ * PyGC/progs/plotGCvar: plot land area and plot vectors
+
+2010-05-28 Magnus Hagdorn
  * PyGC/PyGC/GC_options.py: legend option is now a choice - choose between
    horizontal or vertical legend
  * PyGC/progs/plotGCvar: check if basemap toolkit is available, if not, do not
