@@ -1,3 +1,8 @@
+2010-05-31 Magnus Hagdorn
+ * PyGC/PyGC/GC_options.py: add option to disable plotting of geographic coord
+   system
+ * PyGC/progs/plotGCvar: rearrange code, make clipping work (more or less)
+
 2010-05-28 Magnus Hagdorn
  * PyGC/PyGC/GC_options.py: add option to plot vectors
  * PyGC/PyGC/IO/GC_loadfile.py: add functionality to clip variables

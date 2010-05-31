@@ -48,13 +48,56 @@ var  = opts.vars(infile)
 time = opts.times(infile)
 clip = opts.options.clip
 
-linear = (infile.projection=='lin')
+plot_geo_coord = infile.projection!='lin' and have_basemap and opts.options.geo_coord
 
-if linear or not have_basemap:
-    fig = matplotlib.pyplot.Figure()
-    m = matplotlib.pyplot.axes()
-    extent = numpy.array([infile.ll_xy[0],infile.ur_xy[0],infile.ll_xy[1],infile.ur_xy[1]])/1000
-else:
+e = numpy.array([infile.ll_xy[0],infile.ur_xy[0],infile.ll_xy[1],infile.ur_xy[1]])
+extent=numpy.array([var.xdim[0],var.xdim[-1],var.ydim[0],var.ydim[-1]])
+if not plot_geo_coord:
+    e = e/1000.
+    extent=extent/1000.
+
+fig = matplotlib.pyplot.Figure()
+m = matplotlib.pyplot.axes()
+
+# indicate area above sea level
+if opts.options.land:
+    v = infile.getvar('topg').get2Dfield(time)
+    l = numpy.zeros([v.shape[0],v.shape[1],4])+100
+    l[:,:,3] = numpy.where(v>0,1,0)
+    m.imshow(l,origin='lower',extent=extent)
+
+# plot the data
+norm,cmap,title = opts.colourmap(infile)
+im = m.imshow(var.get2Dfield(time,level=level,clip=opts.options.clip),norm=norm,cmap=cmap,extent=extent,origin='lower')
+
+# shade plot
+if opts.options.illuminate!=None:
+    ls = matplotlib.colors.LightSource()
+    v = ls.shade(infile.getvar(opts.options.illuminate).get2Dfield(time),cmap=matplotlib.cm.gray)
+    v[:,:,3] = (1-v[:,:,0])*0.8
+    v[:,:,0:3] = 0.05
+    m.imshow(v,origin='lower',extent=extent)
+
+# plot velo vectors
+if opts.options.vectors:
+    u = infile.getvar('uvel').get2Dfield(time,level=level,clip='vel')
+    v = infile.getvar('vvel').get2Dfield(time,level=level,clip='vel')
+    x,y = numpy.meshgrid(infile.file.variables['x0'],infile.file.variables['y0'])
+    m.quiver(x,y,u,v,units='x')
+
+m.set_aspect('equal')
+
+if opts.options.legend!=None:
+    if opts.options.legend=='v':
+        orientation='vertical'
+    else:
+        orientation='horizontal'
+    cb = matplotlib.pyplot.colorbar(im, extend='both', spacing='uniform',orientation=orientation, shrink=0.8)
+    cb.set_label(title)
+
+
+# plot a geographic coordinate system and coastlines
+if plot_geo_coord:
     longs = numpy.arange(math.ceil(infile.minmax_long[0]/10.), math.floor(infile.minmax_long[1]/10.))*10.
     lats = numpy.arange(math.ceil(infile.minmax_lat[0]/10.), math.floor(infile.minmax_lat[1]/10.))*10.
 
@@ -75,54 +118,15 @@ else:
     params['urcrnrlon']=infile.ur_geo[0]
     params['urcrnrlat']=infile.ur_geo[1]
     params['resolution']='l'
-    extent = None
+    params['ax'] = m
 
-    m = Basemap(**params)
-    
-# indicate area above sea level
-if opts.options.land:
-    v = infile.getvar('topg').get2Dfield(time)
-    l = numpy.zeros([v.shape[0],v.shape[1],4])+100
-    l[:,:,3] = numpy.where(v>0,1,0)
-    m.imshow(l)
+    b = Basemap(**params)
+    b.drawcoastlines()
+    b.drawparallels(lats,labels=[1,1,0,1])
+    b.drawmeridians(longs,labels=[1,1,0,1])
 
-# plot the data
-norm,cmap,title = opts.colourmap(infile)
-im = m.imshow(var.get2Dfield(time,level=level,clip=opts.options.clip),norm=norm,cmap=cmap,extent=extentorigin='lower')
-
-# shade plot
-if opts.options.illuminate!=None:
-    ls = matplotlib.colors.LightSource()
-    v = ls.shade(infile.getvar(opts.options.illuminate).get2Dfield(time),cmap=matplotlib.cm.gray)
-    v[:,:,3] = (1-v[:,:,0])*0.8
-    v[:,:,0:3] = 0.05
-    m.imshow(v,origin='lower',extent=extent)
-
-# plot velo vectors
-if opts.options.vectors:
-    u = infile.getvar('uvel').get2Dfield(time,level=level,clip='vel')
-    v = infile.getvar('vvel').get2Dfield(time,level=level,clip='vel')
-    x,y = numpy.meshgrid(infile.file.variables['x0'],infile.file.variables['y0'])
-    if linear:
-        x=x/1000.
-        y=y/1000.
-        v=-v
-    m.quiver(x,y,u,v,units='x')
-
-if opts.options.legend!=None:
-    if opts.options.legend=='v':
-        orientation='vertical'
-    else:
-        orientation='horizontal'
-    cb = matplotlib.pyplot.colorbar(im, extend='both', spacing='uniform',orientation=orientation, shrink=0.8)
-    cb.set_label(title)
-
-if linear or not have_basemap:
-    m.set_aspect('equal')
-else:
-    m.drawcoastlines()
-    m.drawparallels(lats,labels=[1,1,0,1])
-    m.drawmeridians(longs,labels=[1,1,0,1])
+m.set_xlim(e[:2])
+m.set_ylim(e[2:])
 
 matplotlib.pyplot.show()
 
