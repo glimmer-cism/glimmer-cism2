@@ -1,4 +1,8 @@
 2010-05-31 Magnus Hagdorn
+ * PyGC/PyGC/GC_options.py: tidy up, handle plot size
+ * PyGC/progs/plotGCvar: handle plot size
+
+2010-05-31 Magnus Hagdorn
  * PyGC/PyGC/GC_options.py: add option to disable plotting of geographic coord
    system
  * PyGC/progs/plotGCvar: rearrange code, make clipping work (more or less)

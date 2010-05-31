@@ -31,26 +31,22 @@ from GC_colourmap import *
 class GCOptParser(optparse.OptionParser):
     """Handle options."""
 
-    def __init__(self,usage = "usage: %prog [options] infile outfile"):
+    def __init__(self,usage = "usage: %prog [options] infile"):
         """Initialise.
 
         usage: usage string.
         """
         optparse.OptionParser.__init__(self,usage)
 
-        self.width = 10.
-##         try:
-##             self.rsldb = os.path.join(os.environ['GLIMMER_PREFIX'],'share','PyCF','rsl.db')
-##         except:
         self.rsldb = None
         
     def plot(self):
         """Plot options."""
 
         group = optparse.OptionGroup(self,"Plot Options","These options are used to control the appearance of the plot")
-        group.add_option("--mono",action="store_true",default=False,help="convert colour plots to mono")
-        group.add_option("--width",type="float",dest="width",default=self.width, help="width of plot (default %.2f cm)"%(self.width))
-        group.add_option("--verbose",action="store_true", dest="verbose",default=False,help="Be verbose")
+        group.add_option("--size",type="float",dest="size",nargs=2,metavar="WIDTH HEIGHT", help="size of plot in cm")
+        #group.add_option("--verbose",action="store_true", dest="verbose",default=False,help="Be verbose")
+        group.add_option("-o","--output",metavar="NAME",help="write image to FILE")
         self.add_option_group(group)
 
     def region(self):
@@ -106,7 +102,7 @@ class GCOptParser(optparse.OptionParser):
         except:
             pass
         try:
-            self.add_option("--legend",type="choice",choices=['h','v'],default=None,help="Plot a colour legend, specify 'h' for a horizontal or 'v' for a vertical legend")
+            self.add_option("--legend",metavar='L',type="choice",choices=['h','v'],default=None,help="Plot a colour legend, specify 'h' for a horizontal or 'v' for a vertical legend")
         except:
             pass
             
@@ -209,46 +205,11 @@ class GCOptions(object):
             return 1
     ntimes = property(__get_ntimes)
 
-##     def __get_papersize(self):
-##         if self.options.landscape:
-##             orientation = "landscape"
-##         else:
-##             orientation = "portrait"
-##         return PyGMT.PaperSize(self.options.size,orientation)
-##     papersize = property(__get_papersize)
-
-##     def plot(self,argn=-1,number=None):
-##         """Setup plot.
-
-##         argn: number of argument holding output name.
-##         number: number of series in file"""
-
-##         orientation = "portrait"
-##         try:
-##             if self.options.landscape:
-##                 orientation = "landscape"
-##         except:
-##             pass
-    
-##         if number!=None:
-##             (root,ext) = os.path.splitext(self.args[argn])
-##             fname = '%s.%03d%s'%(root,number,ext)
-##         else:
-##             fname = self.args[argn]
-
-##         try:
-##             size=self.options.size
-##         except:
-##             size="a4"
-##         plot = PyGMT.Canvas(fname,size=size,orientation=orientation)
-##         try:
-##             if self.options.verbose:
-##                 plot.verbose = True
-##         except:
-##             pass
-##         plot.defaults['LABEL_FONT_SIZE']='12p'
-##         plot.defaults['ANNOT_FONT_SIZE']='10p'
-##         return plot
+    def __get_plotsize(self):
+        if self.options.size != None:
+            inch = 2.54
+            return [self.options.size[0]*inch,self.options.size[1]*inch]
+    plotsize = property(__get_plotsize)
 
     def gcfile(self,argn=0):
         """Load CF file.

@@ -36,7 +36,7 @@ parser.variable()
 parser.time()
 parser.region()
 parser.plot()
-opts = PyGC.GCOptions(parser,-1)
+opts = PyGC.GCOptions(parser,1)
 
 if opts.options.level == None:
     level = 0
@@ -56,8 +56,8 @@ if not plot_geo_coord:
     e = e/1000.
     extent=extent/1000.
 
-fig = matplotlib.pyplot.Figure()
-m = matplotlib.pyplot.axes()
+fig = matplotlib.pyplot.figure(figsize=opts.plotsize)
+m = fig.add_axes([0.1,0.1,0.8,0.8])
 
 # indicate area above sea level
 if opts.options.land:
@@ -92,7 +92,7 @@ if opts.options.legend!=None:
         orientation='vertical'
     else:
         orientation='horizontal'
-    cb = matplotlib.pyplot.colorbar(im, extend='both', spacing='uniform',orientation=orientation, shrink=0.8)
+    cb = fig.colorbar(im, extend='both', spacing='uniform',orientation=orientation, shrink=0.8)
     cb.set_label(title)
 
 
@@ -128,5 +128,7 @@ if plot_geo_coord:
 m.set_xlim(e[:2])
 m.set_ylim(e[2:])
 
-matplotlib.pyplot.show()
-
+if opts.options.output==None:
+    matplotlib.pyplot.show()
+else:
+    matplotlib.pyplot.savefig(opts.options.output)
