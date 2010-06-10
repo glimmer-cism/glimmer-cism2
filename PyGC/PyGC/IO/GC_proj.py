@@ -37,11 +37,11 @@ class GCProj(object):
         self.params['proj'] = None
         self.params['ellps'] = 'WGS84' # set default ellipsoid
         try:
-            self.params['x_0'] = var.false_easting[0]
+            self.params['x_0'] = numpy.squeeze(var.false_easting)
         except:
             self.params['x_0'] = 0.
         try:
-            self.params['y_0'] = var.false_northing[0]
+            self.params['y_0'] = numpy.squeeze(var.false_northing)
         except:
             self.params['y_0'] = 0.
         self.gmt_type = ''
@@ -102,16 +102,16 @@ class GCProj_stere(GCProj):
         self.params['proj'] = 'stere'
         # polar variation
         if var.grid_mapping_name == 'polar_stereographic':
-            self.params['lon_0'] = var.straight_vertical_longitude_from_pole[0]
-            self.params['lat_0'] = var.latitude_of_projection_origin[0]
+            self.params['lon_0'] = numpy.squeeze(var.straight_vertical_longitude_from_pole)
+            self.params['lat_0'] = numpy.squeeze(var.latitude_of_projection_origin)
             if hasattr(var,'standard_parallel'):
-                self.params['lat_ts'] = var.standard_parallel[0]
+                self.params['lat_ts'] = numpy.squeeze(var.standard_parallel)
             elif hasattr(var,'scale_factor_at_projection_origin'):
-                self.params['k_0'] = var.scale_factor_at_projection_origin[0]
+                self.params['k_0'] = numpy.squeeze(var.scale_factor_at_projection_origin)
         else: # others
-            self.params['lat_0'] = var.latitude_of_projection_origin[0]
-            self.params['lon_0'] = var.longitude_of_projection_origin[0]
-            self.params['k_0'] = var.scale_factor_at_projection_origin[0]
+            self.params['lat_0'] = numpy.squeeze(var.latitude_of_projection_origin)
+            self.params['lon_0'] = numpy.squeeze(var.longitude_of_projection_origin)
+            self.params['k_0'] = numpy.squeeze(var.scale_factor_at_projection_origin)
         self.gmt_type = 's'
 
     def getGMTprojection(self,mapwidth=None):
@@ -137,8 +137,8 @@ class GCProj_laea(GCProj):
         var: GC grid mapping variable."""
         GCProj.__init__(self,var)
         self.params['proj'] = 'laea'
-        self.params['lat_0'] = var.latitude_of_projection_origin[0]
-        self.params['lon_0'] = var.longitude_of_central_meridian[0]
+        self.params['lat_0'] = numpy.squeeze(var.latitude_of_projection_origin)
+        self.params['lon_0'] = numpy.squeeze(var.longitude_of_central_meridian)
         self.gmt_type = 'a'
 
     def getGMTprojection(self,mapwidth=None):
@@ -156,11 +156,13 @@ class GCProj_aea(GCProj_laea):
         
         var: GC grid mapping variable."""
         GCProj_laea.__init__(self,var)
-        self.params['lat_1'] = var.standard_parallel[0]
         if len(var.standard_parallel) == 2:
+            self.params['lat_1'] = var.standard_parallel[0]
             self.params['lat_2'] = var.standard_parallel[1]
-        if len(var.standard_parallel) < 1 or len(var.standard_parallel) > 2:
+        elif len(var.standard_parallel) < 1 or len(var.standard_parallel) > 2:
             raise RuntimeError, 'Wrong size of standard_parallel attribute'
+        else:
+            self.params['lat_1'] = numpy.squeeze(var.standard_parallel)
         self.params['proj'] = 'aea'
         self.gmt_type = 'b'
 
@@ -233,8 +235,8 @@ def GCProj_parse_GMTproj(projstring):
             usage()
             sys.exit(1)
         proj.grid_mapping_name='albers_conical_equal_area'
-        proj.longitude_of_central_meridian = [float(ps[0])]
-        proj.latitude_of_projection_origin = [float(ps[1])]
+        proj.longitude_of_central_meridian = float(ps[0])
+        proj.latitude_of_projection_origin = float(ps[1])
         proj.standard_parallel = [float(ps[2]),float(ps[3])]
     elif projstring[0] in ['l','L']:
         if len(ps) != 4:
@@ -242,8 +244,8 @@ def GCProj_parse_GMTproj(projstring):
             usage()
             sys.exit(1)
         proj.grid_mapping_name='lambert_conformal_conic'
-        proj.longitude_of_central_meridian = [float(ps[0])]
-        proj.latitude_of_projection_origin = [float(ps[1])]
+        proj.longitude_of_central_meridian = float(ps[0])
+        proj.latitude_of_projection_origin = float(ps[1])
         proj.standard_parallel = [float(ps[2]),float(ps[3])]
     elif projstring[0] in ['a','A']:
         if len(ps) != 2:
@@ -251,19 +253,19 @@ def GCProj_parse_GMTproj(projstring):
             usage()
             sys.exit(1)
         proj.grid_mapping_name='lambert_azimuthal_equal_area'
-        proj.longitude_of_central_meridian = [float(ps[0])]
-        proj.latitude_of_projection_origin = [float(ps[1])]
+        proj.longitude_of_central_meridian = float(ps[0])
+        proj.latitude_of_projection_origin = float(ps[1])
     elif projstring[0] in ['s','S']:
         if len(ps) == 2 or len(ps) == 3:
-            proj.latitude_of_projection_origin = [float(ps[1])]
+            proj.latitude_of_projection_origin = float(ps[1])
             if len(ps) == 3:
                 proj.grid_mapping_name='polar_stereographic'
-                proj.straight_vertical_longitude_from_pole = [float(ps[0])]
-                proj.standard_parallel = [float(ps[2])]
+                proj.straight_vertical_longitude_from_pole = float(ps[0])
+                proj.standard_parallel = float(ps[2])
             else:
                 proj.grid_mapping_name='stereographic'
-                proj.longitude_of_projection_origin = [float(ps[0])]
-                proj.scale_factor_at_projection_origin = [1.]
+                proj.longitude_of_projection_origin = float(ps[0])
+                proj.scale_factor_at_projection_origin = 1.
         else:
             print 'Error, wrong number of projection arguments'
             usage()
@@ -298,11 +300,11 @@ def GCProj_parse_ESRIprj(pFile):
                 long_central=DmsParse(pFile)
                 if long_central < 0.:
                     long_central = 360.+long_central
-                    proj.longitude_of_central_meridian = [long_central]
+                    proj.longitude_of_central_meridian = long_central
                 else:
-                    proj.longitude_of_central_meridian = [long_central]
+                    proj.longitude_of_central_meridian = long_central
                 lat_proj_origin=DmsParse(pFile)
-                proj.latitude_of_projection_origin = [lat_proj_origin] 
+                proj.latitude_of_projection_origin = lat_proj_origin
                 proj.false_easting=0
                 proj.false_northing=0
 
@@ -319,11 +321,11 @@ def GCProj_parse_ESRIprj(pFile):
                 long_central=DmsParse(pFile)
                 if long_central < 0.:
                     long_central = 360.+long_central
-                    proj.longitude_of_central_meridian = [long_central]
+                    proj.longitude_of_central_meridian = long_central
                 else:
-                    proj.longitude_of_central_meridian = [long_central]
+                    proj.longitude_of_central_meridian = long_central
                 lat_proj_origin=DmsParse(pFile)
-                proj.latitude_of_projection_origin = [lat_proj_origin]
+                proj.latitude_of_projection_origin = lat_proj_origin
                 proj.false_easting=0
                 proj.false_northing=0
                   
@@ -339,11 +341,11 @@ def GCProj_parse_ESRIprj(pFile):
                     long_central=DmsParse(pFile)
                     if long_central < 0.:
                         long_central = 360.+long_central
-                        proj.longitude_of_central_meridian = [long_central]
+                        proj.longitude_of_central_meridian = long_central
                     else:
-                        proj.longitude_of_central_meridian = [long_central]
+                        proj.longitude_of_central_meridian = long_central
                     lat_proj_origin=DmsParse(pFile)
-                    proj.latitude_of_projection_origin = [lat_proj_origin]
+                    proj.latitude_of_projection_origin = lat_proj_origin
                     proj.false_easting=0
                     proj.false_northing=0
 
@@ -367,7 +369,7 @@ def GCProj_parse_ESRIprj(pFile):
                         if flag == 0:
                             long_central=ProjParser.DmsParse(pFile)
                             lat_proj_origin=DmsParse(pFile)
-                            proj.latitude_of_projection_origin = [lat_proj_origin]
+                            proj.latitude_of_projection_origin = lat_proj_origin
                             pol_v_eq = string.split(pFile.readline()) # get whether a polar or equatorial view.
                             pol_v_eq = pol_v_eq[0]
                             proj.false_easting=0
@@ -377,28 +379,28 @@ def GCProj_parse_ESRIprj(pFile):
                         if flag == 1:
                             if pol_v_eq == 'EQUATORIAL':
                       		proj.grid_mapping_name='stereographic' # type 2 stereographic projection with equatorial
-                      		proj.longitude_of_central_meridian = [long_central] # long of cent projection
+                      		proj.longitude_of_central_meridian = long_central # long of cent projection
                       		l = string.split(pFile.readline())
                       		scale_factor=l[0]
-                      		proj.scale_factor_at_projection_origin = [scale_factor] # scale factor
+                      		proj.scale_factor_at_projection_origin = scale_factor # scale factor
                             else:
                       		proj.grid_mapping_name='polar_stereographic' # type 2 stereographic projection with north or southpole
-                      		proj.straight_vertical_longitude_from_pole = [long_central] # geotiff=central meridian arc=long of cent meridian. Not sure that this is the right parameter.
+                      		proj.straight_vertical_longitude_from_pole = long_central # geotiff=central meridian arc=long of cent meridian. Not sure that this is the right parameter.
                       		#l = string.split(pFile.readline())
                       		#lat_std_par = int(float(l[0]))
                       		lat_std_par = DmsParse(pFile)
-                      		proj.standard_parallel = [lat_std_par] # lat of standard parallel
+                      		proj.standard_parallel = lat_std_par # lat of standard parallel
                       		
               
                     elif ptype == '1':
                         proj.grid_mapping_name='stereographic'
                         line=pFile.readline()
                         long_central=DmsParse(pFile)
-                        proj.longitude_of_projection_origin = [long_central]
+                        proj.longitude_of_projection_origin = long_central
                         lat_proj_origin=DmsParse(pFile)
-                        proj.latitude_of_projection_origin = [lat_proj_origin]
+                        proj.latitude_of_projection_origin = lat_proj_origin
                         scale_factor=1. #defaults to 1 as Arc projection files do not include scale factors
-                        proj.scale_factor_at_projection_origin = [scale_factor]
+                        proj.scale_factor_at_projection_origin = scale_factor
                         #print proj.scale_factor_at_projection_origin
                         false_easting=string.split(string.strip(pFile.readline()))
                         false_easting=false_easting[0]

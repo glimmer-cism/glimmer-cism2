@@ -21,7 +21,7 @@
 __all__=['GCVariableDef','GCcreatefile']
 
 import numpy,ConfigParser,os,re,string, glob
-from GC_netcdf import NetCDFFile
+from GC_netcdf import GCNetCDFFile
 from GC_file import *
 
 NOATTRIB = ['name','dimensions','data','factor','load','f90file','hot','type','dimlen']
@@ -82,9 +82,9 @@ class GCcreatefile(GCfile):
         self.vars = GCVariableDef(glob.glob(vname+'/*.def'))
 
         if append:
-            self.file = NetCDFFile(self.fname,'a')
+            self.file = GCNetCDFFile(self.fname,'a')
         else:
-            self.file = NetCDFFile(self.fname,'w')
+            self.file = GCNetCDFFile(self.fname,'w')
         self.file.Conventions = "GC-1.0"
         
     def createDimension(self,name, length):

@@ -20,7 +20,7 @@
 
 __all__=['GCloadfile','GCvariable','GCchecklist']
 
-from GC_netcdf import NetCDFFile
+from GC_netcdf import GCNetCDFFile
 import numpy, os
 from GC_proj import *
 #MH#from GC_colourmap import *
@@ -54,7 +54,8 @@ class GCloadfile(GCfile):
 
         GCfile.__init__(self,fname)
 
-        self.file = NetCDFFile(self.fname,'r')
+        self.file = GCNetCDFFile(self.fname,'r')
+
         self.timescale = 0.001
         # get mapping variable name
         for var in self.file.variables.keys():

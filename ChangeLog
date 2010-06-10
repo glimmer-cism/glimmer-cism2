@@ -1,3 +1,13 @@
+2010-06-10 Magnus Hagdorn
+ * PyGC/PyGC/IO/GC_createfile.py: use new wrapper class to access netCDF files
+ * PyGC/PyGC/IO/GC_loadfile.py: ditto
+ * PyGC/PyGC/IO/GC_file.py: avoid losing useful error message
+ * PyGC/PyGC/IO/GC_netcdf.py: wrap NetCDFFile class to enable automatic masking
+   and scaling of variables
+ * PyGC/PyGC/IO/GC_proj.py: Scientific.IO.NetCDF stores all numeric attributes
+   as arrays, netcdf4 does not. Use numpy to reduce dimensionality of attribute
+   arrays with a single element.
+
 2010-05-31 Magnus Hagdorn
  * PyGC/PyGC/GC_options.py: tidy up, handle plot size
  * PyGC/progs/plotGCvar: handle plot size

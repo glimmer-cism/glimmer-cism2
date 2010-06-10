@@ -157,10 +157,7 @@ class GCfile(object):
     def __get_projection(self):
         if self.__projection == None:
             if self.mapvarname != None:
-                try:
-                    self.__projection = getGCProj(self.file.variables[self.mapvarname])
-                except:
-                    raise RuntimeError, 'No projection selected yet'
+                self.__projection = getGCProj(self.file.variables[self.mapvarname])
             else:
                 self.__projection = 'lin'
         return self.__projection
