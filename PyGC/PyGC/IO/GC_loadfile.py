@@ -536,11 +536,11 @@ class GCvariable(object):
             if not self.is3d:
                 raise RuntimeError, 'Variable %s is not 3D.'%self.name
             # integrate
-            grid = numpy.zeros((len(self.xdim),len(self.ydim)),'f')
+            grid = numpy.zeros((self.xdim.shape[0],self.ydim.shape[0]),'f')
 
             sigma = self.file.variables['level']
             sliceup = self.__get2Dfield(time,level=-1,velogrid=velogrid,clip=clip)
-            for k in range(len(sigma)-2,-1,-1):
+            for k in range(sigma.shape[0]-2,-1,-1):
                 g_slice = self.__get2Dfield(time,level=k,velogrid=velogrid,clip=clip)
                 grid = grid+(sliceup+g_slice)*(sigma[k+1]-sigma[k])
                 sliceup = self.__get2Dfield(time,level=k,velogrid=velogrid,clip=clip)
@@ -641,7 +641,7 @@ class GCvariable(object):
         level: if None get data for all levels (time must be a single value)
                otherwise get a specific level"""
 
-        if node[0] < 0 or node[0] >= len(self.xdim) or node[1] < 0 or node[1] >= len(self.ydim):
+        if node[0] < 0 or node[0] >= self.xdim.shape[0] or node[1] < 0 or node[1] >= self.ydim.shape[0]:
             raise RuntimeError, 'node is outside bounds'
 
         (tarray,t) = GCchecklist(time,self.file.variables['time'])

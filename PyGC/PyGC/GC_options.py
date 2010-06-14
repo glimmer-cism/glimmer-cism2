@@ -188,7 +188,7 @@ class GCOptions(object):
                     self.parser.error('Error, expected at least %d arguments and got %d arguments\n'%(-numargs,len(self.args)))
                     
     def __get_nfiles(self):
-        return len(self.args)-1
+        return len(self.args)
     nfiles = property(__get_nfiles)
     
     def __get_nvars(self):

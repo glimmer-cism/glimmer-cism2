@@ -1,3 +1,15 @@
+2010-06-14 Magnus Hagdorn
+ * make.rules.in: enable rule to build graphics
+ * PyGC/PyGC/GC_options.py: all arguments are actually input files
+ * PyGC/PyGC/IO/GC_loadfile.py: use the shape attribute to figure out length
+   of dimension variables
+ * PyGC/data/eismint2.data: data from published EISMINT2 experiments
+ * PyGC/data/Makefile.am: distribute new file
+ * PyGC/progs/plotEISMINT2stats: new program to plot EISMINT2 statistics
+ * PyGC/progs/Makefile.am: distribute new program
+ * tests/EISMINT/EISMINT-2/Makefile.am: use new program to generate comparision
+   graphs
+
 2010-06-10 Magnus Hagdorn
  * PyGC/PyGC/IO/GC_createfile.py: use new wrapper class to access netCDF files
  * PyGC/PyGC/IO/GC_loadfile.py: ditto
