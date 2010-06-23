@@ -27,6 +27,7 @@ from GC_proj import *
 from GC_file import *
 from GC_createfile import *
 #MH#from TwoDspline import TwoDspline
+import scipy.ndimage
 
 temperatures = ['btemp','temp']
 
@@ -617,19 +618,24 @@ class GCvariable(object):
             grid = numpy.ma.array(grid,mask=maskArray)            
         return grid
 
-##     def spline(self,pos,time,level=0):
-##         """Interpolate 2D field using cubic splines.
-
-##         pos: [xloc,yloc]
-##         time: time slice
-##         level: horizontal slice."""
-
-##         data = self.get2Dfield(time,level=level)
-##         loc = numpy.zeros((2,1),'f')
-##         loc[0,0] = pos[0]
-##         loc[1,0] = pos[1]
-##         res = TwoDspline(self.xdim[:],self.ydim[:],data,loc)
-##         return res[0] 
+    def interpolate(self,x,y,time,level=0):
+        """interpolate 2D field
+        x: list of x coordinates
+        y: list of y coordinates
+        time: the time slice
+        level : the vertical slice
+        kind: ['linear', 'cubic', 'quintic'] - the kind of interpolation to use"""
+        
+        data = self.get2Dfield(time,level=level)
+        x0 = self.xdim[0]
+        y0 = self.ydim[0]
+        dx = self.xdim[1]-x0
+        dy = self.ydim[1]-y0
+        ivals = (numpy.array(x)-x0)/dx
+        jvals = (numpy.array(y)-y0)/dy
+        coords = numpy.array([ivals, jvals])
+        p =  scipy.ndimage.map_coordinates(data,coords)
+        return p
 
     def getSpotIJ(self,node,time=None,level=0):
         """Get data at a grid node.

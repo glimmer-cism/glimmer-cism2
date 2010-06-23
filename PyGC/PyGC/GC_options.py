@@ -23,8 +23,8 @@ __all__ = ['GCOptParser','GCOptions']
 import optparse, sys, os.path
 from IO.GC_loadfile import *
 from GC_colourmap import *
+from IO.GC_profile import *
 
-## from CF_profile import *
 ## from CF_rsl import CFRSLlocs
 ## from CF_IOmisc import CFreadlines
 
@@ -64,10 +64,8 @@ class GCOptParser(optparse.OptionParser):
 
         group = optparse.OptionGroup(self,"Axis Options","These options are used to control the x and y axis.")
         if not onlyy:
-            group.add_option("--noxauto",action="store_true", default="False",help="Don't expand x range to reasonable values.")
             group.add_option("--xrange",type="float",nargs=2,metavar="X1 X2",help="set x-axis range to X1:X2")
         if not onlyx:
-            group.add_option("--noyauto",action="store_true", default="False",help="Don't expand x range to reasonable values.")
             group.add_option("--yrange",type="float",nargs=2,metavar="Y1 Y2",help="set y-axis range to Y1:Y2")
         self.add_option_group(group)
 
@@ -118,35 +116,35 @@ class GCOptParser(optparse.OptionParser):
         self.__var()
         self.add_option("--ij",dest='ij',metavar="I J",type="int",nargs=2,action='append',help="node to be plotted (this option can be used more than once)")
 
-##     def profile_file(self,plist=False):
-##         """Options for profile files.
+    def profile_file(self,plist=False):
+        """Options for profile files.
 
-##         plist: set to True if a number of profiles can be specified"""
+        plist: set to True if a number of profiles can be specified"""
 
-##         if plist:
-##             self.add_option("-p","--profile",action="append",metavar='PROFILE',type='string',dest='profname',help="name of file containing profile control points (this option can be used more than once)")
-##         else:
-##             self.add_option("-p","--profile",metavar='PROFILE',type='string',dest='profname',help="name of file containing profile control points")
-##         self.add_option("--not_projected",action="store_false",default=True,dest="prof_is_projected",help="Set this flag if the profile data is not projected.")        
-##         self.add_option("--interval",type="float",metavar='INTERVAL',default=10000.,help="set interval to INTERVAL (default = 10000.m)")
+        if plist:
+            self.add_option("-p","--profile",action="append",metavar='PROFILE',type='string',dest='profname',help="name of file containing profile control points (this option can be used more than once)")
+        else:
+            self.add_option("-p","--profile",metavar='PROFILE',type='string',dest='profname',help="name of file containing profile control points")
+        self.add_option("--not_projected",action="store_false",default=True,dest="prof_is_projected",help="Set this flag if the profile data is not projected.")        
+        self.add_option("--interval",type="float",metavar='INTERVAL',default=10000.,help="set interval to INTERVAL (default = 10000.m)")
 
-##     def profile(self,vars=True):
-##         """Profile options.
+    def profile(self,vars=True):
+        """Profile options.
 
-##         vars: set to False if only profile is needed"""
+        vars: set to False if only profile is needed"""
 
-##         if vars:
-##             self.__var()
-##         self.profile_file()
-##         self.add_option("--showpmp",action="store_true", dest="showpmp",default=False,help='Indicate pressure melting point of ice (only used for temperatures)')
-##         try:
-##             self.add_option("--colourmap",type="string",dest="colourmap",help="name of GMT cpt file to be used (autogenerate one when set to None)")
-##         except:
-##             pass
-##         try:
-##             self.add_option("--legend",action="store_true", dest="dolegend",default=False,help="Plot a colour legend")
-##         except:
-##             pass
+        if vars:
+            self.__var()
+        self.profile_file()
+        self.add_option("--showpmp",action="store_true", dest="showpmp",default=False,help='Indicate pressure melting point of ice (only used for temperatures)')
+        try:
+            self.add_option("--colourmap",type="string",dest="colourmap",help="name of GMT cpt file to be used (autogenerate one when set to None)")
+        except:
+            pass
+        try:
+            self.add_option("--legend",action="store_true", dest="dolegend",default=False,help="Plot a colour legend")
+        except:
+            pass
         
     def time(self):
         """Time option."""
@@ -233,29 +231,23 @@ class GCOptions(object):
         
         return infile
 
-##     def cfprofile(self,argn=0):
-##         """Load CF profile.
+    def cfprofile(self,argn=0):
+        """Load CF profile.
 
-##         argn: number of argument holding CF file name."""
+        argn: number of argument holding CF file name."""
 
-##         # load profile data
-##         xdata = []
-##         ydata = []
-##         infile = file(self.options.profname)
-##         for line in CFreadlines(infile):
-##             l = line.split()
-##             xdata.append(float(l[0]))
-##             ydata.append(float(l[1]))                         
-##         infile.close()
-##         try:
-##             xrange=self.options.xrange
-##         except:
-##             xrange=None
-##         if xrange==None:
-##             xrange=[None,None]
-##         profile = CFloadprofile(self.args[argn],xdata,ydata,projected=self.options.prof_is_projected,interval=self.options.interval,xrange=xrange)
+        try:
+            xrange=self.options.xrange
+        except:
+            xrange=None
+        if xrange==None:
+            xrange=[None,None]
+        # load profile data
+        profileData = GCprofile(GCloadfile(self.args[argn]),interval=self.options.interval,xrange=xrange)
+        profileData.coords_file(self.options.profname,self.options.prof_is_projected)
+        profile = GCloadprofile(self.args[argn],profileData)
 
-##         return profile
+        return profile
 
     def vars(self,gcfile,varn=0):
         """Get variable.
@@ -297,27 +289,21 @@ class GCOptions(object):
         else:
             return (cmap.norm,cmap.colourmap,cmap.title)
 
-##     def profs(self,cffile,varn=0):
-##         """Get profiles.
+    def profs(self,cffile,varn=0):
+        """Get profiles.
 
-##         cffile: CF netCDF profile file
-##         varn: variable number
-##         """
+        cffile: CF netCDF profile file
+        varn: variable number
+        """
 
-##         prof = cffile.getprofile(self.options.vars[varn])
-##         prof.pmt = self.options.pmt
-##         try:
-##             prof.showpmp = self.options.showpmp
-##         except:
-##             pass
-##         try:
-##             if self.options.colourmap == 'None':
-##                 prof.colourmap = '.__auto.cpt'
-##             elif self.options.colourmap != None:
-##                 prof.colourmap = self.options.colourmap
-##         except:
-##             prof.colourmap = '.__auto.cpt'
-##         return prof
+        prof = cffile.getprofile(self.options.vars[varn])
+        prof.pmt = self.options.pmt
+        try:
+            prof.showpmp = self.options.showpmp
+        except:
+            pass
+        prof.colourmap = self.colourmap(cffile,varn=varn)
+        return prof
 
     def times(self,gcfile,timen=0):
         """Get time slice.

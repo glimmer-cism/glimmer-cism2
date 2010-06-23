@@ -1,3 +1,15 @@
+2010-06-23 Magnus Hagdorn
+ * PyGC/PyGC/GC_options.py: enable profile handling options
+ * PyGC/PyGC/IO/GC_profile.py: copied from PyCF, ported to use numpy
+ * PyGC/PyGC/IO/GC_loadfile.py: use scipy for interpolation
+ * PyGC/PyGC/IO/GC_netcdf.py: make variables sized
+ * PyGC/PyGC/IO/GC_readlines.py: read a file ignoring comments
+ * PyGC/PyGC/IO/Makefile.am: handle new files
+ * PyGC/PyGC/IO/__init__.py: import new files
+ * PyGC/progs/Makefile.am: handle new program
+ * PyGC/progs/plotGCProfile: new program for plotting profiles
+ * PyGC/progs/plotGCvar: add option to plot profile positions
+
 2010-06-14 Magnus Hagdorn
  * make.rules.in: enable rule to build graphics
  * PyGC/PyGC/GC_options.py: all arguments are actually input files

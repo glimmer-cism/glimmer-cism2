@@ -114,6 +114,8 @@ class MaskedAndScaledVariable(object):
         else:
             self.dtype = numpy.dtype(self._var.typecode())
 
+    def __len__(self):
+        return len(self._var)
 
     def __getMS(self):
         return self._maskandscale

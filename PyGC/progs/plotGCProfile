@@ -1,0 +1,112 @@
+#! /usr/bin/env python
+
+# Copyright 2004, Magnus Hagdorn
+# 
+# This file is part of GLIMMER.
+# 
+# GLIMMER is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# GLIMMER is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with GLIMMER; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+"""A plot of CF profiles."""
+
+import PyGC
+import matplotlib.pyplot
+from mpl_toolkits.axes_grid.anchored_artists import AnchoredText
+
+# creating option parser
+parser = PyGC.GCOptParser()
+parser.width=15.
+parser.profile()
+parser.time()
+parser.region1d(onlyx=True)
+parser.plot()
+opts = PyGC.GCOptions(parser,-1)
+
+
+fig = matplotlib.pyplot.figure(figsize=opts.plotsize)
+
+if opts.nfiles>1:
+    COLS='bgrcnyk'
+else:
+    COLS='k'
+
+# create axes
+if opts.nvars > 1:
+    naxes = opts.nvars
+    sharey = False
+else:
+    naxes = opts.ntimes
+    sharey = True
+totalheight=0.9
+if opts.nfiles > 1:
+    # make room for legend
+    totalheight = totalheight - 0.075
+plotheight = totalheight/naxes
+sep = 0.05
+axprops = {}
+axes = []
+for i in range(1,naxes+1):
+    axes.append( fig.add_axes([0.15,1-i*plotheight,0.8,plotheight-sep],  **axprops))
+    if i==0:
+        axprops['sharex'] = axes[0]
+        if sharey:
+            axprops['sharey'] = axes[0]
+        
+
+if opts.nvars > 1:
+    for f in range(0,opts.nfiles):
+        infile = opts.cfprofile(f)
+        time = opts.times(infile,0)
+        for i in range(0,opts.nvars):
+            profile = opts.profs(infile,i)
+
+            if opts.options.vars[i] == 'is':
+                topo = infile.getprofile('topg').getProfile(time)
+                axes[i].plot(infile.xvalues, topo,color=COLS[f])
+                axes[i].set_ylabel('elevation [%s]'%profile.units)
+            else:
+                axes[i].set_ylabel('%s [%s]'%(profile.long_name,profile.units))
+
+            axes[i].plot(infile.xvalues, profile.getProfile(time),color=COLS[f],label=infile.title )
+else:
+    infile = opts.cfprofile()
+    for t in range(0,opts.ntimes):
+        if opts.ntimes>1:
+            time = opts.times(infile,t)
+            axes[t].add_artist(AnchoredText('%.2fka'%infile.time(time),loc=4))
+
+    for f in range(0,opts.nfiles):
+        infile = opts.cfprofile(f)
+        for t in range(0,opts.ntimes):
+            profile = opts.profs(infile)
+            time = opts.times(infile,t)
+
+            if opts.options.vars[0] == 'is':
+                topo = infile.getprofile('topg').getProfile(time)
+                axes[t].plot(infile.xvalues, topo,color=COLS[f])
+                axes[t].set_ylabel('elevation [%s]'%profile.units)
+            else:
+                axes[t].set_ylabel('%s [%s]'%(profile.long_name,profile.units))
+            axes[t].plot(infile.xvalues, profile.getProfile(time),color=COLS[f],label=infile.title )
+            
+axes[-1].set_xlabel('distance along profile [km]')
+axes[0].autoscale_view(tight=True,scaley=False)
+handles, labels = axes[-1].get_legend_handles_labels()
+if opts.nfiles > 1:
+    matplotlib.pyplot.figlegend(handles,labels,'lower center',ncol=2, mode="expand")
+
+if opts.options.output==None:
+    matplotlib.pyplot.show()
+else:
+    matplotlib.pyplot.savefig(opts.options.output)

@@ -20,6 +20,7 @@
 
 """A simple plot of CF fields."""
 
+import string
 import PyGC
 import matplotlib.pyplot
 import matplotlib.cm, matplotlib.colors
@@ -33,6 +34,7 @@ import numpy,math
 # creating option parser
 parser = PyGC.GCOptParser()
 parser.variable()
+parser.profile_file(plist=True)
 parser.time()
 parser.region()
 parser.plot()
@@ -94,6 +96,17 @@ if opts.options.legend!=None:
         orientation='horizontal'
     cb = fig.colorbar(im, extend='both', spacing='uniform',orientation=orientation, shrink=0.8)
     cb.set_label(title)
+
+# plot profiles
+if opts.options.profname !=None:
+    i=0
+    for pn in opts.options.profname:
+        pdata = PyGC.IO.GCprofile(infile,interval=opts.options.interval)
+        pdata.coords_file(pn,opts.options.prof_is_projected)
+        if pdata.interpolated.shape[1] > 0:
+            m.plot(pdata.interpolated[0],pdata.interpolated[1],color='k')
+            m.annotate(string.ascii_uppercase[i],xy=pdata.interpolated[:,0])
+        i=i+1
 
 
 # plot a geographic coordinate system and coastlines

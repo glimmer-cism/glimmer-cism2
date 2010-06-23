@@ -1,4 +1,4 @@
-python_progs = plotGCvar plotEISMINT2stats
+python_progs = plotGCvar plotGCProfile plotEISMINT2stats
 bin_SCRIPTS = $(python_progs)
 
 EXTRA_DIST = $(python_progs)
