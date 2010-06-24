@@ -367,7 +367,7 @@ class GCvariable(object):
             if 'taux' not in self.file.variables.keys() or 'tauy' not in self.file.variables.keys():
                 raise KeyError, 'Variable not in file'
         elif self.name not in self.file.variables.keys():
-            raise KeyError, 'Variable not in file'
+            raise KeyError, 'Variable not in file: %s'%self.name
 #MH#        self.__colourmap = GCcolourmap(self)
         self.pmt = False
         self.__varcache = None

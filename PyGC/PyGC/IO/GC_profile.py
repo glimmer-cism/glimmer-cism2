@@ -251,53 +251,50 @@ class GCprofvar(GCvariable):
 
 ##         return grid
 
-##     def getProfile2D(self,time):
-##         """Get a 2D profile.
+    def getProfile2D(self,time):
+        """Get a 2D profile.
 
-##         time: time slice
+        time: time slice
 
-##         returns a GMT grid"""
+        returns a GMT grid"""
 
-##         if 'level' not in self.var.dimensions:
-##             raise ValueError, 'Not a 3D variable'
+        if 'level' not in self.var.dimensions:
+            raise ValueError, 'Not a 3D variable'
 
-##         if time not in self.__data2d:
-##             # load ice thickness and bedrock profiles
-##             ihprof = numpy.array(CFprofvar(self.cffile,'thk').getProfile(time))
-##             try:
-##                 rhprof = numpy.array(CFprofvar(self.cffile,'topg').getProfile(time))
-##             except:
-##                 rhprof = numpy.zeros(len(ihprof))
-##             ymin=min(rhprof)
-##             ymax=max(rhprof+ihprof)
-##             numy=int((ymax-ymin)/self.yres)+1
+        if time not in self.__data2d:
+            # load ice thickness and bedrock profiles
+            ihprof = numpy.array(GCprofvar(self.cffile,'thk').getProfile(time))
+            try:
+                rhprof = numpy.array(GCprofvar(self.cffile,'topg').getProfile(time))
+            except:
+                rhprof = numpy.zeros(len(ihprof))
+            ymin=min(rhprof)
+            ymax=max(rhprof+ihprof)
+            numy=int((ymax-ymin)/self.yres)+1
 
-##             # load data
-##             data = numpy.zeros([len(self.file.variables['level']), len(self.cffile.xvalues)], 'f')
-##             for i in range(0,len(self.file.variables['level'])):
-##                 prof = self.getProfile(time,level=len(self.file.variables['level'])-i-1)
-##                 data[i,:] = prof
+            # load data
+            data = numpy.zeros([len(self.file.variables['level']), len(self.cffile.xvalues)], 'f')
+            for i in range(0,len(self.file.variables['level'])):
+                prof = self.getProfile(time,level=len(self.file.variables['level'])-i-1)
+                data[i,:] = prof
 
-##             # setup output grid
-##             grid = Grid()
-##             grid.x_minmax = [0,self.cffile.xvalues[-1]]
-##             grid.y_minmax = [ymin,ymax]
-##             grid.data = numpy.zeros([len(self.cffile.xvalues),numy], 'f')
-##             grid.data[:,:] = -100000000.
-##             # interpolate
-##             rhprof = rhprof-ymin
-##             for j in range(0,len(self.cffile.xvalues)):
-##                 if ihprof[j]>0.:
-##                     start = int(rhprof[j]/self.yres)
-##                     end   = int((rhprof[j]+ihprof[j])/self.yres)+1
-##                     pos = numpy.arange(start*self.yres,end*self.yres,self.yres)
-##                     interpolated = CFinterpolate_linear(rhprof[j]+ihprof[j]*self.file.variables['level'][:],
-##                                                         data[:,j],
-##                                                         pos)
-##                     grid.data[j,start:end] = interpolated
-##             #self.__data2d[time] = grid
-##             return grid
-##         #return self.__data2d[time]
+            grid = numpy.zeros([len(self.cffile.xvalues),numy], 'f')
+            mask = numpy.ones([len(self.cffile.xvalues),numy], bool)
+            # interpolate
+            rhprof = rhprof-ymin
+            for j in range(0,len(self.cffile.xvalues)):
+                if ihprof[j]>0.:
+                    start = int(rhprof[j]/self.yres)
+                    end   = int((rhprof[j]+ihprof[j])/self.yres)+1
+                    pos = numpy.arange(start*self.yres,end*self.yres,self.yres)
+                    grid[j,start:end] = GCinterpolate_linear(rhprof[j]+ihprof[j]*self.file.variables['level'][:],
+                                                             data[:,j],
+                                                             pos)
+                    mask[j,start:end] = False
+
+            #self.__data2d[time] = grid
+            return [ymin,ymax],numpy.transpose(numpy.ma.array(grid,mask=mask))
+        #return self.__data2d[time]
 
 ##     def getProfileTS(self,time=None,level=0):
 ##         """Get a time-distance data.
@@ -354,3 +351,29 @@ def GCinterpolate_xy(profile,interval):
         d0 = d    
     
     return numpy.array([ix,iy],'f')
+
+def GCinterpolate_linear(x,y,pos):
+    """Linear interpolation.
+
+    x,y: data points
+    pos: list of new x positions onto which y should be interpolated.
+
+    we assume monotonic sequences in x and pos"""
+
+    if len(x)!=len(y):
+        raise ValueError, 'x and y are not of the same length.'
+
+    res = []
+    j = 0
+    for i in range(0,len(pos)):
+        # boundary conditions
+        if pos[i] <= x[0]:
+            res.append(y[0])
+            continue
+        if pos[i] >= x[-1]:
+            res.append(y[-1])
+            continue
+        while (pos[i]>x[j]):
+            j = j + 1
+        res.append(y[j-1]+(pos[i]-x[j-1])*(y[j]-y[j-1])/(x[j]-x[j-1]))
+    return res

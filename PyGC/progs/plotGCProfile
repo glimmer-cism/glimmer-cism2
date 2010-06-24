@@ -41,6 +41,11 @@ if opts.nfiles>1:
 else:
     COLS='k'
 
+if opts.options.level == None:
+    level = 0
+else:
+    level = opts.options.level
+
 # create axes
 if opts.nvars > 1:
     naxes = opts.nvars
@@ -64,22 +69,7 @@ for i in range(1,naxes+1):
             axprops['sharey'] = axes[0]
         
 
-if opts.nvars > 1:
-    for f in range(0,opts.nfiles):
-        infile = opts.cfprofile(f)
-        time = opts.times(infile,0)
-        for i in range(0,opts.nvars):
-            profile = opts.profs(infile,i)
-
-            if opts.options.vars[i] == 'is':
-                topo = infile.getprofile('topg').getProfile(time)
-                axes[i].plot(infile.xvalues, topo,color=COLS[f])
-                axes[i].set_ylabel('elevation [%s]'%profile.units)
-            else:
-                axes[i].set_ylabel('%s [%s]'%(profile.long_name,profile.units))
-
-            axes[i].plot(infile.xvalues, profile.getProfile(time),color=COLS[f],label=infile.title )
-else:
+if opts.ntimes>1:
     infile = opts.cfprofile()
     for t in range(0,opts.ntimes):
         if opts.ntimes>1:
@@ -98,8 +88,48 @@ else:
                 axes[t].set_ylabel('elevation [%s]'%profile.units)
             else:
                 axes[t].set_ylabel('%s [%s]'%(profile.long_name,profile.units))
-            axes[t].plot(infile.xvalues, profile.getProfile(time),color=COLS[f],label=infile.title )
-            
+            axes[t].plot(infile.xvalues, profile.getProfile(time,level=level),color=COLS[f],label=infile.title )
+else:
+    for f in range(0,opts.nfiles):
+        infile = opts.cfprofile(f)
+        time = opts.times(infile,0)
+        for i in range(0,opts.nvars):
+            profile = opts.profs(infile,i)
+
+            if profile.is3d and opts.options.level == None:
+                norm,cmap,title = opts.colourmap(infile,i)
+                
+                vextent,data2d = profile.getProfile2D(time)
+                im = axes[i].imshow(data2d,origin='lower',cmap=cmap,extent=[infile.xvalues[0],infile.xvalues[-1]]+vextent,aspect='auto')
+
+                topo = infile.getprofile('topg').getProfile(time)
+                surf = infile.getprofile('is').getProfile(time)
+                axes[i].plot(infile.xvalues, topo,'k')
+                axes[i].plot(infile.xvalues, surf,'k')
+                axes[i].set_ylabel('elevation [meter]')
+
+                if opts.options.dolegend:
+                    cb = fig.colorbar(im, extend='both', spacing='uniform',ax=axes[i])
+                    cb.set_label(title)
+            else:
+                if opts.options.vars[i] == 'is':
+                    topo = infile.getprofile('topg').getProfile(time)
+                    axes[i].plot(infile.xvalues, topo,color=COLS[f])
+                    axes[i].set_ylabel('elevation [%s]'%profile.units)
+                else:
+                    axes[i].set_ylabel('%s [%s]'%(profile.long_name,profile.units))
+
+                axes[i].plot(infile.xvalues, profile.getProfile(time,level=level),color=COLS[f],label=infile.title )
+
+# get minimum size of axes
+min_width = 10
+for i in range(0,len(axes)):
+    min_width = min( axes[i].get_position().width, min_width )
+for i in range(0,len(axes)):
+    pos = axes[i].get_position().get_points()
+    pos = [pos[0,0],pos[0,1],min_width,pos[1,1]-pos[0,1]]
+    axes[i].set_position(pos)
+
 axes[-1].set_xlabel('distance along profile [km]')
 axes[0].autoscale_view(tight=True,scaley=False)
 handles, labels = axes[-1].get_legend_handles_labels()

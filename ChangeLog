@@ -1,3 +1,8 @@
+2010-06-24 Magnus Hagdorn
+ * PyGC/PyGC/IO/GC_loadfile.py: be more verbose about missing variable
+ * PyGC/PyGC/IO/GC_profile.py: add method to load a profile of a 3D variable
+ * PyGC/progs/plotGCProfile: plot profiles of 3D variables
+
 2010-06-23 Magnus Hagdorn
  * PyGC/PyGC/GC_options.py: enable profile handling options
  * PyGC/PyGC/IO/GC_profile.py: copied from PyCF, ported to use numpy
