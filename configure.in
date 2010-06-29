@@ -115,15 +115,25 @@ if test "$build_python" == 1; then
   proj_ok=no
   AC_LANG_PUSH([C])
   AC_CHECK_HEADER(projects.h,proj_ok=yes,proj_ok=no)
+  if test x"$proj_ok"x != xyesx; then
+    build_python=0
+  fi	
   AC_SEARCH_LIBS(pj_fwd,proj,proj_ok=yes,proj_ok=no)
   if test x"$proj_ok"x != xyesx; then
-    AC_MSG_ERROR(libproj unusable)
+    build_python=0
+  fi
+  if test "$build_python" == "0"; then
+    AC_MSG_WARN(libproj unusable)
   fi
   AC_LANG_POP([C])
 fi
+if test "$build_python" == "1"; then
+  AM_PATH_PYTHON([2.3],,[AC_MSG_RESULT(need at least python 2.3)])
+  AX_PYTHON_MODULE(numpy,[build_python=0])
+else
+  AC_MSG_WARN(not building python extension)
+fi
 AM_CONDITIONAL([BUILD_PYTHON], [test "$build_python" == "1"])
-
-AM_PATH_PYTHON([2.3],,[AC_MSG_RESULT(need at least python 2.3)])
 
 # checking for BLAS library
 ac_gl_have_blas=0
@@ -290,14 +300,18 @@ esac],[AC_MSG_RESULT([no])])
 #AM_CONDITIONAL([RUN_TESTS], [test "$enable_tests" == "yes"])
 
 dnl checking if model runs should be submitted to SGE
-SGE_OPTS=""
+m4_pattern_allow([^AM_SGE_OPTS$])
+AM_SGE_OPTS=""
 AC_MSG_CHECKING([whether model runs should be submitted to SGE])
 AC_ARG_WITH(sge-jobs,AS_HELP_STRING([--with-sge-jobs],[use Sun Grid Engine to run models]),[
-  SGE_OPTS="-s"
+  AM_SGE_OPTS="-s"
+  SGE_OPTS=""
   if test x"$with_sge_jobs"x != xyesx; then
-    SGE_OPTS="$SGE_OPTS -o \"$with_sge_jobs\""
+    AM_SGE_OPTS="$AM_SGE_OPTS -o"
+    SGE_OPTS="\"$with_sge_jobs\""
   fi 
   AC_MSG_RESULT([$withval])],[AC_MSG_RESULT([no])])
+AC_SUBST(AM_SGE_OPTS)
 AC_SUBST(SGE_OPTS)
 
 dnl checking which extensions should be built
@@ -346,6 +360,5 @@ AC_CONFIG_FILES([Makefile m4macros/Makefile scripts/Makefile \
                 doc/doclets/Makefile doc/doclets/figs/Makefile \
                 doc/tut/Makefile doc/ext/Makefile \
                 doc/ext/erosion/Makefile doc/ext/erosion/figs/Makefile doc/ext/erosion/gnu/Makefile])
-AC_OUTPUT([make.rules])
 AC_OUTPUT([doc/common/version.tex])
 AC_OUTPUT([glimmer-cism-config libglimmer/glimmer_vers.F90.in])

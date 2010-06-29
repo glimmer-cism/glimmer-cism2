@@ -81,9 +81,10 @@ if opts.options.illuminate!=None:
     m.imshow(v,origin='lower',extent=extent)
 
 # plot velo vectors
-if opts.options.vectors:
-    u = infile.getvar('uvel').get2Dfield(time,level=level,clip='vel')
-    v = infile.getvar('vvel').get2Dfield(time,level=level,clip='vel')
+if opts.options.vectors != None:
+    n={'vel':'vel','bvel':'bas'}[opts.options.vectors]
+    u = infile.getvar('u%s'%n).get2Dfield(time,level=level,clip=opts.options.vectors)
+    v = infile.getvar('v%s'%n).get2Dfield(time,level=level,clip=opts.options.vectors)
     x,y = numpy.meshgrid(infile.file.variables['x0'],infile.file.variables['y0'])
     m.quiver(x,y,u,v,units='x')
 

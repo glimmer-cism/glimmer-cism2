@@ -16,8 +16,6 @@ e2.d.nc:        e2.a.nc
 e2.j.nc:        e2.i.nc
 e2.l.nc:        e2.k.nc
 
-plotEISMINT2stats = PYTHONPATH=$(top_builddir)/PyGC/src/.libs:$(top_srcdir)/PyGC/:$$PYTHONPATH $(top_srcdir)/PyGC/progs/plotEISMINT2stats -d $(top_srcdir)/PyGC/data/eismint2.data --size=4 3
-
 e2.a-comp.eps:	e2.a.nc
 	$(plotEISMINT2stats) -e A $^ -o $@
 e2.b-comp.eps:	e2.b.nc e2.a.nc
@@ -33,5 +31,3 @@ e2.h-comp.eps:	e2.h.nc
 
 -include $(top_builddir)/make.rules
 
-.nc.ps:
-	@GLIMMER_PREFIX@/bin/plotEISMINT.py -T -1  -p ../PyCF/eismint.prof $< $@

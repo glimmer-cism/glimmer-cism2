@@ -60,7 +60,7 @@ static int Proj_init(Proj *self, PyObject *args, PyObject *kwds)
   int i;
 
   /* parsing arguments */
-  if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!",kwlist, &PyList_Type, &proj_params))
+  if (!PyArg_ParseTuple(args, "O!",&PyList_Type, &proj_params))
     return -1;
   
   /* setting up projection */

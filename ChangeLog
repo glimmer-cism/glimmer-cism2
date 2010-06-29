@@ -1,3 +1,18 @@
+2010-06-29 Magnus Hagdorn
+ * Makefile.am: let make handle make.rules
+ * configure.in: do not attempt to build python modules if all the bits are not
+   present; allow SGE_OPTS to be overwritten on the command line
+ * make.rules.in: add macros for python vis programs
+ * PyGC/PyGC/GC_options.py: --vectors option takes the name of the field
+ * PyGC/progs/plotGCvar: plot vectors for either velo or basal velo fields
+ * PyGC/src/projmodule.c: initialise module from argument
+ * example-drivers/EISMINT-3/EISMINT-3/Makefile.am: produce some graphics
+ * example-drivers/eis/fenscan/Makefile.am: ditto
+ * example-drivers/eis/fenscan/prof_a.data: add profile locations
+ * m4macros/ac_python_devel.m4: get arch specific directory
+ * m4macros/ax_python_module.m4: find python extensions
+ * tests/EISMINT/EISMINT-2/Makefile.am: clean up
+
 2010-06-24 Magnus Hagdorn
  * PyGC/PyGC/IO/GC_loadfile.py: be more verbose about missing variable
  * PyGC/PyGC/IO/GC_profile.py: add method to load a profile of a 3D variable

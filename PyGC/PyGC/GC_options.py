@@ -92,7 +92,7 @@ class GCOptParser(optparse.OptionParser):
         
         self.add_option("-c","--clip",metavar='VAR',type="choice",dest='clip',choices=['thk','topg','usurf','is'],help="display variable only where ['thk','topg','usurf','is']>0.")
         self.add_option("-i","--illuminate",metavar='VAR',type="choice",dest='illuminate',choices=['thk','topg','usurf','is'],help="illuminate surface using gradient of ['thk','topg','usurf','is']")
-        self.add_option("--vectors",action="store_true",default=False,help="plot velocity vectors")
+        self.add_option("--vectors",metavar='VAR',type="choice",choices=['vel','bvel'],help="plot velocity vectors of ['vel','bvel']")
         self.add_option("--land",action="store_true", dest="land",default=False,help="Indicate area above SL")
         self.add_option("--no-geo-coords",action="store_false",dest="geo_coord",default=True,help="do not plot geographic coordinate system")
         try:
