@@ -157,9 +157,9 @@ class GCOptParser(optparse.OptionParser):
         """Time interval options."""
         self.add_option("-t","--time",metavar='T0 T1',type="float",nargs=2,dest='times',help="specify time interval T0 T1, if none process entire file.")
 
-##     def epoch(self):
-##         """Glacial Stages."""
-##         self.add_option("-e","--epoch",metavar='NAME',type="string",help='load glacial stages from file and plot them on time axis')
+    def epoch(self):
+        """Glacial Stages."""
+        self.add_option("-e","--epoch",metavar='NAME',type="string",help='load glacial stages from file and plot them on time axis')
 
 ##     def rsl(self):
 ##         """RSL options."""

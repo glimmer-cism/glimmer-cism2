@@ -296,28 +296,25 @@ class GCprofvar(GCvariable):
             return [ymin,ymax],numpy.transpose(numpy.ma.array(grid,mask=mask))
         #return self.__data2d[time]
 
-##     def getProfileTS(self,time=None,level=0):
-##         """Get a time-distance data.
+    def getProfileTS(self,time=None,level=0):
+        """Get a time-distance data.
 
         
-##         time: if None, return data for all time slices
-##               if list/etc of size two, interpret as array selection
-##               if single value, get only this time slice
-##         level: horizontal slice."""
+        time: if None, return data for all time slices
+              if list/etc of size two, interpret as array selection
+              if single value, get only this time slice
+        level: horizontal slice."""
 
-##         (tarray,t) = CFchecklist(time,self.file.variables['time'])
+        (tarray,t) = GCchecklist(time,self.file.variables['time'])
 
-##         if tarray:
-##             data = []
-##             for i in range(t[0],t[1]+1):
-##                 data.append(self.getProfile(i,level=level))
-##             grid = PyGMT.Grid()
-##             grid.x_minmax = [0,self.cffile.xvalues[-1]]
-##             grid.y_minmax = [self.cffile.time(t[0]),self.cffile.time(t[1])]
-##             grid.data = numpy.transpose(numpy.array(data))
-##             return grid
-##         else:
-##             return self.getProfile(t,level=level)
+        if tarray:
+            data = []
+            for i in range(t[0],t[1]+1):
+                data.append(self.getProfile(i,level=level))
+            data = numpy.transpose(numpy.array(data))
+            return data
+        else:
+            return self.getProfile(t,level=level)
 
 def GCinterpolate_xy(profile,interval):
     "linearly interpolate profile, return interpolated array and number of points outside region"

@@ -1,4 +1,16 @@
 2010-06-30 Magnus Hagdorn
+ * PyGC/PyGC/GC_options.py: enable epoch option
+ * PyGC/PyGC/IO/GC_epoch.py: handle epoch files
+ * PyGC/PyGC/IO/GC_profile.py: extract a profile - time series
+ * PyGC/PyGC/IO/Makefile.am: add new file
+ * PyGC/PyGC/IO/__init__.py: load new file
+ * PyGC/data/Makefile.am: install new file
+ * PyGC/data/stages: default glacial stages file
+ * PyGC/progs/plotGCProfileTS: new program to plot a profile through time
+ * PyGC/progs/Makefile.am: add new file
+ * PyGC/progs/plotGCProfile: optionally plot title
+
+2010-06-30 Magnus Hagdorn
  * configure.in: add new subdirectory
  * PyGC/PyGC/GC_colourmap.py: look for standard place if colourmap file cannot
    be found

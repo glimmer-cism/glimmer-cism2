@@ -136,6 +136,10 @@ handles, labels = axes[-1].get_legend_handles_labels()
 if opts.nfiles > 1:
     matplotlib.pyplot.figlegend(handles,labels,'lower center',ncol=2, mode="expand")
 
+# display title
+if opts.options.title:
+    matplotlib.pyplot.title(infile.title)
+
 if opts.options.output==None:
     matplotlib.pyplot.show()
 else:
