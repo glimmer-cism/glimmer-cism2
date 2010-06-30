@@ -1,3 +1,15 @@
+2010-06-30 Magnus Hagdorn
+ * configure.in: add new subdirectory
+ * PyGC/PyGC/GC_colourmap.py: look for standard place if colourmap file cannot
+   be found
+ * PyGC/PyGC/GC_options.py: add options for displaying a title and timestamp
+ * PyGC/progs/plotGCvar: optionally display title and/or timestamp
+ * extensions/erosion/Makefile.am: handle subdirectory
+ * extensions/erosion/scripts/erosion.cpt: colourmap for change in 
+   sediment thickness
+ * extensions/erosion/scripts/plotGCseds: script to plot change in sediment
+   thickness
+
 2010-06-29 Magnus Hagdorn
  * Makefile.am: let make handle make.rules
  * configure.in: do not attempt to build python modules if all the bits are not

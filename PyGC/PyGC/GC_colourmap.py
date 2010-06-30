@@ -90,7 +90,10 @@ class GCcolourmap(object):
 
         self.__cpt=None
         if filename!=None:
-            fn = filename
+            if os.path.exists(filename):
+                fn = filename
+            else:
+                fn = os.path.join(GC_sharedir,filename)
         else:
             if self.name in self.VARN_MAP:
                 fn = os.path.join(GC_sharedir,self.VARN_MAP[self.name])

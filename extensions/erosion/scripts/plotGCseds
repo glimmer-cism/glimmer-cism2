@@ -1,26 +1,8 @@
 #! /usr/bin/env python
 
-# Copyright 2004, Magnus Hagdorn
-# 
-# This file is part of GLIMMER.
-# 
-# GLIMMER is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-# 
-# GLIMMER is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
-# You should have received a copy of the GNU General Public License
-# along with GLIMMER; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+"""Plot sediment maps"""
 
-"""A simple plot of CF fields."""
-
-import string
+import PyGC,sys,os,string
 import PyGC
 import matplotlib.pyplot
 import matplotlib.cm, matplotlib.colors
@@ -35,22 +17,18 @@ import numpy,math
 
 # creating option parser
 parser = PyGC.GCOptParser()
-parser.variable()
+parser.var_options()
 parser.profile_file(plist=True)
 parser.time()
 parser.region()
 parser.plot()
 opts = PyGC.GCOptions(parser,1)
 
-if opts.options.level == None:
-    level = 0
-else:
-    level = opts.options.level
 
 infile = opts.gcfile()
-var  = opts.vars(infile)
+
 time = opts.times(infile)
-clip = opts.options.clip
+var = infile.getvar("seds3")
 
 plot_geo_coord = infile.projection!='lin' and have_basemap and opts.options.geo_coord
 
@@ -63,6 +41,7 @@ if not plot_geo_coord:
 fig = matplotlib.pyplot.figure(figsize=opts.plotsize)
 m = fig.add_axes([0.1,0.1,0.8,0.8])
 
+
 # indicate area above sea level
 if opts.options.land:
     v = infile.getvar('topg').get2Dfield(time)
@@ -70,9 +49,28 @@ if opts.options.land:
     l[:,:,3] = numpy.where(v>0,1,0)
     m.imshow(l,origin='lower',extent=extent)
 
+
 # plot the data
-norm,cmap,title = opts.colourmap(infile)
-im = m.imshow(var.get2Dfield(time,level=level,clip=opts.options.clip),norm=norm,cmap=cmap,extent=extent,origin='lower')
+cmap = PyGC.GCcolourmap(infile.getvar("seds3"),filename='erosion.cpt')
+norm,cmap = cmap.norm,cmap.colourmap
+title = 'change in sediment thickness [m]'
+
+init_seds = infile.getvar("seds3").get2Dfield(0)
+seds1 = infile.getvar("seds1").get2Dfield(time)
+seds2 = infile.getvar("seds2").get2Dfield(time)
+seds3 = infile.getvar("seds3").get2Dfield(time)
+seds3 = seds3+seds1+seds2-init_seds
+
+im = m.imshow(seds3,norm=norm,cmap=cmap,extent=extent,origin='lower')
+
+# plot ice extent
+thk = None
+try:
+    thk = infile.getvar("thk").get2Dfield(time)
+except:
+    pass
+if thk!=None:
+    m.contour(thk,[1],extent=extent,origin='lower')
 
 # shade plot
 if opts.options.illuminate!=None:
@@ -81,14 +79,6 @@ if opts.options.illuminate!=None:
     v[:,:,3] = (1-v[:,:,0])*0.8
     v[:,:,0:3] = 0.05
     m.imshow(v,origin='lower',extent=extent)
-
-# plot velo vectors
-if opts.options.vectors != None:
-    n={'vel':'vel','bvel':'bas'}[opts.options.vectors]
-    u = infile.getvar('u%s'%n).get2Dfield(time,level=level,clip=opts.options.vectors)
-    v = infile.getvar('v%s'%n).get2Dfield(time,level=level,clip=opts.options.vectors)
-    x,y = numpy.meshgrid(infile.file.variables['x0'],infile.file.variables['y0'])
-    m.quiver(x,y,u,v,units='x')
 
 m.set_aspect('equal')
 
@@ -156,3 +146,4 @@ if opts.options.output==None:
     matplotlib.pyplot.show()
 else:
     matplotlib.pyplot.savefig(opts.options.output)
+

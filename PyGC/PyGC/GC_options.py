@@ -47,6 +47,8 @@ class GCOptParser(optparse.OptionParser):
         group.add_option("--size",type="float",dest="size",nargs=2,metavar="WIDTH HEIGHT", help="size of plot in cm")
         #group.add_option("--verbose",action="store_true", dest="verbose",default=False,help="Be verbose")
         group.add_option("-o","--output",metavar="NAME",help="write image to FILE")
+        group.add_option("--title",action="store_true",default=False,help="display a title")
+        group.add_option("--timestamp",action="store_true",default=False,help="display a timestamp")
         self.add_option_group(group)
 
     def region(self):
