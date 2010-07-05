@@ -1,4 +1,7 @@
 2010-07-05 Magnus Hagdorn
+ * configure.in: bumped version to 1.6.1
+
+2010-07-05 Magnus Hagdorn
  * configure.in: always generate libphaml/Makefile so sources get distributed
  * libphaml/Makefile.am: do not distribute external files
 
