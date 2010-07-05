@@ -1,3 +1,11 @@
+Changes in Version 1.6.0
+========================
+* reorganised directories
+* rudimentary support for doxygen
+* scale variables written to netCDF file
+* exact hotstarts from netCDF files
+* improved coupling to CCSM
+
 Changes in Version 1.0.18
 =========================
 * move to berliOS
