@@ -8,7 +8,7 @@ bin_PROGRAMS = phaml_slave simple_phaml $(PHAML_GRAPHICS)
 
 lib_LTLIBRARIES = libglide-phaml.la
 
-libglide_phaml_la_LDFLAGS=-all-static
+libglide_phaml_la_LDFLAGS=
 AM_LIBTOOLFLAGS="--tag=FC"
 AM_FCFLAGS = $(NETCDF_FCFLAGS) $(F90_MODFLAG)$(top_builddir)/libglimmer-solve \
     $(F90_MODFLAG)$(top_builddir)/libglide $(F90_MODFLAG)$(top_builddir)/libglimmer \

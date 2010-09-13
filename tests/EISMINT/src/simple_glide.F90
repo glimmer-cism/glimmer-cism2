@@ -35,7 +35,12 @@ program simple_glide
   !*FD This is a simple GLIDE test driver. It can be used to run
   !*FD the EISMINT test cases
   use glimmer_global, only:rk
+#ifdef GLIDE_IF
+  use glide_types
+  use glide_if_setup
+#else
   use glide
+#endif
   use simple_forcing
   use glimmer_log
   use glimmer_config
@@ -43,6 +48,10 @@ program simple_glide
   use glimmer_writestats
   use glimmer_filenames, only : filenames_init
   implicit none
+
+#ifdef GLIDE_IF
+  include 'glide_if.inc'
+#endif
 
   type(glide_global_type) :: model        ! model instance
   type(simple_climate) :: climate         ! climate
@@ -67,6 +76,9 @@ program simple_glide
   t1 = real(clock,kind=dp)/real(clock_rate,kind=dp)
 
   ! initialise GLIDE
+#ifdef GLIDE_IF
+  call glide_if_config(config)
+#endif
   call glide_config(model,config)
   call simple_initialise(climate,config)
   call glide_initialise(model)

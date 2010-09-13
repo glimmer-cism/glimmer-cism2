@@ -42,6 +42,7 @@ FCFLAGS=$glimmer_FCFLAGS
 FFLAGS=$glimmer_FFLAGS
 AC_LANG(Fortran)
 AC_FC_SRCEXT(f90)
+AC_FC_WRAPPERS
 # get the correct flag to set module include path
 AX_F90_MODULE_FLAG
 F90_MODFLAG=$ax_cv_f90_modflag
@@ -395,14 +396,29 @@ fi
 AC_SUBST(GLIMMER_SVN_VERS)
 AM_CONDITIONAL([HAVE_SVN],[test "$have_svn_entries" == "yes"])
 
+# should the glide interface be enabled
+AC_MSG_CHECKING([whether we should enable the glide interface])
+AC_ARG_ENABLE(glide-if, AS_HELP_STRING([--enable-glide-if],[Enable the glide interface]),
+[case "${enableval}" in
+ yes)  if test "$enable_shared" != "yes"; then
+         AC_MSG_ERROR(shared libraries must be enabled to use glide interface)
+       fi
+       AC_DEFINE(GLIDE_IF,1,[Define to 1 if you want to enable the glide interface])
+       AC_MSG_RESULT([yes]);;	
+ no)   AC_MSG_RESULT([no]);;
+ *) AC_MSG_ERROR(bad value ${enableval} for --enable-glide-if) ;;
+esac],[AC_MSG_RESULT([no])])
+AM_CONDITIONAL([USE_GLIDE_IF], [test "$enable_glide_if" == "yes"])
+
 AC_CONFIG_FILES([Makefile m4macros/Makefile scripts/Makefile \
                 utils/Makefile libglimmer/Makefile \
                 libglimmer-solve/Makefile libglimmer-solve/SLAP/Makefile \
                 libglimmer-solve/blas/Makefile libglint/Makefile \
-                libglide/Makefile tests/Makefile example-drivers/Makefile extensions/Makefile \
+                libglide/Makefile libglide_if/Makefile tests/Makefile example-drivers/Makefile extensions/Makefile \
                 extensions/erosion/Makefile extensions/erosion/src/Makefile \
                 extensions/erosion/scripts/Makefile \
                 extensions/libphaml/Makefile \
+                extensions/glide_if_example/Makefile \
                 tests/EISMINT/Makefile tests/EISMINT/src/Makefile tests/EISMINT/benchmarks/Makefile \
                 tests/EISMINT/EISMINT-1/Makefile  tests/EISMINT/EISMINT-2/Makefile \
                 tests/EISMINT/isos/Makefile  tests/EISMINT/lin-non_lin/Makefile \

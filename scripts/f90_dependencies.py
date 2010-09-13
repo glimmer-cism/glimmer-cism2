@@ -26,7 +26,7 @@
 import string, getopt, sys, os, os.path
 
 external_mod = ['f95_lapack','netcdf','blas_dense']
-external_inc = ['config.inc']
+external_inc = ['config.inc','glide_if.inc']
 
 def search_file(name):
     "function searching a f90/95 file if it contains module information and/or uses modules and/or includes files"

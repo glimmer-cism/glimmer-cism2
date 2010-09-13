@@ -37,7 +37,12 @@ program verifglide
 
   ! load various modules
   use glimmer_global, only:rk ! precision of the model
+#ifdef GLIDE_IF
+  use glide_types
+  use glide_if_setup
+#else
   use glide                   ! main glide module
+#endif
   use glimmer_log             ! module for logging messages
   use glimmer_config          ! module for handling configuration files
   use verif
@@ -45,6 +50,10 @@ program verifglide
   use glimmer_commandline
   use glimmer_writestats
   implicit none
+
+#ifdef GLIDE_IF
+  include 'glide_if.inc'
+#endif
 
   ! some variables
   type(glide_global_type) :: model    
@@ -63,6 +72,9 @@ program verifglide
   
   ! read configuration
   call ConfigRead(commandline_configname,config)
+#ifdef GLIDE_IF
+  call glide_if_config(config)
+#endif
   call glide_config(model,config)
   call verif_config(config,veri)
   call verif_printconfig(veri)

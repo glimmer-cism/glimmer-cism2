@@ -1,0 +1,14 @@
+This directory demonstrates the construction of an external glide library.  Once
+the shared library libglide_example.so is installed, it can be used in place of
+libglide.so (if the --enable-glide-if configuration option was given).
+
+For example, the following can be appended to a config script:
+
+[glide_if]
+libname = /path/to/libglide_example.so
+
+The dynamic loader will try to open this library. If you don't want to give the
+full path you can give the relative path, or you can give just the name
+"libglide_example.so", but in this case the library must be someplace that the
+loader expects to look for it (i.e. in the rpath of the binary that is calling
+it, or in the LD_LIBRARY_PATH environment variable).

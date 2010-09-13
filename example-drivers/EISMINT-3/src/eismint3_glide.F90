@@ -37,7 +37,12 @@ program eismint3_glide
   !*FD the EISMINT 3 Greenland test case. Adapted from simple_glide.f90
 
   use glimmer_global, only:rk,fname_length
+#ifdef GLIDE_IF
+  use glide_types
+  use glide_if_setup
+#else
   use glide
+#endif
   use glimmer_log
   use glimmer_config
   use eismint3_forcing
@@ -46,6 +51,10 @@ program eismint3_glide
   use glimmer_writestats
   use glimmer_filenames, only : filenames_init
   implicit none
+
+#ifdef GLIDE_IF
+  include 'glide_if.inc'
+#endif
 
   type(glide_global_type) :: model        ! model instance
   type(eismint3_climate) :: climate
@@ -70,6 +79,9 @@ program eismint3_glide
   t1 = real(clock,kind=dp)/real(clock_rate,kind=dp)
 
   ! initialise GLIDE
+#ifdef GLIDE_IF
+  call glide_if_config(config)
+#endif
   call glide_config(model,config)
   call glide_initialise(model)
   call eismint3_initialise(climate,config,model)

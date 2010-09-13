@@ -1,5 +1,5 @@
-SUBDIRS = m4macros scripts libglimmer libglimmer-solve libglide libglint \
-          utils extensions tests example-drivers doc
+SUBDIRS = m4macros scripts libglimmer libglimmer-solve libglide libglide_if \
+          libglint utils extensions tests example-drivers doc
 if BUILD_PYTHON
   SUBDIRS += PyGC
 endif

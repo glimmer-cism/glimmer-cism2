@@ -35,7 +35,12 @@ program eis_erosion
   !*FD This is the Edinburgh Ice Sheet GLIDE driver
   !*FD with erosion
   use glimmer_global, only:rk
+#ifdef GLIDE_IF
+  use glide_types
+  use glide_if_setup
+#else
   use glide
+#endif
   use eis_forcing
   use eis_io
   use glimmer_log
@@ -45,6 +50,10 @@ program eis_erosion
   use glimmer_filenames, only : filenames_init
   use erosion
   implicit none
+
+#ifdef GLIDE_IF
+  include 'glide_if.inc'
+#endif
 
   type(glide_global_type) :: model        ! model instance
   type(eis_climate_type) :: climate       ! climate
@@ -72,6 +81,9 @@ program eis_erosion
   t1 = real(clock,kind=dp)/real(clock_rate,kind=dp)
 
   ! initialise GLIDE
+#ifdef GLIDE_IF
+  call glide_if_config(config)
+#endif
   call glide_config(model,config)
   call glide_initialise(model)
   call eis_initialise(climate,config,model)
