@@ -10,3 +10,4 @@ f90_dep.mak:	$(simple_glide_SOURCES)
 		$(PYTHON) $(top_srcdir)/scripts/f90_dependencies.py -o $@ $^
 
 -include f90_dep.mak
+include $(top_srcdir)/extra_rules.am

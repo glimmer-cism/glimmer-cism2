@@ -1,0 +1,35 @@
+%.nc:	%.config
+	$(PYTHON) $(top_srcdir)/scripts/glide_launch.py $(LAUNCH_OPTIONS) -m $(MODEL_BINARY) @AM_SGE_OPTS@ $(SGE_OPTS) $^
+
+#graphics:	$(graphics)
+data:		$(data)
+
+compare-%:	%.nc	
+	@if [ ! -e $(GOLD_STD_PREFIX)/$(rel_builddir)/$< ];then \
+	echo "Reference file $(GOLD_STD_PREFIX)/$(rel_builddir)/$< does not exist, download files from ftp.berlios.de/pub/glimmer-cism"; \
+	echo "and point configure to this directory --with-gold-std=/path/to/files"; \
+	exit -1; \
+	fi ;\
+	if $(top_builddir)/utils/compare $(GOLD_STD_PREFIX)/$(rel_builddir)/$< $< -a 1e-8; then \
+	echo "$< passed"; \
+	else echo "$< failed"; \
+	fi	
+
+check-data:	$(gold_standard_data)
+	make $(patsubst %.nc, compare-%, $^)
+
+dist-gold-standard:	$(gold_standard_data)
+	@if [ -n "$(gold_standard_data)" ]; then \
+	mkdir -p $(top_builddir)/$(PACKAGE)-gold-$(VERSION)/$(rel_builddir); \
+	for f in $^; do ln -f $$f $(top_builddir)/$(PACKAGE)-gold-$(VERSION)/$(rel_builddir)/$$f;done; \
+	fi
+
+# the following macro produces the current build path relative to the toplevel build directory
+rel_builddir = $(subst  $(abspath $(top_builddir))/,,$(CURDIR))
+
+f90_dep_sources ?= $(SOURCES)
+
+f90_dep.mak:	$(f90_dep_sources)
+		$(PYTHON) $(top_srcdir)/scripts/f90_dependencies.py -l -o $@ $^
+
+SUFFIXES = .config

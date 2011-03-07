@@ -306,15 +306,26 @@ esac],[AC_MSG_RESULT([no])])
 #esac],[AC_MSG_RESULT([no])])
 #AM_CONDITIONAL([RUN_TESTS], [test "$enable_tests" == "yes"])
 
+#specify the directory where the gold standard files are located
+AC_MSG_CHECKING([whether location of gold standard files are specified])	
+AC_ARG_WITH(gold_std,AS_HELP_STRING([--with-gold-std],[location of gold_std]),[GOLD_STD_PREFIX=$(readlink -f $withval)])
+AC_MSG_RESULT(gold_std location: $GOLD_STD_PREFIX)
+AC_SUBST(GOLD_STD_PREFIX)
+
+
 dnl checking if model runs should be submitted to SGE
-SGE_OPTS=""
+m4_pattern_allow([^AM_SGE_OPTS$])
+AM_SGE_OPTS=""
 AC_MSG_CHECKING([whether model runs should be submitted to SGE])
 AC_ARG_WITH(sge-jobs,AS_HELP_STRING([--with-sge-jobs],[use Sun Grid Engine to run models]),[
-  SGE_OPTS="-s"
+  AM_SGE_OPTS="-s"
+  SGE_OPTS=""
   if test x"$with_sge_jobs"x != xyesx; then
-    SGE_OPTS="$SGE_OPTS -o \"$with_sge_jobs\""
+    AM_SGE_OPTS="$AM_SGE_OPTS -o"
+    SGE_OPTS="\"$with_sge_jobs\""
   fi 
   AC_MSG_RESULT([$withval])],[AC_MSG_RESULT([no])])
+AC_SUBST(AM_SGE_OPTS)
 AC_SUBST(SGE_OPTS)
 
 # Checking if sources are from subversion
@@ -347,7 +358,6 @@ AC_CONFIG_FILES([Makefile m4macros/Makefile scripts/Makefile \
                 doc/doclets/Makefile doc/doclets/figs/Makefile \
                 doc/tut/Makefile])
 AC_CONFIG_FILES([libphaml/Makefile])
-AC_CONFIG_FILES([make.rules])
 AC_CONFIG_FILES([doc/common/version.tex])
 AC_CONFIG_FILES([glimmer-cism-config libglimmer/glimmer_vers.F90.in])
 AC_OUTPUT
