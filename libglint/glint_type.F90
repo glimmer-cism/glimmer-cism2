@@ -85,7 +85,8 @@ module glint_type
 
      real(sp),dimension(:,:),pointer :: ablt => null() !*FD Annual ablation
      real(sp),dimension(:,:),pointer :: acab => null() !*FD Annual mass-balance
-
+     real(sp),dimension(:,:),pointer :: freshwf => null() !*FD Freshwater flux !Flo
+     real(sp),dimension(:,:),pointer :: freshwf_tavg => null()!*FD Freshwater flux (time averaged) ! Flo
      ! Arrays to accumulate mass-balance quantities --------------
 
      type(glint_mbc) :: mbal_accum
@@ -209,7 +210,8 @@ contains
 
     if (associated(instance%ablt))          deallocate(instance%ablt)
     if (associated(instance%acab))          deallocate(instance%acab)
-
+    if (associated(instance%freshwf))       deallocate(instance%freshwf)! Flo
+    if (associated(instance%freshwf_tavg))       deallocate(instance%freshwf_tavg)! Flo
     ! Fractional coverage
 
     if (associated(instance%frac_coverage)) deallocate(instance%frac_coverage)
@@ -240,6 +242,8 @@ contains
 
     allocate(instance%ablt(ewn,nsn)); instance%ablt = 0.0
     allocate(instance%acab(ewn,nsn)); instance%acab = 0.0
+    allocate(instance%freshwf(ewn,nsn)); instance%freshwf = 0.0 ! Flo
+    allocate(instance%freshwf_tavg(ewn,nsn)); instance%freshwf = 0.0 ! Flo
 
     ! Fractional coverage map
 

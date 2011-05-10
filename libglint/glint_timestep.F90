@@ -360,6 +360,15 @@ contains
              ablat_temp = ablat_temp + instance%ablt*instance%model%numerics%tinc
           endif
 
+          ! Abaltion passed through the routing scheme to get freshwater flux - Flo
+          call coordsystem_allocate(instance%lgrid, routing_temp)
+          call flow_router(instance%local_orog, ablat_temp, routing_temp,instance%out_mask, &
+                           real(instance%lgrid%delta%pt(1),rk), real(instance%lgrid%delta%pt(2),rk))
+
+          instance%freshwf = routing_temp   ! Flo
+          deallocate(routing_temp)
+          routing_temp => null()
+
           ! Save GLIDE output until now
           call glide_io_writeall(instance%model,instance%model)
           call glint_io_writeall(instance,instance%model)

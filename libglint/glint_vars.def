@@ -54,6 +54,14 @@ long_name:     ablation
 data:          data%ablt
 coordinates:   lon lat
 
+[freshwf]
+dimensions:    time, y1, x1
+units:         meter (water)/year
+long_name:     freshwater flux 
+data:          data%freshwf
+coordinates:   lon lat
+#average: 1
+
 [global_orog]
 dimensions:    time, y1, x1
 units:	       meter
