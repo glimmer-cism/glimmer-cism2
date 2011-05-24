@@ -1,3 +1,6 @@
+2011-05-24 Magnus Hagdorn
+ * doc/Makefile.am: remake docs if any tex or eps file has changed
+
 2011-03-16 Magnus Hagdorn
  * libglimmer/glimmer_searchcircle.F90: simplify search circle computations
 

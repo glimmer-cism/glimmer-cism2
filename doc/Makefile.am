@@ -47,7 +47,7 @@ www::	doxygen-run glimmer_html doxygen-run
 	tar cvzf $(PACKAGE)-doc.$(GLIMMER_VERSION).tar.gz $(WWW_DIR)
 	rm -rf $(WWW_DIR)
 
-.tex.dvi::
+%.dvi:	%.tex $(shell find . -name '*.tex' -or -name '*.eps')
 	$(LATEX) $<
 	$(BIBTEX) $*
 	$(LATEX) $<
