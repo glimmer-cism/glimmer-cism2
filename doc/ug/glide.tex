@@ -1,8 +1,8 @@
 \section{GLIDE}
-GLIDE is the actual ice sheet model. GLIDE comprises three procedures which initialise the model, perform a single time step and finalise the model. The GLIDE configuration file is described in Section \ref{ug.sec.config}. The GLIDE API is described in Appendix \ref{ug.sec.glide_api}. The simple example driver explains how to write a simple climate driver for GLIDE. Download the example from the GLIMMER website or from CVS:
+GLIDE is the actual ice sheet model. GLIDE comprises three procedures which initialise the model, perform a single time step and finalise the model. The GLIDE configuration file is described in Section \ref{ug.sec.config}. The GLIDE API is described in Appendix \ref{ug.sec.glide_api}. The simple example driver explains how to write a simple climate driver for GLIDE. Download the example from the GLIMMER website or from Subversion:
 \begin{verbatim}
-cvs -d:pserver:anonymous@forge.nesc.ac.uk:/cvsroot/glimmer login
-cvs -z3 -d:pserver:anonymous@forge.nesc.ac.uk:/cvsroot/glimmer co glimmer-example
+svn checkout
+https://user_name@svn.berlios.de/svnroot/repos/glimmer-cism/glimmer-cism2/trunk/example-drivers
 \end{verbatim}
 
 \subsection{Configuration}\label{ug.sec.config}
@@ -81,9 +81,12 @@ Sections and keys are case sensitive and may contain white space. However, the c
     \hline
     \texttt{ioparams} & (string) name of file containing netCDF I/O configuration. The main configuration file is searched for I/O related sections if no file name is given (default).\\
     \texttt{temperature} & 
-    \begin{tabular}[t]{cl}
-      0 & isothermal\\
-      {\bf 1} & full \\
+    \begin{tabular}[t]{cp{0.85\linewidth}}
+      0 & isothermal, where each column is set to air temperature\\
+      {\bf 1} & full, computed as detailed in \citet{Payne1997}\\
+      2 & $\frac{\partial T}{\partial t} = 0$, no change from initial
+      conditions\\
+      3 & full, horizontal advection computed by incremental remapping, detailed in \citet{Lipscomb:2001} (developmental)\\
     \end{tabular}\\
     \texttt{flow\_law} & 
     \begin{tabular}[t]{cl}
@@ -92,10 +95,12 @@ Sections and keys are case sensitive and may contain white space. However, the c
       2 & constant value, taken from default\_flwa *\\
     \end{tabular}\\
     \texttt{basal\_water} & 
-    \begin{tabular}[t]{cl}
-      0 & local water balance\\
+    \begin{tabular}[t]{cp{0.85\linewidth}}
+      {\bf 0} & local water balance\\
       1 & local water balance + const flux \\
-      {\bf 2} & none\\
+      2 & none, water depth held to be zero\\
+      3 & experimental, reserved for basal processes module of Bougamont et. al.\\
+      4 & water depth set to a constant, specified ??\\
     \end{tabular}\\
     \texttt{marine\_margin} & 
     \begin{tabular}[t]{cp{0.85\linewidth}}
@@ -103,21 +108,22 @@ Sections and keys are case sensitive and may contain white space. However, the c
       {\bf 1} & Set thickness to zero if floating\\
       2 & Set thickness to zero if relaxed bedrock is below a given depth\\
       3 & Lose fraction of ice when edge cell\\
-      4 & Set thickness to zero if present-day bedrock is below a given depth\\
+% not used 4-2011 JVJ      4 & Set thickness to zero if present-day bedrock is below a given depth\\
     \end{tabular}\\
     \texttt{slip\_coeff} & 
     \begin{tabular}[t]{cl}
-      {\bf 0} & zero \\
-      1 & set to a non--zero constant everywhere\\
-      2 & set constant where the ice base is melting\\
-      0 & $\propto$ basal water\\
+      {\bf 0} & zero (SIA only)\\
+      1 & set to a non--zero constant everywhere (SIA only)\\
+      2 & set constant where the ice base is melting (SIA only)\\
+      0 & $\propto$ basal water (SIA only)\\
     \end{tabular}\\
     \texttt{evolution} & 
     \begin{tabular}[t]{ll}
       {\bf 0} & pseudo-diffusion\\
       1 & ADI scheme \\
       2 & diffusion \\
-      3 * & Higher-order incremental remapping 
+      3 * & Higher-order incremental remapping  (experimental)\\
+      4 & First order upwinding \\
     \end{tabular}\\
     \texttt{vertical\_integration} & 
     \begin{tabular}[t]{cl}
@@ -153,109 +159,71 @@ Sections and keys are case sensitive and may contain white space. However, the c
     \texttt{diagnostic\_scheme} & 
     \begin{tabular}[t]{cp{\linewidth}}
       {\bf 0} & No higher-order diagnostics\\
-      1 & Pattyn/Bocek diagnostic, computed on the ice grid \\
-      2 & Pattyn/Bocek diagnostic, computed on the velocity grid \\
-      3 & Payne/Price diagnostic \\
+      1 & Payne/Price diagnostic \\
     \end{tabular}\\
-    \texttt{basal\_stress\_input} & 
-    \begin{tabular}[t]{cp{0.85\linewidth}}
-      {\bf 0} & Ice glued to the bed (beta field is all NaN)\\
-      1 & Beta field is 1/soft \\
-      2 & Beta field is 1/btrc \\
-      3 & Beta field is read from input NetCDF independent of shallow-ice sliding law \\
-      4 & Use slip ratio, described in ISMIP-HOM F \citep{ISMIP-HOM} \\
-    \end{tabular}\\
-    \texttt{basal\_stress\_type} & 
-    \begin{tabular}[t]{cp{\linewidth}}
-      {\bf 0} & Linear bed\\
-      1 & Plastic bed \\
-    \end{tabular}\\
-    \texttt{which\_ho\_source} & 
-    \begin{tabular}[t]{cp{0.85\linewidth}}
-      {\bf 0} & Use vertically averaged formulation of the shelf front source term\\
-      1 & Use a vertically explicit formulation of the shelf front source term (currently not working)\\
-      2 & Turn off the ice shelf front and treat those locations as a land margin instead \\
-    \end{tabular}\\
-    \texttt{guess\_specified} & 
-    \begin{tabular}[t]{cp{0.85\linewidth}}
-      {\bf 0} & Use a model-defined initial guess (SIA for Pattyn/Bocek, zero for Payne/Price)\\
-      1 & Read the initial velocity guess from uvelhom and vvelhom \\
-    \end{tabular}\\
-    \texttt{include\_thin\_ice} & 
-    \begin{tabular}[t]{cp{0.85\linewidth}}
-      0 & Do not include ice below the ice dynamics limit in the higher-order diagnostic\\
-      {\bf 1} & Compute higher-order diagnostic for all ice, even ice below the ice dynamics limit \\
-    \end{tabular}\\  
     \texttt{which\_ho\_sparse} & 
     \begin{tabular}[t]{cp{0.85\linewidth}}
-      {\bf 0} & Solve sparse linear system with LU-preconditioned biconjugate gradient method\\
-      1 & Solve sparse linear system with LU-preconditioned GMRES method\\
-      2 & Solve sparse linear system with UMFPACK (not always available)\\
+      {\bf 0} & Solve sparse linear system with LU-preconditioned biconjugate gradient method (serial)\\
+      1 & Solve sparse linear system with LU-preconditioned GMRES method
+      (serial)\\
+      2 & UMFPACK (must be installed and linked during CISM build)\\
+      3 & PARDISO (must be installed and linked during CISM build)\\
+      4 & Trilinos (must be installed and linked during CISM build)\\
     \end{tabular}\\     
-    \texttt{which\_ho\_sparse\_fallback} & 
-    Specifies a sparse solver package to use if the package specified in \texttt{which\_ho\_sparse} fails.
-    The options are the same, though setting to -1 disables the fallback (this is the default). \\
-    \hline
-    \multicolumn{2}{|p{0.95\textwidth}|}{The \texttt{[ho\_options]} parameter \texttt{which\_ho\_efvs} provides different options for the Pattyn/Bocek (\texttt{diagnostic\_scheme=1 or 2}) and the Payne/Price (\texttt{diagnostic\_scheme=3}) implementations of the higher-order model.  The Pattyn/Bocek (\texttt{diagnostic\_scheme=1 or 2}) options are:}\\
-    \hline
-    \texttt{which\_ho\_efvs} & 
-    \begin{tabular}[t]{cp{\linewidth}}
-      {\bf 0} & Use full nonlinear viscosity\\
-      1 & Apply a linear viscosity \\
-    \end{tabular}\\
-    \hline
-    \multicolumn{2}{|p{0.95\textwidth}|}{The \texttt{[ho\_options]} parameters described below are used only with the Payne/Price implementation of the higher-order model (\texttt{diagnostic\_scheme=3}).}\\
     \hline
     \texttt{which\_ho\_efvs} & 
     \begin{tabular}[t]{cp{0.85\linewidth}}
       {\bf 0} & Use the effective strain rate when calculating the effective
           viscosity, where strain rates are calculated using velocity fields
           from the previous iteration.\\
-      1 & Use a constant value. This can be useful for debugging, and is
-          essentially the same as setting n=1 except that the specified value to
-          use for the viscosity is simple hardcoded into the subroutine
-          `findefvsstr' in `glam\_strs2.F90' as case(2).\\
+      1 & Use a value that depends on rate factor but \texttt{not} to strain
+      rates. This can be useful for debugging, and is essentially the same as
+      setting n=1.\\ 
     \end{tabular}\\  
     \hline
     \texttt{which\_ho\_babc} & 
-     (``which higher-order basal boundary condition'')
-     Note that all basal boundary conditions using the Payne/Price core are
-     through some form of a betasquared sliding law, TauB = betasquared *
-     u\_b (where TauB is the basal traction and u\_b is the rate of basal
-     sliding). For example, if the chosen value for betasquared is $>>$ the
-     expected basal traction, sliding will be negligible, effectively
-     enforcing a zero slip basal boundary condition. If, on the other hand,
-     if betasquared $<<$ the basal traction, the sliding rate will be large.
-     Other cases are discussed below. \\ &
+     Note that all basal boundary conditions are some form Coloumb sliding law,
+     $\tau_b = \beta^2  u_b$ (where $\tau_b$ is the basal traction and $u_b$ is
+     the rate of basal sliding). This implies that large $beta^2$ values
+     correspond to high traction, or frozen beds and vice-vera.\\ &
     \begin{tabular}[t]{cp{0.85\linewidth}}
       0 & specify some constant value, hard coded into glam\_strs2.F90, into
           subroutine `calcbetasquared' under ``case(0)''. Useful for debugging.\\
       1 & specify some simple pattern, also hardcoded into glam\_strs2.F90,
           into subroutine `calcbetasquared' under "case(1)". Useful for
           debugging. \\
-      2 & The value of `betasquared' is treated in such a way as to enforce
+      2 & The value of $\beta^2$ is treated in such a way as to enforce
           sliding over a subglacial till with Coulomb-friction (plastic)
           rheology, analagous to the methods used in SSA models by Schoof (ref)
-          and Bueler and Brown (ref). The yield stress is specified in the 2d
+          and Bueler and Brown (ref). The yield stress is specified in the 2D
           (x,y) array `minTauf'. This is essentially the same as assuming that
-          betasquared is non-linear, with some dependence on the sliding
-          velocity. Note that betasquared has units of Pa s/m. Here, we are
-          setting betasquared equal to a given map of the yield stress (with
-          units of Pa) divided by the magnitude of the sliding velocity from the
-          previous iteration (with units of m/s). Thus, the units are
-          consistent. The regularization constant ``smallnum'' (with units of
-          velocity) avoids division by 0 in early iterations and enforces no (or
-          negligible) slip for cases where
-          u,v < smallnum; the expression then reduces to betasquared = minTauf /
-          smallnum, which for smallnum << 1, will result in a very large value
-          for betasquared.\\
-      3 & assign betasquared in the pattern required for the circular ice
+          $\beta(u_b)^2$ is non-linear. Note that $\beta^2$ has units of Pa s/m.
+          Here, we are setting $\beta^2$ equal to a given map of the yield
+          stress (with units of Pa) divided by the magnitude of the sliding
+          velocity from the previous iteration (with units of m/s). Thus, the
+          units are consistent. The regularization constant ``smallnum'' (with
+          units of velocity) avoids division by 0 in early iterations and
+          enforces no (or negligible) slip for cases where u,v < smallnum; the
+          expression then reduces to $\beta^2$ = minTauf / smallnum, which for
+          smallnum << 1, will result in a very large value for $\beta^2$.\\
+      3 & assign $\beta^2$ in the pattern required for the circular ice
           shelf test case.\\
-      4 & no slip everywhere in the domain (betasquared set to some very
-          large value everywhere).\\
-      {\bf 5} & Use none of the "hardcoded" options. Instead, use the betasquared
+      4 & no slip everywhere in the domain ($\beta^2$ set to some very large value everywhere).\\
+      {\bf 5} & Use none of the "hardcoded" options. Instead, use the $\beta^2$
           field that is passed in to the higher-order solver from main portion
           of the code (e.g. from an input netCDF file).\\
+       6 & no slip implemented as a Dirchlet BC (not working well with the HO
+       solvers). \\
+       7 & treat given value of $\beta^2$ as the till yield stress and use
+       Newton type iteration to implement (not supported).\\
+    \end{tabular}\\  
+    \hline
+    \texttt{which\_ho\_nonlinear} & 
+    This option controls the how adjustments are made to the solution vector 
+    after each (inner) iteration.
+    \begin{tabular}[t]{cp{0.85\linewidth}}
+      {\bf 0} & Standard fixed point, or `Picard' iteration.\\
+      1 & Jacobian-free Newton-Krylov method as described in \citet{Lemieux:2010}.\\
     \end{tabular}\\  
     \hline
     \texttt{which\_ho\_resid} &
@@ -264,7 +232,8 @@ Sections and keys are case sensitive and may contain white space. However, the c
     $resid = \frac{|vel_{k-1} - vel_k|}{vel_k}$
 
     where ``k'' is the iteration index (i.e.\ ``k-1'' refers to the velocity
-    from the previous iteration) and ``$||$'' is the absolute value operator. \\ &
+    from the previous iteration) and ``$||$'' is the absolute value operator. \textbf{NOTE:} This option may be useful for debugging, but it is not currently used because the program is computing the L2 norm of the residuals of the linear system.\\ &
+
     \begin{tabular}[t]{cp{0.85\linewidth}}
       {\bf 0} & Report the maximum value of the residual over the whole domain.
           That is, do not halt the linear iterations until the maximum residual
@@ -295,6 +264,27 @@ Sections and keys are case sensitive and may contain white space. However, the c
           not converge).\\
     \end{tabular}\\  
     \hline
+    \texttt{which\_bmelt} & 
+    This option determines the method for calculating the basal melt rates,
+    because the strain heating depends on the terms present in the strain and
+    stress tensors.
+    \begin{tabular}[t]{cp{0.85\linewidth}}
+      {\bf 0} & use the terms present in the SIA tensors \\
+      1 & use the terms present in the first order model tensors \\
+      2 & use the terms present in the SSA tensors (developmental)\\
+    \end{tabular}\\  
+    \hline
+    \texttt{which\_disp} & 
+    This option determines the method for calculating the heat dissipation,
+    because the heating depends on the terms present in the strain and stress
+    tensors.
+    \begin{tabular}[t]{cp{0.85\linewidth}}
+      {\bf 0} & use the terms present in the SIA tensors\\
+      1 & use the terms present in the first order model tensors\\
+      2 & use the terms present in the SSA tensors (developmental)\\
+    \end{tabular}\\  
+
+
 %%%% PARAMETERS
     \hline
     \multicolumn{2}{|l|}{\texttt{[parameters]}}\\
