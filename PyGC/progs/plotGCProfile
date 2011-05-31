@@ -32,7 +32,7 @@ parser = PyGC.GCOptParser()
 parser.width=15.
 parser.profile()
 parser.time()
-parser.region1d(onlyx=True)
+parser.region1d()
 parser.plot()
 opts = PyGC.GCOptions(parser,-1)
 
@@ -138,6 +138,9 @@ axes[0].autoscale_view(tight=True,scaley=False)
 handles, labels = axes[-1].get_legend_handles_labels()
 if opts.nfiles > 1:
     matplotlib.pyplot.figlegend(handles,labels,'lower center',ncol=2, mode="expand")
+
+if opts.options.yrange!=None and len(axes)==1:
+    axes[0].set_ylim(opts.options.yrange[0],opts.options.yrange[1])
 
 # display title
 if opts.options.title:

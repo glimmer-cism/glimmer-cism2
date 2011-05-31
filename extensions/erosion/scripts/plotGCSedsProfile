@@ -33,7 +33,7 @@ parser.width=15.
 parser.profile_file()
 parser.time()
 parser.epoch()
-parser.region1d(onlyx=True)
+parser.region1d()
 parser.plot()
 opts = PyGC.GCOptions(parser,1)
 
@@ -103,6 +103,10 @@ axes.plot(infile.xvalues,numpy.min(seds1[:,:],axis=1),color='k')
 
 axes.set_xlabel('distance along profile [km]')
 axes.set_ylabel('sediment thickness [m]')
+axes.autoscale_view(tight=True,scaley=False)
+
+if opts.options.yrange!=None:
+    axes.set_ylim(opts.options.yrange[0],opts.options.yrange[1])
 
 # display title
 if opts.options.title:
