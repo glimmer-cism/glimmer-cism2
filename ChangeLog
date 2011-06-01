@@ -1,3 +1,6 @@
+2011-06-01 Magnus Hagdorn
+ * PyGC/PyGC/IO/GC_loadfile.py: fix index ordering
+
 2011-05-31 Magnus Hagdorn
  * PyGC/progs/plotGCProfile: add option to limit the yrange
  * extensions/erosion/scripts/plotGCSedsProfile: ditto

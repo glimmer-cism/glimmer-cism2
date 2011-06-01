@@ -632,11 +632,11 @@ class GCvariable(object):
         data = self.get2Dfield(time,level=level)
         x0 = self.xdim[0]
         y0 = self.ydim[0]
-        dx = self.xdim[1]-x0
-        dy = self.ydim[1]-y0
+        dx = float(self.xdim[1]-x0)
+        dy = float(self.ydim[1]-y0)
         ivals = (numpy.array(x)-x0)/dx
         jvals = (numpy.array(y)-y0)/dy
-        coords = numpy.array([ivals, jvals])
+        coords = numpy.array([jvals, ivals])
         p =  scipy.ndimage.map_coordinates(data,coords)
         return p
 
