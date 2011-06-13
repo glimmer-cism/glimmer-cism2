@@ -416,6 +416,7 @@ end function glide_calc_sigma_pattyn
     call GetValue(section,'periodic_ew',model%options%periodic_ew)
     !EIB! following call from gc2, not sure its still needed
     call GetValue(section,'basal_mass_balance',model%options%basal_mbal)
+    call GetValue(section,'use_damage',model%options%use_damage)
     !EIB! from glimmer-cism-lanl/trunk
     call GetValue(section,'periodic_ns',model%options%periodic_ns)
     call GetValue(section,'diagnostic_run',model%options%diagnostic_run)

@@ -206,11 +206,12 @@ subroutine glam_velo_fordsiapstr(ewn,      nsn,    upn,  &
                                  whichresid,             &
                                  whichnonlinear,         &
                                  whichsparse,            &
+                                 use_damage,             &
                                  periodic_ew,periodic_ns,&
                                  beta,                   &
                                  uvel,     vvel,         &
                                  uflx,     vflx,         &
-                                 efvs )
+                                 efvs, damage)
 
 
   implicit none
@@ -243,11 +244,13 @@ subroutine glam_velo_fordsiapstr(ewn,      nsn,    upn,  &
   integer, intent(in) :: whichresid   ! options for method to use when calculating vel residul
   integer, intent(in) :: whichnonlinear  ! options for which method for doing elliptic solve
   integer, intent(in) :: whichsparse  ! options for which method for doing elliptic solve
+  integer, intent(in) :: use_damage   ! option to use damage varaible in the efvs calculation
   logical, intent(in) :: periodic_ew, periodic_ns  ! options for applying periodic bcs or not
 
   real (kind = dp), dimension(:,:,:), intent(inout) :: uvel, vvel  ! horiz vel components: u(z), v(z)
   real (kind = dp), dimension(:,:),   intent(out) :: uflx, vflx  ! horiz fluxs: u_bar*H, v_bar*H
   real (kind = dp), dimension(:,:,:), intent(out) :: efvs        ! effective viscosity
+  real (kind = dp), dimension(:,:,:), intent(in)  :: damage      ! damage field
 
   integer :: ew, ns, up     ! counters for horiz and vert do loops
 
@@ -394,6 +397,18 @@ subroutine glam_velo_fordsiapstr(ewn,      nsn,    upn,  &
   !do while ( resid(1) > minres .and. counter < cmax)        ! standard residual (for 1d solutions where d*/dy=0) 
 
     ! calc effective viscosity using previously calc vel. field
+
+    if (use_damage) then
+
+       call findefvs_with_damage(ewn,  nsn,  upn,      &
+                                 stagsigma,  counter,    &
+                                 whichefvs,  efvs,     &
+                                 uvel,       vvel,     &
+                                 flwa,       thck,     &
+                                 dusrfdew,   dthckdew, &
+                                 dusrfdns,   dthckdns, &
+                                 umask, damage)
+    else
     call findefvsstr(ewn,  nsn,  upn,      &
                      stagsigma,  counter,    &
                      whichefvs,  efvs,     &
@@ -402,6 +417,8 @@ subroutine glam_velo_fordsiapstr(ewn,      nsn,    upn,  &
                      dusrfdew,   dthckdew, &
                      dusrfdns,   dthckdns, &
                      umask)
+
+    end if
 
     ! calculate coeff. for stress balance in y-direction 
     call findcoefstr(ewn,  nsn,   upn,            &
@@ -1027,6 +1044,34 @@ function indxvelostr(ewn,  nsn,  upn,  &
 end function indxvelostr
 
 !***********************************************************************
+
+subroutine findefvs_with_damage(ewn,  nsn, upn,       &
+                       stagsigma, counter,   &
+                       whichefvs, efvs,      &
+                       uvel,      vvel,      &
+                       flwa,      thck,      &
+                       dusrfdew,  dthckdew,  &
+                       dusrfdns,  dthckdns,  &
+                       mask,damage)
+
+  ! calculate the eff. visc.    
+  implicit none
+
+  integer, intent(in) :: ewn, nsn, upn
+  real (kind = dp), intent(in), dimension(:)     :: stagsigma
+  real (kind = dp), intent(in), dimension(:,:,:) :: uvel, vvel, flwa
+  real (kind = dp), intent(inout), dimension(:,:,:) :: efvs
+  real (kind = dp), intent(in), dimension(:,:) :: thck, dthckdew, dusrfdew, &
+                                                  dusrfdns, dthckdns
+  integer, intent(in), dimension(:,:) :: mask
+  real (kind = dp), intent(in), dimension(:,:,:) :: damage
+
+  integer, intent(in) :: whichefvs, counter
+
+  print *, 'inside findefvs_with_damage'
+
+
+end subroutine findefvs_with_damage
 
 subroutine findefvsstr(ewn,  nsn, upn,       &
                        stagsigma, counter,   &

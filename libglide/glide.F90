@@ -350,6 +350,7 @@ contains
     use glide_thckmask
     use glide_grids
     use glam_Basal_Proc, only : Basal_Proc_driver
+    use glide_damage, only: update_damage
 
     implicit none
 
@@ -472,6 +473,17 @@ contains
                                 model%velocity%vvel(model%general%upn,:,:), &
                                 model%options%which_bmod,model%temper%bmlt,model%basalproc)
     end if
+
+    !--------------------------------------------
+    ! Update the damage variable
+    !-------------------------------------------
+    
+    if (model%options%use_damage) then
+       
+       call update_damage(model)
+
+    end if
+
 
   end subroutine glide_tstep_p1
 

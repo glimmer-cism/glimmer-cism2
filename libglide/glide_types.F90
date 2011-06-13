@@ -389,6 +389,12 @@ module glide_types
     !*FD \item[1] Basal melt rate included in continuity equation
     !*FD \end{description}
 
+    integer :: use_damage = 0
+    !*FD \begin{description}
+    !*FD \item[0] No damage evolution will be used
+    !*FD \item[1] Damage will be calculated and used in velocity solver.
+    !*FD \end{description}
+
   end type glide_options
 
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -618,6 +624,15 @@ module glide_types
     logical  :: first1  = .true. !*FD
     logical  :: newtemps = .false. !*FD new temperatures
   end type glide_temper
+
+
+  type glide_damage
+    
+     !*FD holds fields related to scalar damage
+     real(dp),dimension(:,:,:),pointer :: sclr_damage => null() !*FD 3D scalar damage field
+
+  end type glide_damage
+
 
   type glide_lithot_type
      !*FD holds variables for temperature calculations in the lithosphere
@@ -889,9 +904,10 @@ module glide_types
     type(glide_geometry) :: geometry
     type(glide_geomderv) :: geomderv
     type(glide_velocity) :: velocity
-    type(glide_stress) :: stress   
+    type(glide_stress)   :: stress
     type(glide_climate)  :: climate
     type(glide_temper)   :: temper
+    type(glide_damage)   :: damage
     type(glide_lithot_type) :: lithot
     type(glide_funits)   :: funits
     type(glide_numerics) :: numerics
@@ -1027,6 +1043,8 @@ contains
     call coordsystem_allocate(model%general%ice_grid, model%temper%ucondflx)
     call coordsystem_allocate(model%general%ice_grid, model%temper%lcondflx)
     call coordsystem_allocate(model%general%ice_grid, model%temper%dissipcol)
+
+    call coordsystem_allocate(model%general%ice_grid,upn-1, model%damage%sclr_damage)
 
 !whl - For whichtemp = TEMP_REMAP_ADV, temperature and flow factor live on the staggered
 !      vertical grid.  In this case, temperature and flwa are defined at the
@@ -1219,6 +1237,8 @@ contains
     deallocate(model%ground%gl_ns)
     deallocate(model%ground%gl_ew)
     deallocate(model%ground%gline_flux)
+
+    deallocate(model%damage%sclr_damage)
 
     deallocate(model%lithot%temp)
     deallocate(model%lithot%mask)

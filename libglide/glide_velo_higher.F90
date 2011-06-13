@@ -84,12 +84,14 @@ contains
                                         model%options%which_ho_resid,                               &
                                         model%options%which_ho_nonlinear,                           &
                                         model%options%which_ho_sparse,                              &
+                                        model%options%use_damage,                                   &
                                         model%options%periodic_ew,                                  &
                                         model%options%periodic_ns,                                  &
                                         model%velocity%beta,                                    & 
                                         model%velocity%uvel, model%velocity%vvel,           &
                                         model%velocity%uflx, model%velocity%vflx,           &
-                                        model%stress%efvs )
+                                        model%stress%efvs,                                  &
+                                        model%damage%sclr_damage)
 
           else if ( model%options%which_ho_nonlinear == HO_NONLIN_JFNK ) then ! JFNK (solver in development...)
 
