@@ -322,6 +322,7 @@ factor:        scale2d_f1
 standard_name: land_ice_surface_specific_mass_balance
 coordinates:   lon lat
 average:       1
+load:          1
 
 [bheatflx]
 dimensions:    time, y1, x1
@@ -369,6 +370,7 @@ data:          data%climate%artm
 standard_name: surface_temperature
 cell_methods:  time: mean
 coordinates:   lon lat
+load:          1
 
 [btemp]
 dimensions:    time, y1, x1
@@ -502,6 +504,7 @@ units:         degree_Celsius
 long_name:     ice temperature
 data:          data%temper%temp(up,1:data%general%ewn,1:data%general%nsn)
 standard_name: land_ice_temperature
+load:          1
 hot:           1
 load:          1
 coordinates:   lon lat

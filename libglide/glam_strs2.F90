@@ -451,8 +451,8 @@ subroutine glam_velo_fordsiapstr(ewn,      nsn,    upn,  &
 
       L2norm  = L2square
       F(1:pcgsize(1)) = vk_1(:)
-      
-!   call output_res(ewn,nsn,upn,uindx,counter,size(vk_1),vk_1, 2) ! JFL
+ 
+!     call output_res(ewn,nsn,upn,uindx,counter,size(vk_1),vk_1, 1) ! JFL
 
 !==============================================================================
 ! RN_20100129: Option to load Trilinos matrix directly bypassing sparse_easy_solve
@@ -873,7 +873,8 @@ subroutine JFNK                 (ewn,      nsn,    upn,  &
 
 !      print *, 'target with L2norm with or without ghost?'
 
-    if (k .eq. 1) NL_target = NL_tol * L2norm
+!    if (k .eq. 1) NL_target = NL_tol * L2norm
+    if (k .eq. 1) NL_target = 1.0d-4
 
     print *, 'L2 with, without ghost (k)= ', k, L2norm_wig, L2norm
 
@@ -973,7 +974,43 @@ subroutine JFNK                 (ewn,      nsn,    upn,  &
       call solver_postprocess( ewn, nsn, upn, 2, uindx, vk_1, vvel, ghostbvel )
       call solver_postprocess( ewn, nsn, upn, 1, uindx, uk_1, uvel, ghostbvel )
 
-! WATCHOUT FOR PERIODIC BC      
+    ! call fraction of assembly routines, passing current vel estimates (w/o manifold
+    ! correction!) to calculate consistent basal tractions
+    call findcoefstr(ewn,  nsn,   upn,            &
+                     dew,  dns,   sigma,          &
+                     2,           efvs,           &
+                     tvel,        uvel,           &
+                     thck,        dusrfdns,       &
+                     dusrfdew,    dthckdew,       &
+                     d2usrfdew2,  d2thckdew2,     &
+                     dusrfdns,    dthckdns,       &
+                     d2usrfdns2,  d2thckdns2,     &
+                     d2usrfdewdns,d2thckdewdns,   &
+                     dlsrfdew,    dlsrfdns,       &
+                     stagthck,    whichbabc,      &
+                     uindx,       umask,          &
+                     lsrf,        topg,           &
+                     minTauf,     flwa,           &
+                     beta, btraction,             &
+                     k, 1 )
+
+   call findcoefstr(ewn,  nsn,   upn,             &
+                     dew,  dns,   sigma,          &
+                     1,           efvs,           &
+                     uvel,        tvel,           &
+                     thck,        dusrfdew,       &
+                     dusrfdew,    dthckdew,       &
+                     d2usrfdew2,  d2thckdew2,     &
+                     dusrfdns,    dthckdns,       &
+                     d2usrfdns2,  d2thckdns2,     &
+                     d2usrfdewdns,d2thckdewdns,   &
+                     dlsrfdew,    dlsrfdns,       &
+                     stagthck,    whichbabc,      &
+                     uindx,       umask,          &
+                     lsrf,        topg,           &
+                     minTauf,     flwa,           &
+                     beta, btraction,             &
+                     k, 1 )
 
   end do
 
@@ -2092,6 +2129,7 @@ subroutine findcoefstr(ewn,  nsn,   upn,            &
          GLIDE_IS_COMP_DOMAIN_BND(mask(ew,ns)) .and. .not. &
          GLIDE_IS_MARGIN(mask(ew,ns)) .and. .not. &
          GLIDE_IS_DIRICHLET_BOUNDARY(mask(ew,ns)) .and. .not. &
+!         GLIDE_IS_CALVING(mask(ew,ns) ) )  &
          GLIDE_IS_CALVING(mask(ew,ns) ) .and. .not. &
          GLIDE_IS_THIN(mask(ew,ns) ) ) &
     then
@@ -2144,6 +2182,7 @@ subroutine findcoefstr(ewn,  nsn,   upn,            &
 ! >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     elseif ( GLIDE_IS_CALVING( mask(ew,ns) ) .and. .not. &
              GLIDE_IS_COMP_DOMAIN_BND(mask(ew,ns) ) .and. .not. &
+!             GLIDE_IS_DIRICHLET_BOUNDARY(mask(ew,ns)) ) &
              GLIDE_IS_DIRICHLET_BOUNDARY(mask(ew,ns)) .and. .not. &
              GLIDE_IS_THIN(mask(ew,ns) ) ) &
     then
@@ -2187,7 +2226,9 @@ subroutine findcoefstr(ewn,  nsn,   upn,            &
 
 ! >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     elseif ( GLIDE_HAS_ICE(mask(ew,ns)) .and. ( GLIDE_IS_DIRICHLET_BOUNDARY(mask(ew,ns)) .or. &
-             GLIDE_IS_COMP_DOMAIN_BND(mask(ew,ns)) ) .or. GLIDE_IS_LAND_MARGIN(mask(ew,ns)) .or. &
+             GLIDE_IS_COMP_DOMAIN_BND(mask(ew,ns)) ) .or. &
+!             GLIDE_IS_LAND_MARGIN(mask(ew,ns)) ) &
+             GLIDE_IS_LAND_MARGIN(mask(ew,ns)) .or. &
              GLIDE_IS_THIN(mask(ew,ns)) ) &
     then
 !    print *, 'At a NON-SHELF boundary ... ew, ns = ', ew, ns
