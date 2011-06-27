@@ -14,7 +14,7 @@ module remap_glamutils
   !whl - to do - Hardwired ntrace and nghost for now.  Better to pass them in at initialization?
   !whl - The current remapping scheme requires nghost = 2.
 
-    integer, parameter  :: ntrace_ir = 1    ! number of tracers (e.g., temperature, ice age)
+    integer, parameter  :: ntrace_ir = 3    ! number of tracers (e.g., temperature, ice age)
     integer, parameter  :: nghost_ir = 2    ! number of ghost cell (halo) layers
     
     ! *sfp** arrays needed to pass GLAM variables to/from inc. remapping solver
@@ -161,7 +161,8 @@ module remap_glamutils
                                     stagthck, thklim,       &
                                     periodic_ew, periodic_ns, &
                                     uvel,     vvel,         &
-                                    temp,     age           ) ! Periodic not currently supported
+                                    temp, damage, age )
+                                    ! Periodic not currently supported
     ! put variables in from model into format that remapping code wants 
 
     ! *sfp** get GLAM variables in order for use in inc. remapping code   
@@ -181,7 +182,7 @@ module remap_glamutils
     real (kind = dp), intent(in) :: dt, thklim
     real (kind = dp) :: dt_cfl
     real (kind = dp), dimension(:,:,:), intent(in), optional :: uvel, vvel
-    real (kind = dp), dimension(:,:,:), intent(in), optional :: temp, age
+    real (kind = dp), dimension(:,:,:), intent(in), optional :: temp, age, damage
 
     ! flags from config file for applying periodic boundary conditions
     ! Currently not supported
@@ -308,6 +309,12 @@ module remap_glamutils
 
     !whl - Add other tracer fields here, if desired
 
+    if (present(damage) .and. ntrace_ir >= 3) then
+       do k = 1, wk%upn_ir
+          wk%trace_ir(:,:,3,k) = damage(k,:,:)
+       enddo
+    endif
+
     wk%dt_ir = dt * tim0
 
     ! Note: thck has dims (ewn-1,nsn-1), but mask has dims (ewn,nsn)
@@ -335,7 +342,7 @@ module remap_glamutils
 
     subroutine horizontal_remap_out( wk,     thck,   &
                                      acab,   dt,     &
-                                     temp,   age)
+                                     temp, damage, age)
 
     ! take output from inc. remapping and put back into format that model likes
 
@@ -347,7 +354,7 @@ module remap_glamutils
     real (kind = dp), intent(in) :: dt
     real (kind = sp), intent(in), dimension(:,:) :: acab
     real (kind = dp), dimension(:,:), intent(inout) :: thck
-    real (kind = dp), dimension(:,:,:), intent(inout), optional :: temp, age
+    real (kind = dp), dimension(:,:,:), intent(inout), optional :: temp, age, damage
 
 !    integer :: ewn, nsn, ngew, ngns
 
@@ -395,6 +402,16 @@ module remap_glamutils
        do i = 1, wk%ewn_ir
        do k = 1, wk%upn_ir
           age(k,i,j) = wk%trace_ir(i,j,2,k)
+       enddo
+       enddo
+       enddo
+    endif   ! present(age)
+
+    if (present(damage)) then   
+       do j = 1, wk%nsn_ir   ! Note: (ewn,nsn) may be greater than (ewn_ir,nsn_ir)
+       do i = 1, wk%ewn_ir
+       do k = 1, wk%upn_ir
+          damage(k,i,j) = wk%trace_ir(i,j,3,k)
        enddo
        enddo
        enddo

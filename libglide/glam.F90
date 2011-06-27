@@ -55,7 +55,57 @@ module glam
 
         if( model%numerics%tend > model%numerics%tstart)then
 
-        if (model%options%whichtemp == TEMP_REMAP_ADV) then   ! Use IR to advect temperature
+        if (model%options%use_damage == 1 .and. model%options%whichtemp == TEMP_REMAP_ADV) ) then
+
+           call horizontal_remap_in (model%remap_wk,          model%numerics%dt,                     &
+                                     model%geometry%thck(1:model%general%ewn-1,1:model%general%nsn-1),  &
+                                     model%velocity%uflx, model%velocity%vflx,               &
+                                     model%geomderv%stagthck, model%numerics%thklim,                 &
+                                     model%options%periodic_ew, model%options%periodic_ns,           &
+                                     model%velocity%uvel, model%velocity%uvel,               &
+                                     model%temper%temp  (1:model%general%upn-1,                      &
+                                                         1:model%general%ewn-1,1:model%general%nsn-1) &
+                                     model%damage$sclr_damage (1:model%general%upn-1, &
+                                                               1:model%general%ewn, &
+                                                               1:model%general%nsn) &
+                                     )
+
+           ! Remap temperature and fractional thickness for each layer
+           ! (This subroutine lives in module remap_advection)
+
+           do k = 1, model%general%upn-1
+              
+              call horizontal_remap( model%remap_wk%dt_ir,                                         &
+                                     model%general%ewn-1,        model%general%nsn-1,              &
+                                     ntrace_ir,                  nghost_ir,                        &
+                                     model%remap_wk%uvel_ir (:,:,k),                               &
+                                     model%remap_wk%vvel_ir (:,:,k),                               &
+                                     model%remap_wk%thck_ir (:,:,k),                               &
+                                     model%remap_wk%trace_ir(:,:,:,k),                             &
+                                     model%remap_wk%dew_ir,      model%remap_wk%dns_ir,            &
+                                     model%remap_wk%dewt_ir,     model%remap_wk%dnst_ir,           &
+                                     model%remap_wk%dewu_ir,     model%remap_wk%dnsu_ir,           &
+                                     model%remap_wk%hm_ir,       model%remap_wk%tarear_ir)
+
+           enddo
+
+           ! Interpolate tracers back to sigma coordinates
+
+           call vertical_remap( model%general%ewn-1,     model%general%nsn-1,               &
+                                model%general%upn,       ntrace_ir,                         &
+                                model%numerics%sigma,    model%remap_wk%thck_ir(:,:,:),     & 
+                                model%remap_wk%trace_ir)
+
+           ! put output from inc. remapping code back into format that model wants
+           ! (this subroutine lives in module remap_glamutils)
+
+           call horizontal_remap_out (model%remap_wk,     model%geometry%thck,            &
+                                      model%climate%acab, model%numerics%dt,              &
+                                      model%temper%temp(1:model%general%upn-1,:,:)        &
+                                      model%damage%sclr_damage(1:model%general%upn-1,:,:) )
+
+
+        elseif (model%options%whichtemp == TEMP_REMAP_ADV) then   ! Use IR to advect temperature
                                                               ! (and other tracers, if present)
 
            ! Put relevant model variables into a format that inc. remapping code wants.
