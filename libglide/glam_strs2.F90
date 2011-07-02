@@ -374,6 +374,10 @@ subroutine glam_velo_fordsiapstr(ewn,      nsn,    upn,  &
   L2norm = 1.0d20
   linit = 0
 
+  ! intialize outer loop test vars
+  outer_it_criterion = 1.0
+  outer_it_target = 0.0
+
   ! print some info to the screen to update on iteration progress
   print *, ' '
   print *, 'Running Payne/Price higher-order dynamics solver'
