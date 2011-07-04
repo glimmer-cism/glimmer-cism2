@@ -69,7 +69,6 @@ contains
   subroutine calc_lithot1d(model)
     use glide_types
     use glimmer_utils
-    !use glide_mask
     implicit none
     type(glide_global_type),intent(inout) :: model       !*FD model instance
 

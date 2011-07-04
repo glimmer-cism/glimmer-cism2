@@ -84,7 +84,6 @@ contains
     status = nf90_inq_varid(NCO%id,'y1',varid)
        status=nf90_put_var(NCO%id,varid,model%general%y1)
        call nc_errorhandle(__FILE__,__LINE__,status)
-
     !create the x0 and y0 grids from x1 and y1
     status = nf90_inq_varid(NCO%id,'x0',varid)
     do i=1, model%general%ewn-1
@@ -98,7 +97,6 @@ contains
     end do
     
     else if(.not. associated(model%funits%in_first)) then
-
     ! filling coordinate variables
     status = nf90_inq_varid(NCO%id,'x0',varid)
     do i=1, model%general%ewn-1

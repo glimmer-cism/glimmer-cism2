@@ -32,6 +32,7 @@ module glide_diagnostics
   ! Author: William Lipscomb, LANL 
  
 contains
+ 
   subroutine glide_write_diag (model, time, idiag, jdiag)
     !*FD Writes diagnostic output
  
@@ -58,7 +59,7 @@ contains
          max_spd_bas,    &    ! max basal ice speed (m/yr)
          thck,           &    ! thickness
          spd                  ! speed
-
+ 
     integer :: i, j, k,            &
                imin, jmin, kmin,   &
                imax, jmax, kmax,   &
@@ -324,8 +325,8 @@ contains
                'Level     Speed (m/yr)             Temperature (C)'
           call write_log(trim(message), type = GM_DIAGNOSTIC)
  
-          do k = 1, upn
 
+          do k = 1, upn
              if (model%options%which_ho_diagnostic  /= 0) then
                 spd = sqrt(model%velocity%uvel(k,i,j)**2   &
                          + model%velocity%vvel(k,i,j)**2)

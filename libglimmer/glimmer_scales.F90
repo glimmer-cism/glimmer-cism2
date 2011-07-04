@@ -54,7 +54,6 @@ contains
     scale2d_f4 = vel0 * scyr * len0
     scale2d_f5 = scyr * vel0
     scale2d_f6 = scyr * vel0 * len0 / (thk0**2)
-
     scale2d_f9 = scyr * acc0
 
     scale3d_f1 = scyr * vel0

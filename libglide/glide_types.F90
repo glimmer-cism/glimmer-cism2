@@ -432,7 +432,7 @@ module glide_types
     integer, dimension(4) :: dom   = 0      !*FD I have no idea what this is for.
     logical               :: empty = .true. !*FD I have no idea what this is for.
 
-    real(dp) :: ivol, iarea,iareag, iareaf !*FD ice volume and ice area
+    real(dp) :: ivol, iarea, iareag, iareaf !*FD ice volume and ice area
 
   end type glide_geometry
 
@@ -509,6 +509,8 @@ module glide_types
   type glide_velocity
 
     !*FD Holds the velocity fields in 2D and 3D. At least some of these fields
+    !*FD are stored on the displaced grid.
+
     real(dp),dimension(:,:,:),pointer :: uvel  => null() !*FD 3D $x$-velocity.
     real(dp),dimension(:,:,:),pointer :: vvel  => null() !*FD 3D $y$-velocity.
     real(dp),dimension(:,:,:),pointer :: velnorm => null()
@@ -734,7 +736,6 @@ module glide_types
 
   type glide_pcgdwk
     type(sparse_matrix_type) :: matrix
-   
     real(dp),dimension(:),pointer :: rhsd    => null()
     real(dp),dimension(:),pointer :: answ    => null()
     real(dp),dimension(4)         :: fc      = 0.0
@@ -997,7 +998,7 @@ contains
     ewn=model%general%ewn
     nsn=model%general%nsn
     upn=model%general%upn
-    
+
     ! Allocate appropriately
 
     allocate(model%general%x0(ewn-1))!; model%general%x0 = 0.0

@@ -241,24 +241,8 @@ contains
        ! do Picard iteration
        model%thckwk%oldthck2 = model%geometry%thck
        do p=1,pmax
-          !EIB moved! model%thckwk%oldthck2 = model%geometry%thck
 
           call geometry_derivs(model)
-          !EIB! old way
-          !call stagvarb(model%geometry% thck, &
-          !     model%geomderv% stagthck,&
-          !     model%general%  ewn, &
-          !     model%general%  nsn)
-          !call df_field_2d_staggered(model%geometry%usrf, &
-          !     model%numerics%dew, model%numerics%dns, &
-          !     model%geomderv%dusrfdew, & 
-          !     model%geomderv%dusrfdns, &
-          !     .false., .false.)
-          !call df_field_2d_staggered(model%geometry%thck, &
-          !     model%numerics%dew, model%numerics%dns, &
-          !     model%geomderv%dthckdew, & 
-          !     model%geomderv%dthckdns, &
-          !     .false., .false.)
 
           call slipvelo(model,                &
                2,                             &
@@ -270,25 +254,21 @@ contains
           call velo_calc_diffu(model%velowk,model%geomderv%stagthck,model%geomderv%dusrfdew, &
                model%geomderv%dusrfdns,model%velocity%diffu)
 
-       !Calculate higher-order velocities if the user asked for them
-       if (model%options%which_ho_diagnostic /= 0 ) then
-            call geometry_derivs_unstag(model)
-            call run_ho_diagnostic(model)                          
-       end if
+          ! Calculate higher-order velocities if the user asked for them
+          if (model%options%which_ho_diagnostic /= 0 ) then
+               call geometry_derivs_unstag(model)
+               call run_ho_diagnostic(model)                          
+          end if
 
-       ! get new thicknesses
-       if (model%options%which_ho_prognostic == HO_PROG_SIAONLY) then
- 
-           call thck_evolve(model, model%velocity%diffu, model%velocity%diffu, &
-                            first_p, model%geometry%thck, model%geometry%thck)
-       else if (model%options%which_ho_prognostic == HO_PROG_PATTYN) then
-           call thck_evolve(model,model%velocity%diffu_x, model%velocity%diffu_y, .true.,&
-                            model%geometry%thck, model%geometry%thck)
-       end if          
-
-          !EIB! old way
           ! get new thicknesses
-          !call thck_evolve(model,first_p,model%thckwk%oldthck,model%geometry%thck)
+          if (model%options%which_ho_prognostic == HO_PROG_SIAONLY) then
+ 
+              call thck_evolve(model, model%velocity%diffu, model%velocity%diffu, &
+                               first_p, model%geometry%thck, model%geometry%thck)
+          else if (model%options%which_ho_prognostic == HO_PROG_PATTYN) then
+              call thck_evolve(model, model%velocity%diffu_x, model%velocity%diffu_y, .true.,&
+                               model%geometry%thck, model%geometry%thck)
+          end if          
 
           first_p = .false.
 
@@ -314,11 +294,6 @@ contains
           end if
           model%thckwk%oldthck2 = model%geometry%thck
 #endif
-          !EIB! old way
-          !residual = maxval(abs(model%geometry%thck-model%thckwk%oldthck2))
-          !if (residual.le.tol) then
-          !   exit
-          !end if
 
        end do
 #ifdef DEBUG_PICARD
@@ -387,23 +362,12 @@ contains
     ! Set the order of the matrix
     model%pcgdwk%matrix%order = model%geometry%totpts
 
-    !EIB! old way
-    ! the number of grid points
-    !model%pcgdwk%pcgsize(1) = model%geometry%totpts
-    ! Zero the arrays holding the sparse matrix
-    !model%pcgdwk%pcgval = 0.0
-    !model%pcgdwk%pcgcol = 0 
-    !model%pcgdwk%pcgrow = 0
-    !model%pcgdwk%ct = 1
-
     ! Boundary Conditions ---------------------------------------------------------------
     ! lower and upper BC
     do ew = 1,model%general%ewn
        ns=1
        if (model%geometry%mask(ew,ns) /= 0) then
           call sparse_insert_val(model%pcgdwk%matrix, model%geometry%mask(ew,ns), model%geometry%mask(ew,ns), 1d0)
-          !EIB! old way
-          !call putpcgc(model%pcgdwk,1.0d0, model%geometry%mask(ew,ns), model%geometry%mask(ew,ns))
           if (calc_rhs) then
              model%pcgdwk%rhsd(model%geometry%mask(ew,ns)) = old_thck(ew,ns) 
           end if
@@ -412,8 +376,6 @@ contains
        ns=model%general%nsn
        if (model%geometry%mask(ew,ns) /= 0) then
           call sparse_insert_val(model%pcgdwk%matrix, model%geometry%mask(ew,ns), model%geometry%mask(ew,ns), 1d0)
-          !EIB! old way
-          !call putpcgc(model%pcgdwk,1.0d0, model%geometry%mask(ew,ns), model%geometry%mask(ew,ns))
           if (calc_rhs) then
              model%pcgdwk%rhsd(model%geometry%mask(ew,ns)) = old_thck(ew,ns) 
           end if
@@ -440,8 +402,6 @@ contains
           ew=1
           if (model%geometry%mask(ew,ns) /= 0) then
              call sparse_insert_val(model%pcgdwk%matrix, model%geometry%mask(ew,ns), model%geometry%mask(ew,ns), 1d0)
-             !EIB! old way
-             !call putpcgc(model%pcgdwk,1.0d0, model%geometry%mask(ew,ns), model%geometry%mask(ew,ns))
              if (calc_rhs) then
                 model%pcgdwk%rhsd(model%geometry%mask(ew,ns)) = old_thck(ew,ns) 
              end if
@@ -450,8 +410,6 @@ contains
           ew=model%general%ewn
           if (model%geometry%mask(ew,ns) /= 0) then
              call sparse_insert_val(model%pcgdwk%matrix, model%geometry%mask(ew,ns), model%geometry%mask(ew,ns), 1d0)
-             !EIB! old way
-             !call putpcgc(model%pcgdwk,1.0d0, model%geometry%mask(ew,ns), model%geometry%mask(ew,ns))
              if (calc_rhs) then
                 model%pcgdwk%rhsd(model%geometry%mask(ew,ns)) = old_thck(ew,ns) 
              end if
@@ -474,18 +432,14 @@ contains
        end do
     end do
 
-    !EIB! still needed?
-    ! Calculate the total number of points
-    !model%pcgdwk%pcgsize(2) = model%pcgdwk%ct - 1 
-
-    ! Solve the system using SLAP
-    !EIB! call slapsolv(model,linit,err)   
+    ! Solve the system
     call sparse_easy_solve(model%pcgdwk%matrix, model%pcgdwk%rhsd, model%pcgdwk%answ, &
                            err, linit)
 
     ! Rejig the solution onto a 2D array
     do ns = 1,model%general%nsn
        do ew = 1,model%general%ewn 
+
           if (model%geometry%mask(ew,ns) /= 0) then
              new_thck(ew,ns) = model%pcgdwk%answ(model%geometry%mask(ew,ns))
           end if
@@ -513,19 +467,12 @@ contains
       integer, intent(in) :: ewm,ew,ewp  ! ew index to left, central, right node
       integer, intent(in) :: nsm,ns,nsp  ! ns index to lower, central, upper node
 
-      !fill matrix using the new API
+      ! fill sparse matrix
       call sparse_insert_val(model%pcgdwk%matrix, model%geometry%mask(ew,ns), model%geometry%mask(ewm,ns), sumd(1)) ! point (ew-1,ns)
       call sparse_insert_val(model%pcgdwk%matrix, model%geometry%mask(ew,ns), model%geometry%mask(ewp,ns), sumd(2)) ! point (ew+1,ns)
       call sparse_insert_val(model%pcgdwk%matrix, model%geometry%mask(ew,ns), model%geometry%mask(ew,nsm), sumd(3)) ! point (ew,ns-1)
       call sparse_insert_val(model%pcgdwk%matrix, model%geometry%mask(ew,ns), model%geometry%mask(ew,nsp), sumd(4)) ! point (ew,ns+1)
       call sparse_insert_val(model%pcgdwk%matrix, model%geometry%mask(ew,ns), model%geometry%mask(ew,ns),  1d0 + sumd(5))! point (ew,ns)
-    !EIB! old way
-      ! fill sparse matrix
-    !  call putpcgc(model%pcgdwk,sumd(1), model%geometry%mask(ewm,ns), model%geometry%mask(ew,ns))       ! point (ew-1,ns)
-    !  call putpcgc(model%pcgdwk,sumd(2), model%geometry%mask(ewp,ns), model%geometry%mask(ew,ns))       ! point (ew+1,ns)
-    !  call putpcgc(model%pcgdwk,sumd(3), model%geometry%mask(ew,nsm), model%geometry%mask(ew,ns))       ! point (ew,ns-1)
-    !  call putpcgc(model%pcgdwk,sumd(4), model%geometry%mask(ew,nsp), model%geometry%mask(ew,ns))       ! point (ew,ns+1)
-    !  call putpcgc(model%pcgdwk,1.0d0 + sumd(5), model%geometry%mask(ew,ns), model%geometry%mask(ew,ns))! point (ew,ns)
 
       ! calculate RHS
       if (calc_rhs) then
@@ -542,27 +489,6 @@ contains
                                    + model%geometry%lsrf(ew,nsp) * sumd(4)) &
             + model%climate%acab(ew,ns) * model%pcgdwk%fc2(2)
       end if
-      !EIB! old way
-      ! calculate RHS
-      !if (calc_rhs) then
-      !   model%pcgdwk%rhsd(model%geometry%mask(ew,ns)) =                    &
-      !        old_thck(ew,ns) * (1.0d0 - model%pcgdwk%fc2(3) * sumd(5))     &
-      !      - model%pcgdwk%fc2(3) * (old_thck(ewm,ns) * sumd(1)             &
-      !                             + old_thck(ewp,ns) * sumd(2)             &
-      !                             + old_thck(ew,nsm) * sumd(3)             &
-      !                             + old_thck(ew,nsp) * sumd(4))            &
-      !      - model%pcgdwk%fc2(4) * (model%geometry%lsrf(ew,ns)  * sumd(5)  &
-      !                             + model%geometry%lsrf(ewm,ns) * sumd(1)  &
-      !                             + model%geometry%lsrf(ewp,ns) * sumd(2)  &
-      !                             + model%geometry%lsrf(ew,nsm) * sumd(3)  &
-      !                             + model%geometry%lsrf(ew,nsp) * sumd(4)) &
-      !      + model%climate%acab(ew,ns) * model%pcgdwk%fc2(2)
-      !   if(model%options%basal_mbal==1) then
-      !      model%pcgdwk%rhsd(model%geometry%mask(ew,ns)) =                    &
-      !           model%pcgdwk%rhsd(model%geometry%mask(ew,ns))                 &
-      !           - model%temper%bmlt(ew,ns) * model%pcgdwk%fc2(2) ! basal melt is +ve for mass loss
-      !   end if
-      !end if
 
       model%pcgdwk%answ(model%geometry%mask(ew,ns)) = new_thck(ew,ns)      
 
@@ -588,28 +514,10 @@ contains
            (diffu_y(ewm,ns) + diffu_y(ew,ns)) + &
            (model%velocity%ubas (ewm,ns) + model%velocity%ubas (ew,ns)))
       sumd(5) = - (sumd(1) + sumd(2) + sumd(3) + sumd(4))
-      !EIB! old way
-      !sumd(1) = model%pcgdwk%fc2(1) * (&
-      !     (model%velocity%diffu(ewm,nsm) + model%velocity%diffu(ewm,ns)) + &
-      !     (model%velocity%ubas (ewm,nsm) + model%velocity%ubas (ewm,ns)))
-      !sumd(2) = model%pcgdwk%fc2(1) * (&
-      !     (model%velocity%diffu(ew,nsm) + model%velocity%diffu(ew,ns)) + &
-      !     (model%velocity%ubas (ew,nsm) + model%velocity%ubas (ew,ns)))
-      !sumd(3) = model%pcgdwk%fc2(5) * (&
-      !     (model%velocity%diffu(ewm,nsm) + model%velocity%diffu(ew,nsm)) + &
-      !     (model%velocity%ubas (ewm,nsm) + model%velocity%ubas (ew,nsm)))
-      !sumd(4) = model%pcgdwk%fc2(5) * (&
-      !     (model%velocity%diffu(ewm,ns) + model%velocity%diffu(ew,ns)) + &
-      !     (model%velocity%ubas (ewm,ns) + model%velocity%ubas (ew,ns)))
-      !sumd(5) = - (sumd(1) + sumd(2) + sumd(3) + sumd(4))
-
     end subroutine findsums
   end subroutine thck_evolve
 
-
-
-
-!---------------------------------------------------------------
+!---------------------------------------------------------------------------------
 
 subroutine geometry_derivs(model)
    use glide_mask, only: upwind_from_mask
@@ -636,7 +544,6 @@ subroutine geometry_derivs(model)
                  model%geomderv%stagtopg,&
                  model%general%ewn, &
                  model%general%nsn)
-
 
    model%geomderv%stagusrf = model%geomderv%staglsrf + model%geomderv%stagthck
 

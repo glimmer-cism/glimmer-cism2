@@ -42,7 +42,6 @@
 #include <fcntl.h>
 
 
-
 #define CFG_LEN 35
 #define BUFFER_LEN 400
 #define PERM_FILE (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)

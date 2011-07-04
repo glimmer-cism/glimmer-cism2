@@ -34,7 +34,7 @@ dimlen:        model%general%nsn-1
 dimensions:    x1
 units:         meter
 long_name:     Cartesian x-coordinate
-axis: X
+axis:          X
 data:          data%general%x1
 dimlen:        model%general%ewn
 load:1

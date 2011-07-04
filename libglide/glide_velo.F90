@@ -104,9 +104,8 @@ contains
     model%velowk%trcmin = model%velowk%trcmin / model%velowk%trc0  
     model%velowk%c(1)   = (model%velowk%trcmax + model%velowk%trcmin) / 2.0d0 
     model%velowk%c(2)   = (model%velowk%trcmax - model%velowk%trcmin) / 2.0d0
-    model%velowk%c(3)   = (thk0 * pi) / model%velowk%watwd  
+    model%velowk%c(3)   = (thk0 * pi) / model%velowk%watwd 
     model%velowk%c(4)   = pi*(model%velowk%watct / model%velowk%watwd)
-   
 
   end subroutine init_velo
 #if 0
@@ -269,7 +268,7 @@ contains
     real(dp),dimension(:,:,:),intent(out)   :: vvel
     real(dp),dimension(:,:),  intent(out)   :: uflx
     real(dp),dimension(:,:),  intent(out)   :: vflx
-    real(dp),dimension(:,:,:), intent(out)    :: surfvel
+    real(dp),dimension(:,:,:), intent(out)  :: surfvel
     !------------------------------------------------------------------------------------
     ! Internal variables
     !------------------------------------------------------------------------------------
@@ -942,7 +941,6 @@ contains
                
                 btrc(ew,ns) = model%velowk%c(1) + model%velowk%c(2) * tanh(model%velowk%c(3) * &
                      model%temper%stagbwat(ew,ns) - model%velowk%c(4))
-                
                 if (0.0d0 > sum(model%isos%relx(ew:ew+1,ns:ns+1))) then
                    btrc(ew,ns) = btrc(ew,ns) * model%velowk%marine  
                 end if
@@ -991,8 +989,7 @@ contains
              
              btrc(ew,ns) = (Asl*(tau)**2)/Z !assuming that that btrc is later
                                              !multiplied again by the basal shear stress
-       
-           end if  
+           end if
           end do
        end do
     case default

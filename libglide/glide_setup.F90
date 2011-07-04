@@ -211,17 +211,16 @@ contains
     ! Beginning of code
 
     upn=model%general%upn
-    select case(model%options%which_sigma)
 
+    select case(model%options%which_sigma)
     case(0)
        call write_log('Calculating sigma levels')
        do up=1,upn
           level = real(up-1,kind=dp)/real(upn-1,kind=dp)
           model%numerics%sigma(up) = glide_find_level(level, model%options%which_sigma_builtin, up, upn)
        end do
-
     case(1)
-       there = .false. 
+       there = .false.
        inquire (exist=there,file=process_path(model%funits%sigfile))
        if (.not.there) then
           call write_log('Sigma levels file: '//trim(process_path(model%funits%sigfile))// &
@@ -231,17 +230,14 @@ contains
        open(unit,file=process_path(model%funits%sigfile))
        read(unit,'(f9.7)',err=10,end=10) (model%numerics%sigma(up), up=1,upn)
        close(unit)
-
     case(2)
        call write_log('Using sigma levels from main configuration file')
-
     end select
 
     model%numerics%stagsigma(1:upn-1) =   &
             (model%numerics%sigma(1:upn-1) + model%numerics%sigma(2:upn)) / 2.0_dp
 
     call print_sigma(model)
-
     return
 
 10  call write_log('something wrong with sigma coord file',GM_FATAL)
@@ -545,6 +541,7 @@ end function glide_calc_sigma_pattyn
     character(len=*), dimension(0:1), parameter :: b_mbal = (/ &
          'not in continutity eqn', &
          'in continutity eqn    ' /)
+
     call write_log('GLIDE options')
     call write_log('-------------')
     write(message,*) 'I/O parameter file      : ',trim(model%funits%ncfile)

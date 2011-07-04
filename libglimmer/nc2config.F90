@@ -57,7 +57,7 @@ program nc2config
   integer :: status,ncid,attlen,unit,i,ellen
   integer numargs,nfiles
 #ifndef __GFORTRAN__
-! iargc is an intrensic function in gfortran
+! iargc is an intrinsic function in gfortran
   integer, external :: iargc
 #endif
   character(len=100) :: argument

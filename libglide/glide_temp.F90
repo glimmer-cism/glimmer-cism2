@@ -1,7 +1,6 @@
 ! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! +                                                           +
-! +  glimmer_temp.f90 - part of the Glimmer-CISM ice model    + 
-! +  glide_temp.f90 - part of the GLIMMER ice model           +
+! +  glide_temp.f90 - part of the Glimmer-CISM ice model      + 
 ! +                                                           +
 ! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! 
@@ -57,21 +56,18 @@
 #else
 #define VERT_DIFF 1.
 #endif
-
 ! horizontal advection
 #ifdef NO_HORIZONTAL_ADVECTION
 #define HORIZ_ADV 0.
 #else
 #define HORIZ_ADV 1.
 #endif
-
 ! vertical advection
 #ifdef NO_VERTICAL_ADVECTION
 #define VERT_ADV 0.
 #else
 #define VERT_ADV 1.
 #endif
-
 ! strain heating
 #ifdef NO_STRAIN_HEAT
 #define STRAIN_HEAT 0.
@@ -116,6 +112,7 @@ contains
     allocate(model%tempwk%dissip(model%general%upn,model%general%ewn,model%general%nsn))
     allocate(model%tempwk%compheat(model%general%upn,model%general%ewn,model%general%nsn))
     model%tempwk%compheat = 0.0d0
+
     allocate(model%tempwk%dups(model%general%upn,3))
 
     allocate(model%tempwk%c1(model%general%upn))
@@ -260,9 +257,12 @@ contains
 
     real(dp), dimension(size(model%numerics%sigma)) :: weff
 
+
     !------------------------------------------------------------------------------------
     ! ewbc/nsbc set the type of boundary condition aplied at the end of
     ! the domain. a value of 0 implies zero gradient.
+    !------------------------------------------------------------------------------------
+    ! Calculate the ice thickness according to different methods
     !------------------------------------------------------------------------------------
 
     select case(whichtemp)
@@ -279,7 +279,7 @@ contains
 
 !lipscomb - restart mod - These routines are now called at the end of tstep_p3, so that wgrd
 !                         can be written to the hotstart file and used for restart.
-                         
+
        ! Calculate time-derivatives of thickness and upper surface elevation ------------
 
        call timeders(model%thckwk,   &
@@ -303,50 +303,55 @@ contains
        ! *sfp* Added the if clause here so that this calc only gets done if has NOT
        ! *sfp* already been done at the end of the HO velocity calculation. If using HO
        ! *sfp* velocity calc, then this has already been done at the end of call to
-       ! *sfp* 'run_ho_diagnostic' in glide_velo_higher. 
+       ! *sfp* 'run_ho_diagnostic' in glide_velo_higher.
+
        if( which_ho_diagnostic == 0 )then
 
-       call gridwvel(model%numerics%sigma,  &
-            model%numerics%thklim, &
-            model%velocity%uvel,   &
-            model%velocity%vvel,   &
-            model%geomderv,        &
-            model%geometry%thck,   &
-             model%velocity%wgrd)
-    
-          select case(model%options%whichwvel)
+         call gridwvel(model%numerics%sigma,  &
+              model%numerics%thklim, &
+              model%velocity%uvel,   &
+              model%velocity%vvel,   &
+              model%geomderv,        &
+              model%geometry%thck,   &
+              model%velocity%wgrd)
 
-          case(0) 
-              ! Usual vertical integration
-              call wvelintg(model%velocity%uvel,                        &
-                  model%velocity%vvel,                        &
-                  model%geomderv,                             &
-                  model%numerics,                             &
-                  model%velowk,                               &
-                  model%velocity%wgrd(model%general%upn,:,:), &
-                  model%geometry%thck,                        &
-                  model%temper%bmlt,                          &
-                  model%velocity%wvel)
-    
-          case(1)
-              ! Vertical integration constrained so kinematic upper BC obeyed.
-              call wvelintg(model%velocity%uvel,                        &
-                  model%velocity%vvel,                        &
-                  model%geomderv,                             &
-                  model%numerics,                             &
-                  model%velowk,                               &
-                  model%velocity%wgrd(model%general%upn,:,:), &
-                  model%geometry%thck,                        &
-                  model%temper%  bmlt,                        &
-                  model%velocity%wvel)
-              call chckwvel(model%numerics,                             &
-                  model%geomderv,                             &
-                  model%velocity%uvel(1,:,:),                 &
-                  model%velocity%vvel(1,:,:),                 &
-                  model%velocity%wvel,                        &
-                  model%geometry%thck,                        &
-                  model%climate% acab)
-          end select
+         select case(model%options%whichwvel)
+         case(0) 
+
+            ! Usual vertical integration
+
+            call wvelintg(model%velocity%uvel,                        &
+                 model%velocity%vvel,                        &
+                 model%geomderv,                             &
+                 model%numerics,                             &
+                 model%velowk,                               &
+                 model%velocity%wgrd(model%general%upn,:,:), &
+                 model%geometry%thck,                        &
+                 model%temper%bmlt,                          &
+                 model%velocity%wvel)
+
+         case(1)
+
+            ! Vertical integration constrained so kinematic upper BC obeyed.
+
+            call wvelintg(model%velocity%uvel,                        &
+                    model%velocity%vvel,                        &
+                    model%geomderv,                             &
+                    model%numerics,                             &
+                    model%velowk,                               &
+                    model%velocity%wgrd(model%general%upn,:,:), &
+                    model%geometry%thck,                        &
+                    model%temper%  bmlt,                        &
+                    model%velocity%wvel)
+
+            call chckwvel(model%numerics,                             &
+                    model%geomderv,                             &
+                    model%velocity%uvel(1,:,:),                 &
+                    model%velocity%vvel(1,:,:),                 &
+                    model%velocity%wvel,                        &
+                    model%geometry%thck,                        &
+                    model%climate% acab)
+         end select
        end if
        ! apply periodic ew BC
        if (model%options%periodic_ew) then
@@ -366,7 +371,7 @@ contains
             model%geomderv%dusrfdew, &
             model%geomderv%dusrfdns, &
             model%temper%flwa)
-    
+
        !JCC - Don't use ho velocity fields unless we're using the ho model
        if (model%options%which_ho_diagnostic .EQ. 0 ) then
           ! translate velo field
@@ -397,7 +402,6 @@ contains
        ! zeroth iteration
        iter = 0
        tempresid = 0.0d0
-
        do ns = 2,model%general%nsn-1
           do ew = 2,model%general%ewn-1
              if(model%geometry%thck(ew,ns)>model%numerics%thklim) then
@@ -484,7 +488,6 @@ contains
                                  model%numerics%sigma,           &
                                  model%general%upn)
 
-
                    tempresid = max(tempresid, maxval(abs(model%temper%temp(:,ew,ns)-prevtemp(:))))
 
                 endif
@@ -502,8 +505,6 @@ contains
              if (GLIDE_IS_THIN(model%geometry%thkmask(ew,ns))) then
                 model%temper%temp(:,ew,ns) = min(0.0d0,dble(model%climate%artm(ew,ns)))
              else if (GLIDE_NO_ICE(model%geometry%thkmask(ew,ns))) then
-                !JCC - one of these
-                !model%temper%temp(:,ew,ns) = min(0.0d0,dble(model%climate%artm(ew,ns)))
                 model%temper%temp(:,ew,ns) = 0.0d0
              end if
           end do
@@ -606,9 +607,12 @@ contains
 
     implicit none
 
-    real(dp), dimension(:), intent(in) :: u,v
-    real(dp), dimension(:,:), intent(in) :: tempx, tempy
-    real(dp), dimension(:), intent(out) :: iteradvt, diagadvt
+    real(dp), dimension(:),   intent(out) :: iteradvt
+    real(dp), dimension(:),   intent(out) :: diagadvt
+    real(dp), dimension(:,:), intent(in)  :: tempx
+    real(dp), dimension(:,:), intent(in)  :: tempy
+    real(dp), dimension(:),   intent(in)  :: u
+    real(dp), dimension(:),   intent(in)  :: v
 
     iteradvt = 0.0d0
     diagadvt = 0.0d0
@@ -749,19 +753,19 @@ contains
     ! for grounded ice, a heat flux is applied
     ! for floating ice, temperature held constant
 
-     if (float) then
+    if (float) then
 
        supd(model%general%upn) = 0.0d0
        subd(model%general%upn) = 0.0d0
        diag(model%general%upn) = 1.0d0
 
-     else 
- 
-        supd(model%general%upn) = 0.0d0 
-        subd(model%general%upn) = -0.5*fact(1)/(model%tempwk%dupn**2)
-        diag(model%general%upn) = 1.0d0 - subd(model%general%upn) + diagadvt(model%general%upn)
- 
-     end if
+    else 
+
+       supd(model%general%upn) = 0.0d0 
+       subd(model%general%upn) = -0.5*fact(1)/(model%tempwk%dupn**2)
+       diag(model%general%upn) = 1.0d0 - subd(model%general%upn) + diagadvt(model%general%upn)
+
+    end if
 
   end subroutine findvtri
 
@@ -872,7 +876,7 @@ contains
 
     real(dp), dimension(size(model%numerics%sigma)) :: pmptemp
     real(dp) :: slterm, newmlt
- 
+
     integer :: ewp, nsp, up, ew, ns
 
     do ns = 2, model%general%nsn-1
@@ -939,19 +943,11 @@ contains
                 end select
 
                 bmlt(ew,ns) = 0.0d0
-
                 !*sfp* changed this so that 'slterm' is multiplied by f(4) const. above ONLY for the 0-order SIA case,
                 ! since for the HO and SSA cases a diff. const. needs to be used
-
-                ! OLD version
-!                newmlt = model%tempwk%f(4) * slterm - model%tempwk%f(2)*model%temper%bheatflx(ew,ns) + model%tempwk%f(3) * &
-!                     model%tempwk%dupc(model%general%upn) * &
-!                     thck(ew,ns) * model%tempwk%dissip(model%general%upn,ew,ns)
-
-                ! NEW version (sfp)
-                newmlt = slterm - model%tempwk%f(2)*model%temper%bheatflx(ew,ns)   &
-                        + model%tempwk%f(3) * model%tempwk%dupc(model%general%upn) * &
-                          thck(ew,ns) * model%tempwk%dissip(model%general%upn,ew,ns)
+                newmlt = slterm - model%tempwk%f(2)*model%temper%bheatflx(ew,ns) + model%tempwk%f(3) * &
+                     model%tempwk%dupc(model%general%upn) * &
+                     thck(ew,ns) * model%tempwk%dissip(model%general%upn,ew,ns)
 
                 up = model%general%upn - 1
 
@@ -979,12 +975,9 @@ contains
 
              end if
 
-          !EIB! else if (model%options%use_plume == 1) then
-
-          ! do nothing because the plume model will have written the bmlt field
           else
 
-              bmlt(ew,ns) = 0.0d0
+             bmlt(ew,ns) = 0.0d0
 
           end if
        end do
@@ -1000,7 +993,7 @@ contains
     end if
   end subroutine calcbmlt
 
-!-------------------------------------------------------------------
+  !-------------------------------------------------------------------
 
 end module glide_temp
 

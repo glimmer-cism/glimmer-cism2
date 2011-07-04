@@ -134,7 +134,7 @@ program simple_glide
   call glide_finalise(model)
   call system_clock(clock,clock_rate)
   t2 = real(clock,kind=dp)/real(clock_rate,kind=dp)
-  call glimmer_write_stats(commandline_resultsname,commandline_configname,t2-t1)
+  call glimmer_write_stats(trim(commandline_resultsname),commandline_configname,t2-t1)
   call close_log
 
 #ifdef GLIMMER_MPI

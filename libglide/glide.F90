@@ -163,7 +163,7 @@ contains
     !Initialize boundary condition fields to be NaN everywhere 
     model%geometry%marine_bc_normal = NaN
     
-    ! set uniform basal heat flux 
+    ! set uniform basal heat flux
     model%temper%bheatflx = model%paramets%geot
 
     ! load sigma file
@@ -171,8 +171,10 @@ contains
 
     ! open all input files
     call openall_in(model)
+
     ! and read first time slice
     call glide_io_readall(model,model)
+
     ! Write projection info to log
     call glimmap_printproj(model%projection)
 
@@ -196,7 +198,6 @@ contains
     case(2) ! Supplied topography is in equilibrium
        call isos_relaxed(model)
     end select
-
 
     ! open all output files
     call openall_out(model)
@@ -271,8 +272,8 @@ contains
     end if      
 
     ! initialise ice age
-    !! This is a placeholder; currently the ice age is not computed.  
-    !! lipscomb - to do - Compute and advect the ice age.
+    ! This is a placeholder; currently the ice age is not computed.  
+    !lipscomb - TO DO - Compute and advect the ice age.
     !! Currently the ice age is only computed for remapping transport
     !! (whichevol = 3 or 4)
     model%geometry%age(:,:,:) = 0._dp
@@ -405,8 +406,6 @@ contains
     call glide_prof_start(model,model%glide_prof%ice_mask1)
 #endif
     !EIB! call veries between lanl and gc2, this is lanl version
-    !magi a hack, someone explain what whichthck=5 does
-    !call glide_maskthck(0, &       
     call glide_maskthck( &       
          model%geometry% thck,      &
          model%climate%  acab,      &
@@ -451,7 +450,6 @@ contains
        endif
 
        model%temper%newtemps = .true.
-
     end if
 #ifdef PROFILING
     call glide_prof_stop(model,model%glide_prof%temperature)
@@ -518,7 +516,6 @@ contains
 #ifdef PROFILING
     call glide_prof_start(model,model%glide_prof%ice_evo)
 #endif
-
     select case(model%options%whichevol)
     case(EVOL_PSEUDO_DIFF) ! Use precalculated uflx, vflx -----------------------------------
 
@@ -542,7 +539,6 @@ contains
        call fo_upwind_advect_driver( model )
  
     end select
-
 #ifdef PROFILING
     call glide_prof_stop(model,model%glide_prof%ice_evo)
 #endif
@@ -609,7 +605,7 @@ contains
                             model%geometry%iarea, model%geometry%thkmask, &
                             model%geometry%iareaf, model%geometry%iareag)
 
-! ------------------------------------------------------------------------
+    ! ------------------------------------------------------------------------
     ! update ice/water load if necessary
     ! ------------------------------------------------------------------------
 #ifdef PROFILING
@@ -628,8 +624,9 @@ contains
     
     ! basal shear stress calculations
     call calc_basal_shear(model)
-
   end subroutine glide_tstep_p2
+
+!----------------------------------------------------------------------------- 
 
   subroutine glide_tstep_p3(model, no_write)
     !*FD Performs third part of time-step of an ice model instance:
@@ -642,7 +639,7 @@ contains
     implicit none
     type(glide_global_type) :: model        !*FD model instance
     
-    logical, optional, intent(in) :: no_write
+    logical,optional, intent(in) :: no_write
     logical nw
 #ifdef GLC_DEBUG
     integer :: i, j, k, upn 
@@ -674,7 +671,7 @@ contains
                         model%climate%eus,   model%geometry%lsrf)
     model%geometry%usrf = max(0.d0,model%geometry%thck + model%geometry%lsrf)
 
-! Calculate time-derivatives of thickness and upper surface elevation ------------
+       ! Calculate time-derivatives of thickness and upper surface elevation ------------
 
        call timeders(model%thckwk,   &
             model%geometry%thck,     &
@@ -714,7 +711,7 @@ contains
   300  format(i3, Z24.20)
 #endif
 
-    !--------------------------------------------------------------------- 
+    ! ------------------------------------------------------------------------ 
     ! write to netCDF file
     ! ------------------------------------------------------------------------ 
 
@@ -736,6 +733,6 @@ contains
 
   end subroutine glide_tstep_p3
 
-  !-------------------------------------------------------------------
+!----------------------------------------------------------------------------- 
 
 end module glide

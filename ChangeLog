@@ -1,3 +1,11 @@
+2011-07-04 Ian Rutt
+ * Various files: formatting changes for ease of comparison with stable
+   1.6
+ * example-drivers/simple_glide/src/simple_glide.F90: results filename is
+   now trimmed
+ * scripts/glide_launch.py: adjusted to work with Makefile in EISMINT 2
+   case. Details copied from stable 1.6 branch.
+
 2010-09-21 Magnus Hagdorn
  * example-drivers/eis/src/Makefile.am: find include file
  * libglint/Makefile.am: ditto

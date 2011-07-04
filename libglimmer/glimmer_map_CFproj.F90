@@ -49,9 +49,7 @@ module glimmer_map_CFproj
   public  glimmap_CFGetProj,glimmap_CFPutProj
 
 contains
- 
-    !EIB! added use glimmer_ncdf to access nc_errorhandle, not sure if/when it
-    !moved
+
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! public functions
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
