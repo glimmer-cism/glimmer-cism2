@@ -65,7 +65,10 @@ module glide_temp
 
 contains
 
+!------------------------------------------------------------------------------------
+
   subroutine init_temp(model)
+
     !*FD initialise temperature module
     use glimmer_physcon, only : rhoi, shci, coni, scyr, grav, gn, lhci, rhow
     use glimmer_paramets, only : tim0, thk0, acc0, len0, vis0, vel0
@@ -175,8 +178,10 @@ contains
                0.5d0 * model%tempwk%dt_wat / model%numerics%dew, 0.5d0 * model%tempwk%dt_wat / model%numerics%dns /)
           
        end select
+
   end subroutine init_temp
-    
+
+!****************************************************    
 
   subroutine timeevoltemp(model,which)
 
@@ -185,18 +190,19 @@ contains
 
     use glimmer_utils, only: hsum4,tridiag
     use glimmer_global, only : dp
-    use glimmer_paramets,       only : thk0
+    use glimmer_paramets, only : thk0
     use glide_velo
     use glide_thck
     use glide_mask
+
     implicit none
 
     !------------------------------------------------------------------------------------
     ! Subroutine arguments
     !------------------------------------------------------------------------------------
 
-    type(glide_global_type),intent(inout) :: model       !*FD Ice model parameters.
-    integer,                  intent(in)    :: which       !*FD Flag to choose method.
+    type(glide_global_type),intent(inout) :: model                  !*FD Ice model parameters.
+    integer,                intent(in)    :: which                  !*FD Flag to choose method.
 
     !------------------------------------------------------------------------------------
     ! Internal variables
@@ -257,22 +263,22 @@ contains
           ! Vertical integration constrained so kinematic upper BC obeyed.
 
           call wvelintg(model%velocity%uvel,                        &
-               model%velocity%vvel,                        &
-               model%geomderv,                             &
-               model%numerics,                             &
-               model%velowk,                               &
-               model%velocity%wgrd(model%general%upn,:,:), &
-               model%geometry%thck,                        &
-               model%temper%  bmlt,                        &
-               model%velocity%wvel)
+                  model%velocity%vvel,                        &
+                  model%geomderv,                             &
+                  model%numerics,                             &
+                  model%velowk,                               &
+                  model%velocity%wgrd(model%general%upn,:,:), &
+                  model%geometry%thck,                        &
+                  model%temper%  bmlt,                        &
+                  model%velocity%wvel)
 
           call chckwvel(model%numerics,                             &
-               model%geomderv,                             &
-               model%velocity%uvel(1,:,:),                 &
-               model%velocity%vvel(1,:,:),                 &
-               model%velocity%wvel,                        &
-               model%geometry%thck,                        &
-               model%climate% acab)
+                  model%geomderv,                             &
+                  model%velocity%uvel(1,:,:),                 &
+                  model%velocity%vvel(1,:,:),                 &
+                  model%velocity%wvel,                        &
+                  model%geometry%thck,                        &
+                  model%climate% acab)
        end select
        ! apply periodic ew BC
        if (model%options%periodic_ew.eq.1) then
@@ -284,8 +290,8 @@ contains
        !*MH model%tempwk%dissip   = 0.0d0  is also set to zero in finddisp
        ! ----------------------------------------------------------------------------------
 
-       call finddisp(model, &
-            model%geometry%thck, &
+       call finddisp(model,          &
+            model%geometry%thck,     &
             model%geomderv%stagthck, &
             model%geomderv%dusrfdew, &
             model%geomderv%dusrfdns, &
@@ -315,7 +321,7 @@ contains
                    weff = 0.0d0
                 end if
 
-                call hadvpnt(iteradvt,                               &
+                call hadvpnt(iteradvt,                       &
                      diagadvt,                               &
                      model%temper%temp(:,ew-2:ew+2,ns),      &
                      model%temper%temp(:,ew,ns-2:ns+2),      &
@@ -331,20 +337,23 @@ contains
 
                 call findvtri_rhs(model,ew,ns,model%climate%artm(ew,ns),iteradvt,rhsd, &
                      is_float(model%geometry%thkmask(ew,ns)))
-                
+
                 prevtemp = model%temper%temp(:,ew,ns)
 
                 call tridiag(subd(1:model%general%upn), &
-                     diag(1:model%general%upn), &
-                     supd(1:model%general%upn), &
-                     model%temper%temp(1:model%general%upn,ew,ns), &
-                     rhsd(1:model%general%upn))
+                             diag(1:model%general%upn), &
+                             supd(1:model%general%upn), &
+                             model%temper%temp(1:model%general%upn,ew,ns), &
+                             rhsd(1:model%general%upn))
 
-                call corrpmpt(model%temper%temp(:,ew,ns),model%geometry%thck(ew,ns),model%temper%bwat(ew,ns), &
-                     model%numerics%sigma,model%general%upn)
-
+                call corrpmpt(model%temper%temp(:,ew,ns),     &
+                              model%geometry%thck(ew,ns),     &
+                              model%temper%bwat(ew,ns),       &
+                              model%numerics%sigma,           &
+                              model%general%upn)
 
                 tempresid = max(tempresid,maxval(abs(model%temper%temp(:,ew,ns)-prevtemp(:))))
+
              endif
           end do
        end do
@@ -361,7 +370,7 @@ contains
                       weff = 0.0d0
                    end if
 
-                   call hadvpnt(iteradvt,                               &
+                   call hadvpnt(iteradvt,                       &
                         diagadvt,                               &
                         model%temper%temp(:,ew-2:ew+2,ns),      &
                         model%temper%temp(:,ew,ns-2:ns+2),      &
@@ -383,10 +392,14 @@ contains
                         model%temper%temp(1:model%general%upn,ew,ns), &
                         rhsd(1:model%general%upn))
 
-                   call corrpmpt(model%temper%temp(:,ew,ns),model%geometry%thck(ew,ns),model%temper%bwat(ew,ns), &
-                        model%numerics%sigma,model%general%upn)
+                   call corrpmpt(model%temper%temp(:,ew,ns),     &
+                                 model%geometry%thck(ew,ns),     &
+                                 model%temper%bwat(ew,ns),       &
+                                 model%numerics%sigma,           &
+                                 model%general%upn)
 
-                   tempresid = max(tempresid,maxval(abs(model%temper%temp(:,ew,ns)-prevtemp(:))))
+                   tempresid = max(tempresid, maxval(abs(model%temper%temp(:,ew,ns)-prevtemp(:))))
+
                 endif
              end do
           end do
@@ -468,14 +481,15 @@ contains
     ! Calculate Glenn's A --------------------------------------------------------
 
     call calcflwa(model%numerics,        &
-         model%velowk,          &
-         model%paramets%fiddle, &
-         model%temper%flwa,     &
-         model%temper%temp,     &
-         model%geometry%thck,   &
-         model%options%whichflwa) 
+                  model%velowk,          &
+                  model%paramets%fiddle, &
+                  model%temper%flwa,     &
+                  model%temper%temp,     &
+                  model%geometry%thck,   &
+                  model%options%whichflwa) 
 
     ! Output some information ----------------------------------------------------
+
 #ifdef DEBUG
     print *, "* temp ", model%numerics%time, iter, model%temper%niter, &
          real(model%temper%temp(model%general%upn,model%general%ewn/2+1,model%general%nsn/2+1))
@@ -649,6 +663,8 @@ contains
 
   end subroutine findvtri
 
+  !-------------------------------------------------------------------------
+
   subroutine findvtri_init(model,ew,ns,subd,diag,supd,weff,temp,thck,float)
     !*FD called during first iteration to set inittemp
     use glimmer_global, only : dp
@@ -703,9 +719,13 @@ contains
             - model%tempwk%initadvt(model%general%upn,ew,ns)  &
             + model%tempwk%dissip(model%general%upn,ew,ns)
     end if
+
   end subroutine findvtri_init
 
+  !-----------------------------------------------------------------------
+
   subroutine findvtri_rhs(model,ew,ns,artm,iteradvt,rhsd,float)
+
     !*FD RHS of temperature tri-diag system
     use glimmer_global, only : dp, sp 
     implicit none
@@ -724,7 +744,9 @@ contains
        rhsd(model%general%upn) = model%tempwk%inittemp(model%general%upn,ew,ns) - iteradvt(model%general%upn)
     end if
     rhsd(2:model%general%upn-1) = model%tempwk%inittemp(2:model%general%upn-1,ew,ns) - iteradvt(2:model%general%upn-1)
+
   end subroutine findvtri_rhs
+
   !-----------------------------------------------------------------------
 
   subroutine finddisp(model,thck,stagthck,dusrfdew,dusrfdns,flwa)
@@ -821,8 +843,7 @@ contains
     real(dp), dimension(size(model%numerics%sigma)) :: pmptemp
     real(dp) :: slterm, newmlt
 
-    integer :: ewp, nsp,up,ew,ns
-
+    integer :: ewp, nsp, up, ew, ns
 
     do ns = 2, model%general%nsn-1
        do ew = 2, model%general%ewn-1
@@ -881,6 +902,7 @@ contains
     end do
 
     ! apply periodic BC
+
     if (model%options%periodic_ew.eq.1) then
        do ns = 2,model%general%nsn-1
           bmlt(1,ns) = bmlt(model%general%ewn-1,ns)

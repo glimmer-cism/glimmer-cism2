@@ -37,7 +37,7 @@ module glide_stop
   !*FD circular dependencies
 
 contains
-  
+
   subroutine glide_finalise(model,crash)
     !*FD finalise GLIDE model instance
     use glimmer_ncio

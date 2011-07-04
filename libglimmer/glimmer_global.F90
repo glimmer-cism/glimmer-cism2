@@ -35,7 +35,6 @@
 !! kind values, and other global code parameters.
 module glimmer_global
 
-
   integer,parameter :: sp = kind(1.0)  !< Single precision --- Fortran single-precision real-type kind value.
   
   ! Note that if the code is being compiled with forced typing (e.g. with 
@@ -43,7 +42,7 @@ module glimmer_global
   ! that.
 
   integer,parameter :: dp = kind(1.0d0) !< Double precision --- Fortran double-precision real-type kind value
-  
+
   ! Note that if the code is being compiled with forced typing (e.g. with
   ! the -r8 flag), then this parameter may need to be set in agreement
   ! with that
@@ -57,7 +56,6 @@ module glimmer_global
   integer,parameter :: rk=dp !< Precision of glimmer module --- the general Fortran real-type kind value for the Glimmer module and its interfaces.
 
 #endif
-
 
   integer,parameter :: fname_length=200 !< Specifies the length of character string variables used to hold filenames.
   integer,parameter :: msg_length=500  !< lenght of message buffers

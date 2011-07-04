@@ -394,7 +394,7 @@ contains
             delta(2)-delta(1),model%numerics%dns*len0
        call write_log(message,type=GM_FATAL)
     end if
-      
+    
   ! Check that the number of vertical layers is the same, though it's asking for trouble
   ! to check whether the spacing is the same (don't want to put that burden on setup,
   ! plus f.p. compare has been known to cause problems here)

@@ -423,7 +423,7 @@ contains
       real :: glide_calc_sigma,x,n
       
       glide_calc_sigma = (1-(x+1)**(-n))/(1-2**(-n))
-    end function glide_calc_sigma
+  end function glide_calc_sigma
 
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -545,7 +545,7 @@ contains
     call GetValue(section,'periodic_ew',model%options%periodic_ew)
     call GetValue(section,'basal_mass_balance',model%options%basal_mbal)
   end subroutine handle_options
-  
+
   subroutine print_options(model)
     use glide_types
     use glimmer_log

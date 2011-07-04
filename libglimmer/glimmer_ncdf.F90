@@ -89,9 +89,8 @@ module glimmer_ncdf
      real :: total_time = 0.0                             !< accumulate time steps (used for taking time averages)
 
      integer :: default_xtype = NF90_REAL                 !< the default external type for storing flointing point values
-
      logical :: do_averages = .False.                     !< set to .True. if we need to handle averages
-     
+
      type(glimmer_nc_meta) :: metadata                    !< structure holding metadata
 
      type(glimmer_nc_output), pointer :: next=>NULL()     !< next element in list
@@ -163,7 +162,7 @@ contains
   !!
   !! \return the next input file or NULL()
   function delete_input(ic,cf)
-    !*FD remove element from linked list
+    !< remove element from linked list
     use glimmer_log
     implicit none
     type(glimmer_nc_input), pointer :: delete_input
@@ -242,6 +241,8 @@ contains
 
   !> for debugging print all output files in linked list
   recursive subroutine nc_print_output(output)
+
+    !< For debugging
 
     type(glimmer_nc_output),pointer :: output !< the first element in linled list
 

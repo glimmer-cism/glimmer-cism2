@@ -55,7 +55,7 @@ contains
 
   subroutine init_velo(model)
     !*FD initialise velocity module
-    use glimmer_physcon, only : arrmll, arrmlh, gascon, actenl, actenh,scyr 
+    use glimmer_physcon, only : arrmll, arrmlh, gascon, actenl, actenh, scyr 
     implicit none
     type(glide_global_type) :: model
 
@@ -96,16 +96,16 @@ contains
          -actenl / gascon/)                                           ! Value of -Q/R when T* is below -263K
     
     model%velowk%watwd  = model%paramets%bpar(1) / model%paramets%bpar(2)
-    model%velowk%watct  = model%paramets%bpar(2) 
+    model%velowk%watct  = model%paramets%bpar(2)
     model%velowk%trcmin = model%paramets%bpar(3) / scyr
     model%velowk%trcmax = model%paramets%bpar(4) / scyr
     model%velowk%marine = model%paramets%bpar(5)
     model%velowk%trcmax = model%velowk%trcmax / model%velowk%trc0
-    model%velowk%trcmin = model%velowk%trcmin / model%velowk%trc0
+    model%velowk%trcmin = model%velowk%trcmin / model%velowk%trc0  
     model%velowk%c(1)   = (model%velowk%trcmax - model%velowk%trcmin) / 2.0d0 + model%velowk%trcmin
     model%velowk%c(2)   = (model%velowk%trcmax - model%velowk%trcmin) / 2.0d0
     model%velowk%c(3)   = model%velowk%watwd * thk0 / 4.0d0
-    model%velowk%c(4)   = model%velowk%watct * 4.0d0 / thk0 
+    model%velowk%c(4)   = model%velowk%watct * 4.0d0 / thk0
 
   end subroutine init_velo
 
@@ -140,9 +140,10 @@ contains
        do ew = 1,ewn-1
           if (stagthck(ew,ns) /= 0.0d0) then
              
-             hrzflwa = hsum4(flwa(:,ew:ew+1,ns:ns+1))  
+             hrzflwa = hsum4(flwa(:,ew:ew+1,ns:ns+1))
              intflwa(upn) = 0.0d0
 
+             !Perform inner integration.
              do up = upn-1, 1, -1
                 intflwa(up) = intflwa(up+1) + velowk%depth(up) * (hrzflwa(up)+hrzflwa(up+1))
              end do
@@ -226,7 +227,7 @@ contains
              uvel(upn,ew,ns) = ubas(ew,ns)
              vvel(upn,ew,ns) = vbas(ew,ns)
 
-             hrzflwa = hsum4(flwa(:,ew:ew+1,ns:ns+1))  
+             hrzflwa = hsum4(flwa(:,ew:ew+1,ns:ns+1))
 
              factor = velowk%dintflwa(ew,ns)*stagthck(ew,ns)
              if (factor /= 0.0d0) then
@@ -456,7 +457,7 @@ contains
         do ew = 1,ewn
           if (stagthck(ew,ns) /= 0.0d0) then
 
-            hrzflwa = hsum4(flwa(:,ew:ew+1,ns:ns+1))  
+            hrzflwa = hsum4(flwa(:,ew:ew+1,ns:ns+1))
             intflwa(upn) = 0.0d0
 
             do up = upn-1, 1, -1
@@ -493,7 +494,7 @@ contains
             uvel(upn,ew,ns) = ubas(ew,ns)
             vvel(upn,ew,ns) = vbas(ew,ns)
 
-            hrzflwa = hsum4(flwa(:,ew:ew+1,ns:ns+1))  
+            hrzflwa = hsum4(flwa(:,ew:ew+1,ns:ns+1))
 
             if (velowk%dintflwa(ew,ns) /= 0.0d0) then
                const(2) = c * diffu(ew,ns) / velowk%dintflwa(ew,ns)/stagthck(ew,ns)
@@ -928,7 +929,6 @@ contains
 
   end function vertintg
 
-
 !------------------------------------------------------------------------------------------
 
   subroutine patebudd(tempcor,calcga,fact)
@@ -1025,6 +1025,7 @@ contains
        do ns = 1,nsn-1
           do ew = 1,ewn-1
              if (0.0d0 < model%temper%stagbwat(ew,ns)) then
+               
                 btrc(ew,ns) = model%velowk%c(2) * tanh(model%velowk%c(3) * &
                      (stagbwat - model%velowk%c(4))) + model%velowk%c(1)
                 if (0.0d0 > sum(model%isos%relx(ew:ew+1,ns:ns+1))) then

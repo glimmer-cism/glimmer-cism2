@@ -93,8 +93,8 @@ module glide_types
 
     !*FD Method for calculating flow factor $A$:
     !*FD \begin{description} 
-    !*FD \item[0] \emph{Patterson and Budd} relationship 
-    !*FD \item[1] \emph{Patterson and Budd} relationship, 
+    !*FD \item[0] \emph{Paterson and Budd} relationship 
+    !*FD \item[1] \emph{Paterson and Budd} relationship, 
     !*FD with temperature set to $-10^{\circ}\mathrm{C}$ 
     !*FD \item[2] Set equal to $1\times 10^{-16}\,\mathrm{yr}^{-1}
     !*FD \,\mathrm{Pa}^{-n}$
@@ -126,7 +126,7 @@ module glide_types
     !*FD \begin{description}
     !*FD \item[0] Set equal to zero everywhere
     !*FD \item[1] Set (non--zero) constant
-    !*FD \item[2] Set to (non--zero) constant where where temperature is at pressure melting point of ice, otherwise to zero
+    !*FD \item[2] Set to (non--zero) constant where temperature is at pressure melting point of ice, otherwise to zero
     !*FD \item[3] \texttt{tanh} function of basal water depth 
     !*FD \end{description}
 
@@ -387,14 +387,13 @@ module glide_types
     
     ! Vertical coordinate ---------------------------------------------------
                                                                
-    real(dp),dimension(:),pointer :: sigma => null() !*FD Sigma values for 
-                                                     !*FD vertical spacing of 
+    real(dp),dimension(:),pointer :: sigma => null() !*FD Sigma values for vertical spacing of 
                                                      !*FD model levels
+
     integer :: profile_period = 100            !*FD profile frequency
     integer :: ndiag = 1000                    !*FD diagnostic frequency
 
   end type glide_numerics
-
 
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -712,7 +711,7 @@ contains
 
     ! allocate isostasy grids
     call isos_allocate(model%isos,ewn,nsn)
-    
+
     !allocate phaml variables
     call coordsystem_allocate(model%general%ice_grid, model%phaml%init_phaml)
     call coordsystem_allocate(model%general%ice_grid, model%phaml%rs_phaml)
@@ -773,7 +772,7 @@ contains
     deallocate(model%geomderv%dthckdtm)
     deallocate(model%geomderv%dusrfdtm)
     deallocate(model%geomderv%stagthck)
-  
+
     deallocate(model%geometry%temporary0)
     deallocate(model%geometry%temporary1)
     deallocate(model%geometry%thck)
@@ -798,7 +797,7 @@ contains
     deallocate(model%phaml%init_phaml)
     deallocate(model%phaml%rs_phaml)    
     deallocate(model%phaml%uphaml)
-    
+
   end subroutine glide_deallocarr
 
   ! some accessor functions
