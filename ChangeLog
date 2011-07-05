@@ -1,3 +1,7 @@
+2011-07-05 Ian Rutt
+ * glide_temp.F90: removed pair of calls to timeders. Duplication of these (also in glide.F90, time step part 3) 
+   means that a zero time derivative of surface and thickness was being used in the thermal calculation.
+
 2011-07-04 Ian Rutt
  * Various files: formatting changes for ease of comparison with stable
    1.6
