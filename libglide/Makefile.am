@@ -18,6 +18,7 @@ libglide_la_SOURCES = glide.F90 glide_setup.F90 glide_types.F90 glide_temp.F90 \
                       isostasy_types.F90 glide_lithot.F90 glide_lithot3d.F90 \
                       glide_lithot1d.F90 glide_profile.F90 glide_diagnostics.F90 \
                       glimmer_routing.F90 glimmer_ncio.F90 glimmer_ncparams.F90 glide_bwater.F90 \
+                      glide_grids.F90 \
                       glimmer_restart_gcm.F90
 
 test_setup_SOURCES = test_setup.F90

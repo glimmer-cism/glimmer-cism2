@@ -459,23 +459,6 @@ end subroutine
 
 !---------------------------------------------------------------------------------
 
-  subroutine stagvarb(ipvr,opvr,ewn,nsn)
-
-    use glimmer_global, only : dp ! ewn, nsn
- 
-    implicit none 
-
-    real(dp), intent(out), dimension(:,:) :: opvr 
-    real(dp), intent(in), dimension(:,:) :: ipvr
-    integer :: ewn,nsn
-
-    opvr(1:ewn-1,1:nsn-1) = (ipvr(2:ewn,1:nsn-1) + ipvr(1:ewn-1,2:nsn) + &
-                             ipvr(2:ewn,2:nsn)   + ipvr(1:ewn-1,1:nsn-1)) / 4.0d0
-
-  end subroutine stagvarb
-
-!---------------------------------------------------------------------------------
-
   subroutine timeders(thckwk,ipvr,opvr,mask,time,which)
 
     !*FD Calculates the time-derivative of a field. This subroutine is used by 
