@@ -108,7 +108,7 @@ contains
     model%velowk%c(4)   = pi*(model%velowk%watct / model%velowk%watwd)
 
   end subroutine init_velo
-#ifdef DUMMY
+#if 0
   subroutine velo_compute_strain_rates(strain_zx, strain_zy, 
                                        stagthck, dusrfdew, dusrfdns, sigma, 
                                        flwa, ho_stress_zx, ho_stress_zy)

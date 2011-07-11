@@ -462,6 +462,14 @@ subroutine geometry_derivs(model)
                               model%geomderv%dthckdew, &
                               model%geomderv%dthckdns, &
                               .false., .false.)
+   
+    !Make sure that the derivatives are 0 where staggered thickness is 0
+    where (model%geomderv%stagthck == 0)
+           model%geomderv%dusrfdew = 0
+           model%geomderv%dusrfdns = 0
+           model%geomderv%dthckdew = 0
+           model%geomderv%dthckdns = 0
+    endwhere
 
 end subroutine
 

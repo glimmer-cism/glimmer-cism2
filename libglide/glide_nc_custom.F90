@@ -123,6 +123,16 @@ contains
     status = nf90_inq_varid(NCO%id,'level',varid)
     status=nf90_put_var(NCO%id,varid,model%numerics%sigma)
     call nc_errorhandle(__FILE__,__LINE__,status)
+
+    !*sfp* added for HO stress fields, which are staggered in the vertical
+    status = nf90_inq_varid(NCO%id,'staglevel',varid)
+    status=nf90_put_var(NCO%id,varid,model%numerics%stagsigma)
+    call nc_errorhandle(__FILE__,__LINE__,status)
+!    do i=1, model%general%upn-1
+!        status=nf90_put_var(NCO%id,varid,(model%numerics%sigma(i)+model%numerics%sigma(i+1))/2.0,(/i/))
+!        call nc_errorhandle(__FILE__,__LINE__,status)
+!    end do
+
     if (model%options%gthf.gt.0) then
        status = nf90_inq_varid(NCO%id,'lithoz',varid)
        status=nf90_put_var(NCO%id,varid,model%lithot%deltaz)

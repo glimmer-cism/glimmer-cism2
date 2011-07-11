@@ -417,6 +417,10 @@ contains
     case(2)
        call write_log('Using sigma levels from main configuration file')
     end select
+
+    model%numerics%stagsigma(1:upn-1) =   &
+            (model%numerics%sigma(1:upn-1) + model%numerics%sigma(2:upn)) / 2.0_dp
+
     call print_sigma(model)
     return
 
@@ -654,7 +658,7 @@ contains
        call write_log('First topo time slice is relaxed')
     end if
     if (model%options%periodic_ew.eq.1) then
-       if (model%options%whichevol.eq.1) then
+       if (model%options%whichevol .eq.1) then
           call write_log('Periodic boundary conditions not implemented in ADI scheme',GM_FATAL)
        end if
        call write_log('Periodic EW lateral boundary condition')

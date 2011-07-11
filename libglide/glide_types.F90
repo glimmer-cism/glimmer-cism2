@@ -88,6 +88,7 @@ module glide_types
     !*FD \item[0] Set column to surface air temperature
     !*FD \item[1] Do full temperature solution (also find vertical velocity
     !*FD and apparent vertical velocity)
+    !*FD \item[2] Do NOTHING - hold temperatures steady at initial value  
     !*FD \end{description}
 
     integer :: whichflwa = 0
@@ -106,7 +107,7 @@ module glide_types
     !*FD Basal water depth: 
     !*FD \begin{description} 
     !*FD \item[0] Calculated from local basal water balance 
-    !*FD \item[1] as {\bf 0}, including constant horizontal flow 
+    !*FD \item[1] Compute the basal water flux, then find depth via calculation
     !*FD \item[2] Set to zero everywhere 
     !*FD \end{description}
 
@@ -176,6 +177,8 @@ module glide_types
     !*FD \item[0] no periodic EW boundary conditions
     !*FD \item[1] periodic EW boundary conditions
     !*FD \end{description}
+
+    logical :: periodic_ns = .false.
 
     integer :: gthf = 0
     !*FD \begin{description}
@@ -254,10 +257,17 @@ module glide_types
     real(dp),dimension(:,:),pointer :: dusrfdew => null() !*FD E-W derivative of upper surface elevation.
     real(dp),dimension(:,:),pointer :: dthckdns => null() !*FD N-S derivative of thickness.
     real(dp),dimension(:,:),pointer :: dusrfdns => null() !*FD N-S derivative of upper surface elevation.
+    real(dp),dimension(:,:),pointer :: dlsrfdew => null() !*tb* added
+    real(dp),dimension(:,:),pointer :: dlsrfdns => null() !*tb* added
     real(dp),dimension(:,:),pointer :: dthckdtm => null() !*FD Temporal derivative of thickness.
     real(dp),dimension(:,:),pointer :: dusrfdtm => null() !*FD Temporal derivative of upper surface elevation.
+
+    !Staggered grid versions of geometry variables
     real(dp),dimension(:,:),pointer :: stagthck => null() !*FD Thickness averaged onto the staggered grid.
 
+    !*tb* added everything below
+    real(dp),dimension(:,:),pointer :: stagusrf => null() !*FD Upper surface averaged onto the staggered grid
+    real(dp),dimension(:,:),pointer :: staglsrf => null() !*FD Lower surface averaged onto the staggered grid
     real(dp),dimension(:,:),pointer :: stagtopg => null() !*FD Bedrock topography averaged onto the staggered grid
   end type glide_geomderv
 
@@ -316,14 +326,14 @@ module glide_types
 
     !*FD Holds fields relating to temperature.
 
-    real(dp),dimension(:,:,:),pointer :: temp => null() !*FD Three-dimensional temperature field.
-    real(dp),dimension(:,:),  pointer :: bheatflx => null() !*FD basal heat flux
+    real(dp),dimension(:,:,:),pointer :: temp => null() !*FD 3D temperature field.
+    real(dp),dimension(:,:),  pointer :: bheatflx => null() !*FD basal heat flux (geothermal)
     real(dp),dimension(:,:,:),pointer :: flwa => null() !*FD Glenn's $A$.
     real(dp),dimension(:,:),  pointer :: bwat => null() !*FD Basal water depth
     real(dp),dimension(:,:),  pointer :: stagbwat => null() !*FD Basal water depth in velo grid
-    real(dp),dimension(:,:),  pointer :: stagbtemp => null() !*FD Basal temperature on velo grid
     real(dp),dimension(:,:),  pointer :: bmlt => null() !*FD Basal melt-rate
     real(dp),dimension(:,:),  pointer :: bmlt_tavg => null() !*FD Basal melt-rate
+    real(dp),dimension(:,:),  pointer :: stagbtemp => null() !*FD Basal temperature on velo grid
     real(dp),dimension(:,:),  pointer :: bpmp => null() !*FD Basal pressure melting point
     real(dp),dimension(:,:),  pointer :: stagbpmp => null() !*FD Basal pressure melting point on velo grid
     
@@ -412,6 +422,7 @@ module glide_types
                                                                
     real(dp),dimension(:),pointer :: sigma => null() !*FD Sigma values for vertical spacing of 
                                                      !*FD model levels
+    real(dp),dimension(:),pointer :: stagsigma => null() !*FD Staggered values of sigma (layer midpts)
 
     integer :: profile_period = 100            !*FD profile frequency
     integer :: ndiag = 1000                    !*FD diagnostic frequency
@@ -475,6 +486,7 @@ module glide_types
   type glide_tempwk
     real(dp),dimension(:,:,:),pointer :: inittemp => null()
     real(dp),dimension(:,:,:),pointer :: dissip   => null()
+    real(dp),dimension(:,:,:),pointer :: compheat => null()
     real(dp),dimension(:,:,:),pointer :: initadvt => null()
     real(dp),dimension(:),    pointer :: dupa     => null()
     real(dp),dimension(:),    pointer :: dupb     => null()
@@ -695,12 +707,16 @@ contains
 
     call coordsystem_allocate(model%general%velo_grid, model%geomderv%dthckdew)
     call coordsystem_allocate(model%general%velo_grid, model%geomderv%dusrfdew)
+    call coordsystem_allocate(model%general%velo_grid, model%geomderv%dlsrfdew)    
     call coordsystem_allocate(model%general%velo_grid, model%geomderv%dthckdns)
     call coordsystem_allocate(model%general%velo_grid, model%geomderv%dusrfdns)
+    call coordsystem_allocate(model%general%velo_grid, model%geomderv%dlsrfdns)
     call coordsystem_allocate(model%general%ice_grid, model%geomderv%dthckdtm)
     call coordsystem_allocate(model%general%ice_grid, model%geomderv%dusrfdtm)
 
     call coordsystem_allocate(model%general%velo_grid, model%geomderv%stagthck)
+    call coordsystem_allocate(model%general%velo_grid, model%geomderv%staglsrf)
+    call coordsystem_allocate(model%general%velo_grid, model%geomderv%stagusrf)
     call coordsystem_allocate(model%general%velo_grid, model%geomderv%stagtopg)
   
     call coordsystem_allocate(model%general%velo_grid, model%geometry%temporary0)
@@ -757,9 +773,9 @@ contains
     deallocate(model%temper%bheatflx)
     deallocate(model%temper%bwat)
     deallocate(model%temper%stagbwat)
-    deallocate(model%temper%stagbtemp)
     deallocate(model%temper%bmlt)
     deallocate(model%temper%bmlt_tavg)
+    deallocate(model%temper%stagbtemp)
     deallocate(model%temper%bpmp)
     deallocate(model%temper%stagbpmp)
 
@@ -794,11 +810,15 @@ contains
 
     deallocate(model%geomderv%dthckdew)
     deallocate(model%geomderv%dusrfdew)
+    deallocate(model%geomderv%dlsrfdew)
     deallocate(model%geomderv%dthckdns)
     deallocate(model%geomderv%dusrfdns)
+    deallocate(model%geomderv%dlsrfdns)
     deallocate(model%geomderv%dthckdtm)
     deallocate(model%geomderv%dusrfdtm)
     deallocate(model%geomderv%stagthck)
+    deallocate(model%geomderv%stagusrf)
+    deallocate(model%geomderv%staglsrf)
     deallocate(model%geomderv%stagtopg)
 
     deallocate(model%geometry%temporary0)
@@ -807,14 +827,16 @@ contains
     deallocate(model%geometry%usrf)
     deallocate(model%geometry%lsrf)
     deallocate(model%geometry%topg)
+    deallocate(model%geometry%age)
     deallocate(model%geometry%mask)
     deallocate(model%geometry%thkmask)
-    deallocate(model%geometry%age)
+
     deallocate(model%thckwk%olds)
     deallocate(model%thckwk%oldthck)
     deallocate(model%thckwk%oldthck2)
     deallocate(model%thckwk%float)
     deallocate(model%numerics%sigma)
+    deallocate(model%numerics%stagsigma)
     deallocate(model%pcgdwk%rhsd,model%pcgdwk%answ)
     call del_sparse_matrix(model%pcgdwk%matrix)
 

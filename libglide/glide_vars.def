@@ -57,12 +57,22 @@ standard_name: land_ice_sigma_coordinate
 positive:      down
 dimlen:        model%general%upn
 
+[staglevel]
+dimensions:    staglevel
+units:         1
+long_name:     stag sigma layers
+standard_name: land_ice_stag_sigma_coordinate
+positive:      down
+dimlen:        model%general%upn-1
+
 [lat]
 dimensions:    time, y1, x1
 units:         degreeN
 long_name:     latitude
+standard_name: latitude
 data:          data%climate%lati
 load:          1
+hot:           1
 standard_name: latitude
 
 [lon]
@@ -305,6 +315,15 @@ data:          data%geomderv%dusrfdtm
 factor:        scale2d_f1
 coordinates:   lon lat
 
+[dthckdtm]
+dimensions:    time, y1,x1
+units:         meter/year
+long_name:     tendency of ice thickness
+data:          data%geomderv%dthckdtm
+factor:        scale2d_f1
+coordinates:   lon lat
+
+
 [uvel]
 dimensions:    time, level, y0, x0
 units:         meter/year
@@ -355,6 +374,15 @@ long_name:     Pre-exponential flow law parameter
 data:          data%temper%flwa(up,:,:)
 factor:        scale3d_f8
 hot:           1
+coordinates:   lon lat
+
+[efvs]
+dimensions:    time, staglevel, y1, x1
+units:         Pascal * years
+long_name:     effective viscosity               
+data:          data%stress%efvs(up,:,:)
+factor:        scale3d_f10
+hot:           0
 coordinates:   lon lat
 
 [temp]
