@@ -470,18 +470,6 @@ contains
 
        ! Transform basal temperature and pressure melting point onto velocity grid -
 
-       call stagvarb(model%temper%temp(model%general%upn,1:model%general%ewn,1:model%general%nsn), &
-            model%temper%stagbtemp ,&
-            model%general%  ewn, &
-            model%general%  nsn)
-       
-       call calcbpmp(model,model%geometry%thck,model%temper%bpmp)
-
-       call stagvarb(model%temper%bpmp, &
-            model%temper%stagbpmp ,&
-            model%general%  ewn, &
-            model%general%  nsn)
-
     case(2) ! *sfp* stealing this un-used option ... 
 
         ! DO NOTHING. That is, hold T const. at initially assigned value
