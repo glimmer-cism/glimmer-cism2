@@ -36,9 +36,10 @@ module glide_thck
   use glide_types
   use glimmer_sparse
   use glimmer_sparse_type
+  use glide_grids
 
   private
-  public :: init_thck, thck_nonlin_evolve, thck_lin_evolve, stagvarb, timeders, stagleapthck
+  public :: init_thck, thck_nonlin_evolve, thck_lin_evolve, timeders, stagleapthck
 
 #ifdef DEBUG_PICARD
   ! debugging Picard iteration
@@ -438,10 +439,13 @@ subroutine geometry_derivs(model)
    !*FD them onto the staggered grid
    type(glide_global_type), intent(inout) :: model
 
-   call stagvarb(model%geometry% thck, &
+   call stagthickness(model%geometry% thck, &
              model%geomderv%stagthck,&
              model%general%ewn, &
-             model%general%nsn)
+             model%general%nsn, &
+             model%geometry%usrf, &
+             model%numerics%thklim, &
+             model%geometry%thkmask)
 
    call df_field_2d_staggered(model%geometry%usrf, &
                               model%numerics%dew, model%numerics%dns, &

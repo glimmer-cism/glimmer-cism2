@@ -257,6 +257,7 @@ contains
     use glimmer_deriv, only : df_field_2d_staggered
     use glimmer_paramets, only: tim0
     use glimmer_physcon, only: scyr
+    use glide_grids
 
     implicit none
 

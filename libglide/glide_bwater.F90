@@ -9,6 +9,8 @@ contains
     use glimmer_paramets, only : thk0
     use glide_thck
     use glide_temp_utils, only: calcpmptb
+    use glide_grids, only: stagvarb
+
     implicit none
 
     type(glide_global_type) :: model

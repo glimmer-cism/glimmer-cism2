@@ -195,6 +195,7 @@ contains
     use glide_velo
     use glide_thck
     use glide_mask
+    use glide_grids
     use glide_bwater
     use glide_temp_utils
 

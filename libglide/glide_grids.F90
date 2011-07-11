@@ -23,6 +23,7 @@ contains
   !<
   subroutine stagthickness(ipvr,opvr,ewn,nsn,usrf,thklim,mask)
     use glimmer_paramets, only: thk0
+    use glide_mask
     implicit none 
 
     real(dp), intent(out), dimension(:,:) :: opvr 
@@ -39,13 +40,13 @@ contains
             do ew = 1,ewn-1
 
                 !If any of our staggering points are shelf front, ignore zeros when staggering
-                if (any(GLIDE_IS_CALVING(mask(ew:ew+1, ns:ns+1)))) then
+                if (any(is_calving(mask(ew:ew+1, ns:ns+1)))) then
 
                 !Use the "only nonzero thickness" staggering criterion for ALL marginal ice. For
                 ! reasons that are not entirely clear, this corrects an error whereby the land ice 
                 ! margin is defined incorrectly as existing one grid cell too far inland from where 
                 ! it should be.  
-                !if (any(GLIDE_HAS_ICE(mask(ew:ew+1,ns:ns+1)))) then
+                !if (any(has_ice(mask(ew:ew+1,ns:ns+1)))) then
                     n = 0
                     tot = 0
     
