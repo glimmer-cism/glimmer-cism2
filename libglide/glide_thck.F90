@@ -450,7 +450,20 @@ subroutine geometry_derivs(model)
              model%geometry%usrf, &
              model%numerics%thklim, &
              model%geometry%thkmask)
+    
+   call stagvarb(model%geometry%lsrf, &
+                 model%geomderv%staglsrf,&
+                 model%general%ewn, &
+                 model%general%nsn)
 
+   call stagvarb(model%geometry%topg, &
+                 model%geomderv%stagtopg,&
+                 model%general%ewn, &
+                 model%general%nsn)
+
+   model%geomderv%stagusrf = model%geomderv%staglsrf + model%geomderv%stagthck
+
+    
    call df_field_2d_staggered(model%geometry%usrf, &
                               model%numerics%dew, model%numerics%dns, &
                               model%geomderv%dusrfdew, & 
@@ -470,6 +483,10 @@ subroutine geometry_derivs(model)
            model%geomderv%dthckdew = 0
            model%geomderv%dthckdns = 0
     endwhere
+
+    !TODO: correct signs
+    model%geomderv%dlsrfdew = model%geomderv%dusrfdew - model%geomderv%dthckdew
+    model%geomderv%dlsrfdns = model%geomderv%dusrfdns - model%geomderv%dthckdns
 
 end subroutine
 

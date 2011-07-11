@@ -107,11 +107,9 @@ contains
     !*FD scale parameters
     use glide_types
     use glimmer_physcon,  only: scyr, gn
-    use glimmer_paramets, only: thk0,tim0,len0, tau0, vel0, vis0, acc0
+    use glimmer_paramets, only: thk0,tim0,len0, vel0, vis0, acc0
     implicit none
     type(glide_global_type)  :: model !*FD model instance
-
-    tau0 = (vel0/(vis0*len0))**(1.0/gn)
 
     model%numerics%ntem = model%numerics%ntem * model%numerics%tinc
     model%numerics%nvel = model%numerics%nvel * model%numerics%tinc
@@ -380,6 +378,7 @@ contains
     use glide_types
     use glimmer_log
     use glimmer_filenames
+    use glimmer_global, only: dp
     implicit none
 
     ! Arguments
@@ -392,6 +391,7 @@ contains
 
     integer :: up,upn
     logical :: there
+    real(dp) :: level
 
     ! Beginning of code
 
@@ -401,7 +401,8 @@ contains
     case(0)
        call write_log('Calculating sigma levels')
        do up=1,upn
-          model%numerics%sigma(up) = glide_calc_sigma(real(up-1)/real(upn-1),2.)
+          level = real(up-1,kind=dp)/real(upn-1,kind=dp)
+          model%numerics%sigma(up) = glide_find_level(level, 1, up, upn)
        end do
     case(1)
        there = .false.
@@ -412,12 +413,13 @@ contains
        end if
        call write_log('Reading sigma file: '//process_path(model%funits%sigfile))
        open(unit,file=process_path(model%funits%sigfile))
-       read(unit,'(f5.2)',err=10,end=10) (model%numerics%sigma(up), up=1,upn)
+       read(unit,'(f9.7)',err=10,end=10) (model%numerics%sigma(up), up=1,upn)
        close(unit)
     case(2)
        call write_log('Using sigma levels from main configuration file')
     end select
-
+    print*,size(model%numerics%stagsigma)
+    print*,model%numerics%stagsigma
     model%numerics%stagsigma(1:upn-1) =   &
             (model%numerics%sigma(1:upn-1) + model%numerics%sigma(2:upn)) / 2.0_dp
 
@@ -428,9 +430,24 @@ contains
     
   end subroutine glide_load_sigma
 
+  function glide_find_level(level, scheme, up, upn)
+
+  !Returns the sigma coordinate of one level using a specific builtin scheme
+
+    use glide_types
+    use glimmer_global, only: dp
+    real(dp) :: level
+    integer  :: scheme, up, upn
+    real(dp) :: glide_find_level
+
+        glide_find_level = glide_calc_sigma(level,2D0)
+     
+  end function glide_find_level
+
   function glide_calc_sigma(x,n)
+      use glimmer_global, only:dp
       implicit none
-      real :: glide_calc_sigma,x,n
+      real(dp) :: glide_calc_sigma,x,n
       
       glide_calc_sigma = (1-(x+1)**(-n))/(1-2**(-n))
   end function glide_calc_sigma

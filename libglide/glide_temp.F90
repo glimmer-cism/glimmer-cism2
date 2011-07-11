@@ -247,6 +247,14 @@ contains
 
        ! Calculate the actual vertical velocity; method depends on whichwvel ------------
 
+         call gridwvel(model%numerics%sigma,  &
+              model%numerics%thklim, &
+              model%velocity%uvel,   &
+              model%velocity%vvel,   &
+              model%geomderv,        &
+              model%geometry%thck,   &
+              model%velocity%wgrd)
+
          select case(model%options%whichwvel)
          case(0) 
 

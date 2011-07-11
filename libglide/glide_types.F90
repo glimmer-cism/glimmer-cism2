@@ -645,6 +645,11 @@ contains
     !*FD \item \texttt{sigma(upn))}
     !*FD \end{itemize}
 
+    !*FD In \texttt{model\%numerics}:
+    !*FD \begin{itemize}
+    !*FD \item \texttt{stagsigma(upn-1))}
+    !*FD \end{itemize}
+
     use glimmer_log
 
     implicit none
@@ -670,10 +675,10 @@ contains
     call coordsystem_allocate(model%general%ice_grid, model%temper%bheatflx)
     call coordsystem_allocate(model%general%ice_grid, model%temper%bwat)
     call coordsystem_allocate(model%general%velo_grid, model%temper%stagbwat)
-    call coordsystem_allocate(model%general%velo_grid, model%temper%stagbtemp)
     call coordsystem_allocate(model%general%ice_grid, model%temper%bmlt)
     call coordsystem_allocate(model%general%ice_grid, model%temper%bpmp)
     call coordsystem_allocate(model%general%ice_grid, model%temper%bmlt_tavg)
+    call coordsystem_allocate(model%general%velo_grid, model%temper%stagbtemp)
     call coordsystem_allocate(model%general%velo_grid, model%temper%stagbpmp)
 
     allocate(model%lithot%temp(1:ewn,1:nsn,model%lithot%nlayer)); model%lithot%temp = 0.0
@@ -743,6 +748,9 @@ contains
     else
        allocate(model%numerics%sigma(upn))
     endif
+
+    !whl - to do - might be useful to change to (0:upn)
+    allocate(model%numerics%stagsigma(upn-1))
 
     ! allocate memory for sparse matrix
     allocate (model%pcgdwk%rhsd(ewn*nsn))
