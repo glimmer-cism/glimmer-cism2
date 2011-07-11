@@ -3,20 +3,18 @@ module glide_bwater
    use glide_types
 
 contains
-  subroutine calcbwat(model,which,bmlt,bwat,thck,topg,btem,floater)
+  subroutine calcbwat(model,which,bmlt,bwat,bwatflx,thck,topg,btem,floater,wphi)
 
     use glimmer_global, only : dp 
     use glimmer_paramets, only : thk0
     use glide_thck
-    use glide_temp_utils, only: calcpmptb
     use glide_grids, only: stagvarb
 
     implicit none
 
-    type(glide_global_type) :: model
+    type(glide_global_type),intent(inout) :: model
     integer, intent(in) :: which
-
-    real(dp), dimension(:,:), intent(inout) :: bwat
+    real(dp), dimension(:,:), intent(inout) :: bwat, wphi, bwatflx
     real(dp), dimension(:,:), intent(in) :: bmlt, thck, topg, btem
     logical, dimension(:,:), intent(in) :: floater
 
@@ -27,8 +25,27 @@ contains
 
     integer :: t_wat,ns,ew
 
+    real(dp),  dimension(model%general%ewn,model%general%nsn) :: N, flux, lakes
+    real(dp) :: c_effective_pressure,c_flux_to_depth,p_flux_to_depth,q_flux_to_depth
+
+    ! TODO: move these declarations into a parameters derived type
+    c_effective_pressure = 0.0d0       ! For now estimated with c/w
+    c_flux_to_depth = 1./(1.8d-3*12.0d0)  ! 
+    p_flux_to_depth = 2.0d0            ! exponent on the depth
+    q_flux_to_depth = 1.0d0            ! exponent on the potential gradient
+
     select case (which)
+
+    ! which = BWATER_LOCAL Completely local, bwat_new = c1 * melt_rate + c2 * bwat_old
+    ! which = BWATER_FLUX Flux based calculation
+    ! which = BWATER_NONE Nothing, basal water = 0.
+    ! which = BWATER_BASAL_PROC, till water content in the basal processes module
+
     case(0)
+
+       ! model%tempwk%c(1) =  model%tempwk%dt_wat
+       !              c(2) =  1.0d0 - 0.5d0 * model%tempwk%dt_wat * model%paramets%hydtim
+       !              c(3) =  1.0d0 + 0.5d0 * model%tempwk%dt_wat * model%paramets%hydtim
 
        do t_wat = 1, model%tempwk%nwat
           do ns = 1,model%general%nsn
@@ -64,143 +81,41 @@ contains
 
        bwat(1:model%general%ewn,1:model%general%nsn) = model%tempwk%smth(1:model%general%ewn,1:model%general%nsn)
 
+    ! Case added by Jesse Johnson 11/15/08
+    ! Steady state routing of basal water using flux calculation
     case(1)
-       ! apply periodic BC
-       if (model%options%periodic_ew.eq.1) then
-          write(*,*) 'Warning, periodic BC are not implement for this case yet'
-       end if
-       ! ** add any melt_water
 
-       bwat = max(0.0d0,bwat + model%numerics%dttem * bmlt)
+      call effective_pressure(bwat,c_effective_pressure,N)
+      call pressure_wphi(thck,topg,N,wphi,model%numerics%thklim,floater)
+      call route_basal_water(wphi,bmlt,model%numerics%dew,model%numerics%dns,bwatflx,lakes)
+      call flux_to_depth(bwatflx,wphi,c_flux_to_depth,p_flux_to_depth,q_flux_to_depth,model%numerics%dew,model%numerics%dns,bwat)
 
-       model%tempwk%wphi = 0.
-       model%tempwk%bwatu = 0.
-       model%tempwk%bwatv = 0.
-       model%tempwk%fluxew = 0.
-       model%tempwk%fluxns = 0.
-       model%tempwk%bint = 0.
+    case(3)
+    !Normalized basal water 
+
+!    bwat=model%basalproc%Hwater/thk0
+    write(*,*)"ERROR: Current release does not support use of the basal processes module."
+    write(*,*)"       Re-run code with alternate option selected for 'whichbwat'."
+    stop
 
 
-       ! ** split time evolution into steps to avoid CFL problems
-
-       do t_wat = 1,model%tempwk%nwat
-
-          ! ** find potential surface using paterson p112, eq 4
-          ! ** if no ice then set to sea level or land surface potential
-          ! ** if frozen then set high 
-
-          do ns = 1,model%general%nsn
-             do ew = 1,model%general%ewn
-                if (model%numerics%thklim < thck(ew,ns) .and. .not. floater(ew,ns)) then
-                   call calcpmptb(pmpt,thck(ew,ns))
-                   if (btem(ew,ns) == pmpt) then
-                      model%tempwk%wphi(ew,ns) = model%tempwk%c(1) * (topg(ew,ns) + bwat(ew,ns)) + model%tempwk%c(2) * thck(ew,ns)
-                   else
-                      model%tempwk%wphi(ew,ns) = model%tempwk%c(1) * (topg(ew,ns) + thck(ew,ns))
-                   end if
-                else 
-                   model%tempwk%wphi(ew,ns) = max(model%tempwk%c(1) * topg(ew,ns),0.0d0)
-                end if
-             end do
-          end do
-
-          ! ** determine x,y components of water velocity assuming
-          ! ** contstant velocity magnitude and using potential
-          ! ** to determine direction
-
-          do ns = 2,model%general%nsn-1
-             do ew = 2,model%general%ewn-1
-                if (thck(ew,ns) > model%numerics%thklim) then
-
-                   dwphidew = (model%tempwk%wphi(ew+1,ns) - model%tempwk%wphi(ew-1,ns)) / model%tempwk%c(3)       
-                   dwphidns = (model%tempwk%wphi(ew,ns+1) - model%tempwk%wphi(ew,ns-1)) / model%tempwk%c(4)  
-
-                   dwphi = - model%tempwk%watvel / sqrt(dwphidew**2 + dwphidns**2)
-
-                   model%tempwk%bwatu(ew,ns) = dwphi * dwphidew  
-                   model%tempwk%bwatv(ew,ns) = dwphi * dwphidns  
-
-                else
-                   model%tempwk%bwatu(ew,ns) = 0.0d0
-                   model%tempwk%bwatv(ew,ns) = 0.0d0
-                end if
-             end do
-          end do
-
-          ! ** use two-step law wendroff to solve dW/dt = -dF/dx - dF/dy
-
-          ! ** 1. find fluxes F=uW
-
-          model%tempwk%fluxew = bwat * model%tempwk%bwatu
-          model%tempwk%fluxns = bwat * model%tempwk%bwatv
-
-          ! ** 2. do 1st LW step on staggered grid for dt/2
-
-          do ns = 1,model%general%nsn-1
-             do ew = 1,model%general%ewn-1
-
-                bave = 0.25 * sum(bwat(ew:ew+1,ns:ns+1))
-
-                if (bave > 0.0d0) then
-
-                   model%tempwk%bint(ew,ns) = bave - &
-                        model%tempwk%c(5) * (sum(model%tempwk%fluxew(ew+1,ns:ns+1)) - sum(model%tempwk%fluxew(ew,ns:ns+1))) - &
-                        model%tempwk%c(6) * (sum(model%tempwk%fluxns(ew:ew+1,ns+1)) - sum(model%tempwk%fluxns(ew:ew+1,ns)))
-
-                else
-                   model%tempwk%bint(ew,ns) = 0.0d0
-                end if
-             end do
-          end do
-
-          ! ** 3. find fluxes F=uW on staggered grid griven new Ws
-
-          model%tempwk%fluxew(1:model%general%ewn-1,1:model%general%nsn-1) = model%tempwk%bint * 0.25 * &
-               (model%tempwk%bwatu(1:model%general%ewn-1,1:model%general%nsn-1) + &
-               model%tempwk%bwatu(2:model%general%ewn,1:model%general%nsn-1) + &
-               model%tempwk%bwatu(1:model%general%ewn-1,2:model%general%nsn) + &
-               model%tempwk%bwatu(2:model%general%ewn,2:model%general%nsn))
-          model%tempwk%fluxns(1:model%general%ewn-1,1:model%general%nsn-1) = model%tempwk%bint * 0.25 * &
-               (model%tempwk%bwatv(1:model%general%ewn-1,1:model%general%nsn-1) + &
-               model%tempwk%bwatv(2:model%general%ewn,1:model%general%nsn-1) + &
-               model%tempwk%bwatv(1:model%general%ewn-1,2:model%general%nsn) + &
-               model%tempwk%bwatv(2:model%general%ewn,2:model%general%nsn))
-
-          ! ** 4. finally do 2nd LW step to get back on to main grid
-
-          do ns = 2,model%general%nsn-1
-             do ew = 2,model%general%ewn-1
-                if (bwat(ew,ns) > 0.0d0) then
-
-                   bwat(ew,ns) = bwat(ew,ns) - &
-                        model%tempwk%c(7) * (sum(model%tempwk%fluxew(ew,ns-1:ns)) - sum(model%tempwk%fluxew(ew-1,ns-1:ns))) - &
-                        model%tempwk%c(8) * (sum(model%tempwk%fluxns(ew-1:ew,ns)) - sum(model%tempwk%fluxns(ew-1:ew,ns-1)))
-
-                else
-                   bwat(ew,ns) = 0.0d0
-                end if
-             end do
-          end do
-       end do
-
-       where (blim(1) > bwat) 
-          bwat = 0.0d0
-       end where
+    case(4)
+    !Use a constant thickness of water, to force Tpmp. Normalized too.
+    bwat=10.0/thk0
 
     case default
       bwat = 0.0d0
     end select
 
-    ! How to call the flow router.
-    ! call advectflow(bwat,phi,bmlt,model%geometry%mask)
-
-    ! now also calculate basal water in velocity coord system
+    ! now also calculate basal water in velocity (staggered) coord system
     call stagvarb(model%temper%bwat, &
          model%temper%stagbwat ,&
          model%general%  ewn, &
          model%general%  nsn)
 
   contains
+
+    ! Internal subroutine for smoothing
     subroutine smooth_bwat(ewm,ew,ewp,nsm,ns,nsp)
       ! smoothing basal water distrib
       implicit none
@@ -228,51 +143,65 @@ contains
 
   end subroutine find_dt_wat
 
-  subroutine flow_router(surface,input,output,mask,dx,dy)
+   subroutine route_basal_water(wphi,melt,dx,dy,flux,lakes)
+    !*FD Routes water from melt field to its destination, recording flux
+    !*FD of water along the route. Water flow direction is determined according
+    !*FD to the gradient of a wphi elevation field. For the algorithm to 
+    !*FD function properly depressions in the wphi surface must be filled.
+    !*FD this results in the lakes field, which is the difference between the
+    !*FD filled surface and the original wphi.
+    !*FD The method used is by Quinn et. al. (1991).
+    !*FD
+    !*FD 12/9/05 Jesse Johnson based on code from the glimmer_routing file
+    !*FD by Ian Rutt.
 
-    !*FD Routes water from input field to its destination, 
-    !*FD according to a surface elevation field. The method used 
-    !*FD is by Quinn et. al. (1991)
+    implicit none
 
-    real(sp),dimension(:,:),intent(in)  :: surface !*FD Surface elevation
-    real(rk),dimension(:,:),intent(in)  :: input   !*FD Input water field
-    real(rk),dimension(:,:),intent(out) :: output  !*FD Output water field
-    integer, dimension(:,:),intent(in)  :: mask    !*FD Masked points
-    real(rk),               intent(in)  :: dx      !*FD $x$ grid-length
-    real(rk),               intent(in)  :: dy      !*FD $y$ grid-length
+    real(rk),dimension(:,:),intent(in)  :: wphi    !*FD Input potential surface
+    real(rk),dimension(:,:),intent(in)  :: melt    !*FD Input melting field
+    real(rk),               intent(in)  :: dx      !*FD Input $x$ grid-spacing
+    real(rk),               intent(in)  :: dy      !*FD Input $y$ grid-spacing
+    real(rk),dimension(:,:),intent(out) :: flux    !*FD Output flux field
+    real(rk),dimension(:,:),intent(out) :: lakes   !*FD Output lakes field
 
     ! Internal variables --------------------------------------
 
     integer :: nx,ny,k,nn,cx,cy,px,py,x,y
+    integer, dimension(:,:),allocatable :: mask    !*FD Masked points
     integer, dimension(:,:),allocatable :: sorted
-    real(rk),dimension(:,:),allocatable :: flats,surfcopy
+    real(rk),dimension(:,:),allocatable :: flats,potcopy
     real(rk),dimension(-1:1,-1:1) :: slopes
     real(rk),dimension(-1:1,-1:1) :: dists
     logical :: flag
 
     ! Set up grid dimensions ----------------------------------
 
-    nx=size(surface,1) ; ny=size(surface,2)
+    nx=size(wphi,1) ; ny=size(wphi,2)
     nn=nx*ny
 
-    dists(-1,:)=(/4d0,2d0*dx/dy,4d0/)
-    dists(0,:)=(/2d0*dy/dx,0d0,2d0*dy/dx/)
+    ! Change these distances for slope determination
+
+    dists(-1,:)=(/sqrt(dx**2+dy**2),dy,sqrt(dx**2+dy**2)/)
+    dists(0,:)=(/dx,0d0,dx/)
     dists(1,:)=dists(-1,:)
 
     ! Allocate internal arrays and copy data ------------------
 
-    allocate(sorted(nn,2),flats(nx,ny),surfcopy(nx,ny))
-    surfcopy=surface
+    allocate(sorted(nn,2),flats(nx,ny),potcopy(nx,ny),mask(nx,ny))
+    potcopy=wphi
+    mask=1
 
     ! Fill holes in data, and sort heights --------------------
 
-    call fillholes(surfcopy,flats,mask)
-    call heights_sort(surfcopy,sorted)
+    call fillholes(potcopy,flats,mask)
+    call heights_sort(potcopy,sorted)
 
-    ! Initialise output with input, which will then be --------
-    ! redistributed -------------------------------------------
+    lakes=potcopy-wphi
 
-    output=input
+    ! Initialise flux with melt, which will then be --------
+    ! redistributed. Multiply by area, so volumes are found.---
+
+    flux=melt * dx * dy
 
     ! Begin loop over points, highest first -------------------
 
@@ -283,46 +212,52 @@ contains
       x=sorted(k,1)
       y=sorted(k,2)
 
-      ! Reset flags and slope arrays --------------------------
+      ! Only propagate down slope positive values 
+      if (melt(x,y)>0) then
 
-      flag=.true.
-      slopes=0.0
+        ! Reset flags and slope arrays --------------------------
 
-      ! Loop over adjacent points, and calculate slopes -------
+        flag=.true.
+        slopes=0.0
 
-      do cx=-1,1,1
-        do cy=-1,1,1
-          ! If this is the centre point, ignore
-          if (cx==0.and.cy==0) continue
-          ! Otherwise do slope calculation 
-          px=x+cx ; py=y+cy
-          if (px>0.and.px<=nx.and.py>0.and.py<=ny) then
-              if (surfcopy(px,py)<surfcopy(x,y)) then
-                slopes(cx,cy)=(surfcopy(x,y)-surfcopy(px,py))/dists(cx,cy)
-              endif
-          endif
-        enddo
-      enddo
+        ! Loop over adjacent points, and calculate slopes -------
 
-      ! If there are places for the water to drain to, --------
-      ! distribute it accordingly -----------------------------
-
-      if (sum(slopes)/=0.0) then
-
-        slopes=slopes/sum(slopes)
-        do cx=-1,1
-          do cy=-1,1
-            px=x+cx ;py=y+cy
-            if (slopes(cx,cy)/=0.0) then
-              output(px,py)=output(px,py)+output(x,y)*slopes(cx,cy)
+        do cx=-1,1,1
+          do cy=-1,1,1
+            ! If this is the centre point, ignore
+            if (cx==0.and.cy==0) continue
+            ! Otherwise do slope calculation 
+            px=x+cx ; py=y+cy
+            if (px>0.and.px<=nx.and.py>0.and.py<=ny) then
+                ! Only allow flow to points that are melted or freezing.
+                ! Testing relax this condition (Hell, Frank does).
+                !if (potcopy(px,py)<potcopy(x,y) .and. melt(px,py)/=0.0) then
+                if (potcopy(px,py)<potcopy(x,y)) then
+                  slopes(cx,cy)=(potcopy(x,y)-potcopy(px,py))/dists(cx,cy)
+                endif
             endif
           enddo
         enddo
 
-        ! Having distributed the water, zero the source -------
+        ! If there are places for the water to drain to, --------
+        ! distribute it accordingly -----------------------------
 
-        output(x,y)=0.0
+        if (sum(slopes)/=0.0) then
+          slopes=slopes/sum(slopes)
+          do cx=-1,1
+            do cy=-1,1
+              px=x+cx ;py=y+cy
+              if (slopes(cx,cy)/=0.0) then
+                flux(px,py)=flux(px,py)+flux(x,y)*slopes(cx,cy)
+              endif
+            enddo
+          enddo
 
+        ! Note that sources are not zeroed in this case.---------
+
+        endif
+
+      ! End test for positive melt rate.-------------------------
       endif
 
       ! End of main loop ----------------------------------------
@@ -333,7 +268,91 @@ contains
 
     deallocate(sorted,flats)
 
-  end subroutine flow_router
+  end subroutine route_basal_water
+
+!==============================================================
+  subroutine flux_to_depth(flux,wphi,c,p,q,dew,dns,bwat)
+  !*FD Assuming that the flow is steady state, this function simply solves
+  !*FD              flux = depth * velocity
+  !*FD for the depth, assuming that the velocity is a function of depth,
+  !*FD and pressure potential. This amounts to assuming a Weertman film,
+  !*FD or Manning flow, both of which take the form of a constant times water
+  !*FD depth to a power, times pressure wphi to a power.
+
+    use glimmer_deriv, only: df_field_2d              ! Find grad_wphi
+    use glimmer_physcon, only : scyr                ! Seconds per year
+
+    real(dp),dimension(:,:),intent(in) :: flux      ! Basal water flux
+    real(dp),dimension(:,:),intent(in) :: wphi      ! Pressure wphi
+    real(dp)               ,intent(in) ::  c        ! Constant of proportionality
+    real(dp)               ,intent(in) ::  p        ! Exponent of the water depth
+    real(dp)               ,intent(in) ::  q        ! Exponent of the pressure pot.
+    real(dp)               ,intent(in) ::  dew      ! Grid spacing, ew direction
+    real(dp)               ,intent(in) ::  dns      ! Grid spacing, ns direction
+    real(dp),dimension(:,:),intent(out)::  bwat     ! Water Depth
+
+    ! Internal variables 
+    real(rk),dimension(:,:),allocatable :: grad_wphi, dwphidx, dwphidy
+
+    integer nx,ny
+
+    ! Set up grid dimensions ----------------------------------
+    nx=size(flux,1) ; ny=size(flux,2)
+    nn=nx*ny
+
+    ! Allocate internal arrays and copy data ------------------
+    allocate(dwphidx(nx,ny),dwphidy(nx,ny),grad_wphi(nx,ny))
+
+    ! Compute the gradient of the potential field.
+    call df_field_2d(wphi,dew,dns,dwphidx,dwphidy,.FALSE.,.FALSE.)
+
+    grad_wphi = sqrt(dwphidx**2 + dwphidy**2)
+
+    where (grad_wphi.NE.0.) 
+        bwat = ( flux / (c * scyr *  dns * grad_wphi ** q) ) ** (1./(p+1.))
+    elsewhere
+        bwat = 0.d0
+    endwhere
+       
+
+  end subroutine flux_to_depth
+
+!==============================================================
+  subroutine effective_pressure(bwat,c,N)
+    real(dp),dimension(:,:),intent(in) ::  bwat! Water depth
+    real(dp)               ,intent(in) ::  c   ! Constant of proportionality
+    real(dp),dimension(:,:),intent(out) :: N   ! Effective pressure
+
+    where (bwat > 0.d0)
+        N = c / bwat
+    elsewhere
+        N = 0.d0
+    endwhere
+  end subroutine effective_pressure
+!==============================================================
+  subroutine pressure_wphi(thck,topg,N,wphi,thicklim,floater)
+  !*FD Compute the pressure wphi at the base of the ice sheet according to
+  !*FD ice overburden plus bed height minus effective pressure.
+  !*FD
+  !*FD whpi/(rhow*g) = topg + bwat * rhoi / rhow * thick - N / (rhow * g)
+
+    use glimmer_physcon, only : rhoi,rhow,grav
+    implicit none
+    real(dp),dimension(:,:),intent(in) :: thck      ! Thickness
+    real(dp),dimension(:,:),intent(in) :: topg      ! Bed elevation
+    real(dp),dimension(:,:),intent(in) :: N         ! Effective pressure
+    logical,dimension(:,:),intent(in)  :: floater   ! Mask of floating ice
+    real(dp),intent(in)                :: thicklim  ! Minimal ice thickness
+    real(dp),dimension(:,:),intent(out) :: wphi     ! Pressure wphi
+
+
+    where (thck> thicklim .and. .not. floater)
+      wphi = thck + rhow/rhoi * topg - N / (rhow * grav)
+    elsewhere
+      wphi = max(topg *rhow/rhoi,0.0d0)
+    end where
+
+  end subroutine pressure_wphi
   
 !==============================================================
 ! Internal subroutines
@@ -418,16 +437,16 @@ contains
 
 !==============================================================
 
-  subroutine heights_sort(surface,sorted)
+  subroutine heights_sort(wphi,sorted)
 
-    real(rk),dimension(:,:) :: surface
+    real(rk),dimension(:,:) :: wphi
     integer,dimension(:,:) :: sorted
 
     integer :: nx,ny,nn,i,j,k
     real(rk),dimension(:),allocatable :: vect
     integer,dimension(:),allocatable :: ind
 
-    nx=size(surface,1) ; ny=size(surface,2)
+    nx=size(wphi,1) ; ny=size(wphi,2)
     nn=size(sorted,1)
 
     allocate(vect(nn),ind(nn)) 
@@ -441,7 +460,7 @@ contains
 
     do i=1,nx
       do j=1,ny
-        vect(k)=surface(i,j)
+        vect(k)=wphi(i,j)
         k=k+1
       enddo
     enddo
@@ -454,7 +473,7 @@ contains
     enddo
 
     do k=1,nn
-      vect(k)=surface(sorted(k,1),sorted(k,2))
+      vect(k)=wphi(sorted(k,1),sorted(k,2))
     enddo
     
   end subroutine heights_sort

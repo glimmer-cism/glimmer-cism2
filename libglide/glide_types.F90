@@ -330,6 +330,7 @@ module glide_types
     real(dp),dimension(:,:),  pointer :: bheatflx => null() !*FD basal heat flux (geothermal)
     real(dp),dimension(:,:,:),pointer :: flwa => null() !*FD Glenn's $A$.
     real(dp),dimension(:,:),  pointer :: bwat => null() !*FD Basal water depth
+    real(dp),dimension(:,:),  pointer :: bwatflx => null() !*FD Basal water flux 
     real(dp),dimension(:,:),  pointer :: stagbwat => null() !*FD Basal water depth in velo grid
     real(dp),dimension(:,:),  pointer :: bmlt => null() !*FD Basal melt-rate
     real(dp),dimension(:,:),  pointer :: bmlt_tavg => null() !*FD Basal melt-rate
@@ -502,8 +503,9 @@ module glide_types
     real(dp),dimension(:,:),  pointer :: smth     => null()
     real(dp),dimension(:,:,:),pointer :: hadv_u   => null()
     real(dp),dimension(:,:,:),pointer :: hadv_v   => null()
-    real(dp),dimension(4)             :: cons     = 0.0
-    real(dp),dimension(4)             :: f        = 0.0
+    !*sfp** added space to the next 2 (cons, f) for use w/ HO and SSA dissip. calc. 
+    real(dp),dimension(5)             :: cons     = 0.0
+    real(dp),dimension(5)             :: f        = 0.0
     real(dp),dimension(8)             :: c        = 0.0
     real(dp),dimension(2)             :: slide_f
     real(dp) :: noflow      = -1
@@ -674,6 +676,7 @@ contains
     call coordsystem_allocate(model%general%ice_grid, upn, model%temper%flwa)
     call coordsystem_allocate(model%general%ice_grid, model%temper%bheatflx)
     call coordsystem_allocate(model%general%ice_grid, model%temper%bwat)
+    call coordsystem_allocate(model%general%ice_grid, model%temper%bwatflx)
     call coordsystem_allocate(model%general%velo_grid, model%temper%stagbwat)
     call coordsystem_allocate(model%general%ice_grid, model%temper%bmlt)
     call coordsystem_allocate(model%general%ice_grid, model%temper%bpmp)
@@ -780,6 +783,7 @@ contains
     deallocate(model%temper%flwa)
     deallocate(model%temper%bheatflx)
     deallocate(model%temper%bwat)
+    deallocate(model%temper%bwatflx)
     deallocate(model%temper%stagbwat)
     deallocate(model%temper%bmlt)
     deallocate(model%temper%bmlt_tavg)

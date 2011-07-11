@@ -418,8 +418,7 @@ contains
     case(2)
        call write_log('Using sigma levels from main configuration file')
     end select
-    print*,size(model%numerics%stagsigma)
-    print*,model%numerics%stagsigma
+
     model%numerics%stagsigma(1:upn-1) =   &
             (model%numerics%sigma(1:upn-1) + model%numerics%sigma(2:upn)) / 2.0_dp
 

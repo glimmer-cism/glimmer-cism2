@@ -71,7 +71,7 @@ contains
 
     !*FD initialise temperature module
     use glimmer_physcon, only : rhoi, shci, coni, scyr, grav, gn, lhci, rhow
-    use glimmer_paramets, only : tim0, thk0, acc0, len0, vis0, vel0
+    use glimmer_paramets, only : tim0, thk0, acc0, len0, vis0, vel0, tau0
     use glimmer_global, only : dp 
     use glimmer_log
     use glide_bwater, only : find_dt_wat
@@ -94,6 +94,8 @@ contains
 
     allocate(model%tempwk%inittemp(model%general%upn,model%general%ewn,model%general%nsn))
     allocate(model%tempwk%dissip(model%general%upn,model%general%ewn,model%general%nsn))
+    allocate(model%tempwk%compheat(model%general%upn,model%general%ewn,model%general%nsn))
+    model%tempwk%compheat = 0.0d0
 
     allocate(model%tempwk%dups(model%general%upn,3))
 
@@ -130,7 +132,9 @@ contains
     model%tempwk%cons = (/ 2.0d0 * tim0 * model%numerics%dttem * coni / (2.0d0 * rhoi * shci * thk0**2), &
          model%numerics%dttem / 2.0d0, &
          VERT_DIFF*2.0d0 * tim0 * model%numerics%dttem / (thk0 * rhoi * shci), &
-         VERT_ADV*tim0 * acc0 * model%numerics%dttem / coni /)
+         VERT_ADV*tim0 * acc0 * model%numerics%dttem / coni, &
+         ( tau0 * vel0 / len0 ) / ( rhoi * shci ) * ( model%numerics%dttem * tim0 ) /)  
+         !*sfp* added last term to vector above for use in HO & SSA dissip. cacl
 
     model%tempwk%c1 = STRAIN_HEAT *(model%numerics%sigma * rhoi * grav * thk0**2 / len0)**p1 * &
          2.0d0 * vis0 * model%numerics%dttem * tim0 / (16.0d0 * rhoi * shci)
@@ -153,7 +157,9 @@ contains
     model%tempwk%f = (/ tim0 * coni / (thk0**2 * lhci * rhoi), &
          tim0 / (thk0 * lhci * rhoi), &
          tim0 * thk0 * rhoi * shci /  (thk0 * tim0 * model%numerics%dttem * lhci * rhoi), &
-         tim0 * thk0**2 * vel0 * grav * rhoi / (4.0d0 * thk0 * len0 * rhoi * lhci) /)
+         tim0 * thk0**2 * vel0 * grav * rhoi / (4.0d0 * thk0 * len0 * rhoi * lhci), &
+         tim0 * vel0 * tau0 / (4.0d0 * thk0 * rhoi * lhci) /)      
+         !*sfp* added the last term in the vect above for HO and SSA dissip. calc. 
 
     ! setting up some factors for sliding contrib to basal heat flux
     model%tempwk%slide_f = (/ VERT_DIFF * grav * thk0 * model%numerics%dttem/ shci, & ! vert diffusion
@@ -168,15 +174,16 @@ contains
           model%tempwk%c = (/ model%tempwk%dt_wat, 1.0d0 - 0.5d0 * model%tempwk%dt_wat * model%paramets%hydtim, &
                1.0d0 + 0.5d0 * model%tempwk%dt_wat * model%paramets%hydtim, 0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0 /) 
        case(1)
-          model%tempwk%watvel = model%paramets%hydtim * tim0 / (scyr * len0)
-          estimate = (0.2d0 * model%tempwk%watvel) / min(model%numerics%dew,model%numerics%dns)
-          call find_dt_wat(model%numerics%dttem,estimate,model%tempwk%dt_wat,model%tempwk%nwat) 
+          !EIB! not in lanl
+          !model%tempwk%watvel = model%paramets%hydtim * tim0 / (scyr * len0)
+          !estimate = (0.2d0 * model%tempwk%watvel) / min(model%numerics%dew,model%numerics%dns)
+          !call find_dt_wat(model%numerics%dttem,estimate,model%tempwk%dt_wat,model%tempwk%nwat) 
           
-          print *, model%numerics%dttem*tim0/scyr, model%tempwk%dt_wat*tim0/scyr, model%tempwk%nwat
+          !print *, model%numerics%dttem*tim0/scyr, model%tempwk%dt_wat*tim0/scyr, model%tempwk%nwat
 
-          model%tempwk%c = (/ rhow * grav, rhoi * grav, 2.0d0 * model%numerics%dew, 2.0d0 * model%numerics%dns, &
-               0.25d0 * model%tempwk%dt_wat / model%numerics%dew, 0.25d0 * model%tempwk%dt_wat / model%numerics%dns, &
-               0.5d0 * model%tempwk%dt_wat / model%numerics%dew, 0.5d0 * model%tempwk%dt_wat / model%numerics%dns /)
+          !model%tempwk%c = (/ rhow * grav, rhoi * grav, 2.0d0 * model%numerics%dew, 2.0d0 * model%numerics%dns, &
+          !     0.25d0 * model%tempwk%dt_wat / model%numerics%dew, 0.25d0 * model%tempwk%dt_wat / model%numerics%dns, &
+          !     0.5d0 * model%tempwk%dt_wat / model%numerics%dew, 0.5d0 * model%tempwk%dt_wat / model%numerics%dns /)
           
        end select
 
@@ -189,7 +196,7 @@ contains
     !*FD Calculates the ice temperature, according to one
     !*FD of several alternative methods.
 
-    use glimmer_utils, only: hsum4,tridiag
+    use glimmer_utils, only: tridiag
     use glimmer_global, only : dp
     use glimmer_paramets, only : thk0
     use glide_velo
@@ -459,14 +466,17 @@ contains
 
        ! Calculate basal water depth ------------------------------------------------
 
+       !JCC - Using lanl's bwater calculation routines.
        call calcbwat(model, &
             model%options%whichbwat, &
             model%temper%bmlt, &
             model%temper%bwat, &
+            model%temper%bwatflx, &
             model%geometry%thck, &
             model%geometry%topg, &
             model%temper%temp(model%general%upn,:,:), &
-            is_float(model%geometry%thkmask))
+            is_float(model%geometry%thkmask), &
+            model%tempwk%wphi)
 
        ! Transform basal temperature and pressure melting point onto velocity grid -
 
@@ -667,7 +677,6 @@ contains
   subroutine findvtri_init(model,ew,ns,subd,diag,supd,weff,temp,thck,float)
     !*FD called during first iteration to set inittemp
     use glimmer_global, only : dp
-    use glide_temp_utils, only: pmpt
     implicit none
     type(glide_global_type) :: model
     integer, intent(in) :: ew, ns
@@ -688,7 +697,8 @@ contains
          + model%tempwk%dissip(2:model%general%upn-1,ew,ns)
     
     if (float) then
-       model%tempwk%inittemp(model%general%upn,ew,ns) = pmpt(thck)
+       model%tempwk%inittemp(model%general%upn,ew,ns) = temp(model%general%upn) 
+       !EIB old!model%tempwk%inittemp(model%general%upn,ew,ns) = pmpt(thck)
     else 
        ! sliding contribution to basal heat flux
        slterm = 0.
@@ -759,7 +769,7 @@ contains
     type(glide_global_type) :: model
     real(dp), dimension(:,0:,0:), intent(in) :: temp
     real(dp), dimension(:,:), intent(in) :: thck,  stagthck, dusrfdew, dusrfdns, ubas, vbas  
-    real(dp), dimension(:,:), intent(out) :: bmlt
+    real(dp), dimension(:,:), intent(inout) :: bmlt
     logical, dimension(:,:), intent(in) :: floater
 
     real(dp), dimension(size(model%numerics%sigma)) :: pmptemp
@@ -785,7 +795,9 @@ contains
                     end do
 
                 bmlt(ew,ns) = 0.0d0
-                newmlt = model%tempwk%f(4) * slterm - model%tempwk%f(2)*model%temper%bheatflx(ew,ns) + model%tempwk%f(3) * &
+                !*sfp* changed this so that 'slterm' is multiplied by f(4) const. above ONLY for the 0-order SIA case,
+                ! since for the HO and SSA cases a diff. const. needs to be used
+                newmlt = slterm - model%tempwk%f(2)*model%temper%bheatflx(ew,ns) + model%tempwk%f(3) * &
                      model%tempwk%dupc(model%general%upn) * &
                      thck(ew,ns) * model%tempwk%dissip(model%general%upn,ew,ns)
 
