@@ -39,7 +39,8 @@ module glide_thck
   use glide_grids
 
   private
-  public :: init_thck, thck_nonlin_evolve, thck_lin_evolve, timeders, stagleapthck
+  public :: init_thck, thck_nonlin_evolve, thck_lin_evolve, timeders, &
+            stagleapthck, geometry_derivs
 
 #ifdef DEBUG_PICARD
   ! debugging Picard iteration
@@ -100,6 +101,9 @@ contains
        print *, "* thck empty - net accumulation added", model%numerics%time
 #endif
     else
+
+       !EIB! added from lanl
+       call geometry_derivs(model)
 
        ! calculate basal velos
        if (newtemps) then

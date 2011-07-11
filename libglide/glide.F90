@@ -283,6 +283,9 @@ contains
 #ifdef PROFILING
     call glide_prof_start(model,model%glide_prof%geomderv)
 #endif
+
+    call geometry_derivs(model)
+    
     !EIB! from gc2 - think this was all replaced by geometry_derivs??
     call stagvarb(model%geometry% thck, &
          model%geomderv% stagthck,&
