@@ -47,6 +47,7 @@ module glide_types
   !*FD variables.
  
   use glimmer_sparse
+  use glimmer_sparse_type
   use glimmer_global
   use glimmer_ncdf
   use isostasy_types
@@ -162,6 +163,14 @@ module glide_types
     !*FD \item[1] hotstart model from previous run
     !*FD \end{description}
 
+    integer :: which_disp = 0
+    !*FD Flag that indicates method for computing the dissipation during the temperature calc.
+    !*FD \begin{description}
+    !*FD \item[0] for 0-order SIA approx
+    !*FD \item[1] for 1-st order solution (e.g. Blatter-Pattyn)
+    !*FD \item[2] for 1-st order depth-integrated solution (SSA)
+    !*FD \end{description}
+
     integer :: periodic_ew = 0
     !*FD \begin{description}
     !*FD \item[0] no periodic EW boundary conditions
@@ -249,6 +258,7 @@ module glide_types
     real(dp),dimension(:,:),pointer :: dusrfdtm => null() !*FD Temporal derivative of upper surface elevation.
     real(dp),dimension(:,:),pointer :: stagthck => null() !*FD Thickness averaged onto the staggered grid.
 
+    real(dp),dimension(:,:),pointer :: stagtopg => null() !*FD Bedrock topography averaged onto the staggered grid
   end type glide_geomderv
 
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -262,6 +272,7 @@ module glide_types
     real(dp),dimension(:,:,:),pointer :: vvel  => null() !*FD 3D $y$-velocity.
     real(dp),dimension(:,:,:),pointer :: wvel  => null() !*FD 3D $z$-velocity.
     real(dp),dimension(:,:,:),pointer :: wgrd  => null() !*FD 3D grid vertical velocity.
+    real(dp),dimension(:,:,:),pointer :: surfvel => null() !Surface velocity
     real(dp),dimension(:,:)  ,pointer :: uflx  => null() !*FD 
     real(dp),dimension(:,:)  ,pointer :: vflx  => null() !*FD 
     real(dp),dimension(:,:)  ,pointer :: diffu => null() !*FD 
@@ -272,9 +283,20 @@ module glide_types
     real(dp),dimension(:,:)  ,pointer :: vbas_tavg  => null() 
     real(dp),dimension(:,:)  ,pointer :: bed_softness => null() !*FD bed softness parameter
     real(dp),dimension(:,:)  ,pointer :: btrc  => null() !*FD  basal traction
-    real(dp),dimension(:,:)  ,pointer :: tau_x => null() !*FD basal shear stress, x-dir
-    real(dp),dimension(:,:)  ,pointer :: tau_y => null() !*FD basal shear stress, y-dir
   end type glide_velocity
+
+  !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  type glide_stress      
+
+    real(dp),dimension(:,:,:),pointer :: efvs => null()
+    real(dp),dimension(:,:)  ,pointer :: tau_x => null() !*FD SIA basal shear stress, x-dir
+    real(dp),dimension(:,:)  ,pointer :: tau_y => null() !*FD SIA basal shear stress, y-dir
+!*sfp* neither of the next two are currently used anywhere in the code (moved here from velocity_hom)
+!    real(dp),dimension(:,:,:)  ,pointer :: gdsx => null() !*FD basal shear stress, x-dir
+!    real(dp),dimension(:,:,:)  ,pointer :: gdsy => null() !*FD basal shear stress, y-dir
+
+  end type glide_stress      
 
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -287,6 +309,7 @@ module glide_types
      real(sp),dimension(:,:),pointer :: loni     => null() !*FD Longitudes of model grid points
      real(sp),dimension(:,:),pointer :: calving  => null() !*FD Calving flux (scaled as mass balance, thickness, etc)
      real(sp) :: eus = 0.                                  !*FD eustatic sea level
+     real(sp) :: slidconst = 0.0
   end type glide_climate
 
   type glide_temper
@@ -422,12 +445,9 @@ module glide_types
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   type glide_pcgdwk
-    real(dp),dimension(:),pointer :: pcgval  => null()
+    type(sparse_matrix_type) :: matrix
     real(dp),dimension(:),pointer :: rhsd    => null()
     real(dp),dimension(:),pointer :: answ    => null()
-    integer, dimension(:),pointer :: pcgcol  => null()
-    integer, dimension(:),pointer :: pcgrow  => null()
-    integer, dimension(2)         :: pcgsize = 0
     real(dp),dimension(4)         :: fc      = 0.0
     real(dp),dimension(6)         :: fc2     = 0.0
     integer :: ct     = 0
@@ -487,15 +507,16 @@ module glide_types
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   type glide_paramets
-    real(dp),dimension(5) :: bpar = (/ 2.0d0, 10.0d0, 10.0d0, 0.0d0, 1.0d0 /)
+    real(dp),dimension(5) :: bpar = (/ 0.2d0, 0.5d0, 0.0d0 ,1.0d-2, 1.0d0/)
     real(dp) :: btrac_const = 0.d0 ! m yr^{-1} Pa^{-1} (gets scaled during init)
     real(dp) :: btrac_slope = 0.0d0 ! Pa^{-1} (gets scaled during init)
     real(dp) :: btrac_max = 0.d0  !  m yr^{-1} Pa^{-1} (gets scaled during init)
     real(dp) :: geot   = -5.0d-2  ! W m^{-2}
-    real(dp) :: fiddle = 3.0d0    ! -
+    real(dp) :: flow_factor = 3.0d0   ! "fiddle" parameter for the Arrhenius relationship
     real(dp) :: hydtim = 1000.0d0 ! yr^{-1} converted to s^{-1} and scaled, 
                                   ! 0 if no drainage = 0.0d0 * tim0 / scyr
     real(dp) :: bwat_smooth = 0.01d0 ! basal water field smoothing strength
+    real(dp) :: default_flwa = 1.0d-16 !Glen's A to use in isothermal case (would change to e.g. 4.6e-18 in EISMINT-ROSS case)
   end type glide_paramets
 
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -525,6 +546,7 @@ module glide_types
     type(glide_geometry) :: geometry
     type(glide_geomderv) :: geomderv
     type(glide_velocity) :: velocity
+    type(glide_stress) :: stress   
     type(glide_climate)  :: climate
     type(glide_temper)   :: temper
     type(glide_lithot_type) :: lithot
@@ -649,6 +671,7 @@ contains
     call coordsystem_allocate(model%general%velo_grid, upn, model%velocity%vvel)
     call coordsystem_allocate(model%general%ice_grid, upn, model%velocity%wvel)
     call coordsystem_allocate(model%general%ice_grid, upn, model%velocity%wgrd)
+    call coordsystem_allocate(model%general%velo_grid,upn,model%velocity%surfvel)
     call coordsystem_allocate(model%general%velo_grid, model%velocity%uflx)
     call coordsystem_allocate(model%general%velo_grid, model%velocity%vflx)
     call coordsystem_allocate(model%general%velo_grid, model%velocity%diffu)
@@ -659,8 +682,9 @@ contains
     call coordsystem_allocate(model%general%velo_grid, model%velocity%ubas_tavg)
     call coordsystem_allocate(model%general%velo_grid, model%velocity%vbas)
     call coordsystem_allocate(model%general%velo_grid, model%velocity%vbas_tavg)
-    call coordsystem_allocate(model%general%velo_grid, model%velocity%tau_x)
-    call coordsystem_allocate(model%general%velo_grid, model%velocity%tau_y)
+    call coordsystem_allocate(model%general%ice_grid, upn-1, model%stress%efvs)
+    call coordsystem_allocate(model%general%velo_grid, model%stress%tau_x)
+    call coordsystem_allocate(model%general%velo_grid, model%stress%tau_y)
 
     call coordsystem_allocate(model%general%ice_grid, model%climate%acab)
     call coordsystem_allocate(model%general%ice_grid, model%climate%acab_tavg)
@@ -675,7 +699,9 @@ contains
     call coordsystem_allocate(model%general%velo_grid, model%geomderv%dusrfdns)
     call coordsystem_allocate(model%general%ice_grid, model%geomderv%dthckdtm)
     call coordsystem_allocate(model%general%ice_grid, model%geomderv%dusrfdtm)
+
     call coordsystem_allocate(model%general%velo_grid, model%geomderv%stagthck)
+    call coordsystem_allocate(model%general%velo_grid, model%geomderv%stagtopg)
   
     call coordsystem_allocate(model%general%velo_grid, model%geometry%temporary0)
     call coordsystem_allocate(model%general%ice_grid, model%geometry%temporary1)
@@ -703,11 +729,9 @@ contains
     endif
 
     ! allocate memory for sparse matrix
-    allocate (model%pcgdwk%pcgrow(ewn*nsn*5))
-    allocate (model%pcgdwk%pcgcol(ewn*nsn*5+2))
-    allocate (model%pcgdwk%pcgval(ewn*nsn*5))
     allocate (model%pcgdwk%rhsd(ewn*nsn))
     allocate (model%pcgdwk%answ(ewn*nsn))
+    call new_sparse_matrix(ewn*nsn, 5*ewn*nsn, model%pcgdwk%matrix)
 
     ! allocate isostasy grids
     call isos_allocate(model%isos,ewn,nsn)
@@ -746,6 +770,8 @@ contains
     deallocate(model%velocity%vvel)
     deallocate(model%velocity%wvel)
     deallocate(model%velocity%wgrd)
+    deallocate(model%velocity%surfvel)
+
     deallocate(model%velocity%uflx)
     deallocate(model%velocity%vflx)
     deallocate(model%velocity%diffu)
@@ -756,8 +782,9 @@ contains
     deallocate(model%velocity%ubas_tavg)
     deallocate(model%velocity%vbas)
     deallocate(model%velocity%vbas_tavg)
-    deallocate(model%velocity%tau_x)
-    deallocate(model%velocity%tau_y)
+    deallocate(model%stress%efvs)
+    deallocate(model%stress%tau_x)
+    deallocate(model%stress%tau_y)
 
     deallocate(model%climate%acab)
     deallocate(model%climate%acab_tavg)
@@ -772,6 +799,7 @@ contains
     deallocate(model%geomderv%dthckdtm)
     deallocate(model%geomderv%dusrfdtm)
     deallocate(model%geomderv%stagthck)
+    deallocate(model%geomderv%stagtopg)
 
     deallocate(model%geometry%temporary0)
     deallocate(model%geometry%temporary1)
@@ -787,8 +815,8 @@ contains
     deallocate(model%thckwk%oldthck2)
     deallocate(model%thckwk%float)
     deallocate(model%numerics%sigma)
-    
-    deallocate(model%pcgdwk%pcgrow,model%pcgdwk%pcgcol,model%pcgdwk%pcgval,model%pcgdwk%rhsd,model%pcgdwk%answ)
+    deallocate(model%pcgdwk%rhsd,model%pcgdwk%answ)
+    call del_sparse_matrix(model%pcgdwk%matrix)
 
     ! allocate isostasy grids
     call isos_deallocate(model%isos)

@@ -160,14 +160,14 @@ average:       1
 dimensions:    time, y0, x0
 units:         kilopascal
 long_name:     basal shear stress in x direction
-data:          data%velocity%tau_x
+data:          data%stress%tau_x
 factor:        1e-3*thk0*thk0/len0
 
 [tauy]
 dimensions:    time, y0, x0
 units:         kilopascal
 long_name:     basal shear stress in y direction
-data:          data%velocity%tau_y
+data:          data%stress%tau_y
 factor:        1e-3*thk0*thk0/len0
 
 [thk]
@@ -339,6 +339,14 @@ data:          data%velocity%wgrd(up,:,:)
 factor:        scale3d_f7
 coordinates:   lon lat
 hot:           1
+
+[surfvel]
+dimensions:    time, level, y0, x0
+units:         meter/year
+long_name:     ice surface velocity 
+data:          data%velocity%surfvel(up,:,:)
+factor:        scale3d_f1
+coordinates:   lon lat
 
 [flwa]
 dimensions:    time, level, y1, x1

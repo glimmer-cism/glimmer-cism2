@@ -36,7 +36,7 @@
 module glimmer_paramets
 
   use glimmer_global, only : sp, dp
-  use glimmer_physcon, only : scyr
+  use glimmer_physcon, only : scyr, rhoi, grav, gn
 
   implicit none; save
 

@@ -12,12 +12,12 @@ BUILT_SOURCES = glide_io.F90  glide_lithot_io.F90
 CLEANFILES = $(BUILT_SOURCES) f90_dep.mak
 
 libglide_la_SOURCES = glide.F90 glide_setup.F90 glide_types.F90 glide_temp.F90 \
-                      glide_thck.F90 glide_velo.F90 glide_mask.F90 \
+                      glide_temp_utils.F90 glide_thck.F90 glide_velo.F90 glide_mask.F90 \
                       glide_stop.F90 glide_io.F90 glide_lithot_io.F90 glide_nc_custom.F90 \
                       isostasy.F90 isostasy_el.F90 isostasy_setup.F90 \
                       isostasy_types.F90 glide_lithot.F90 glide_lithot3d.F90 \
                       glide_lithot1d.F90 glide_profile.F90 glide_diagnostics.F90 \
-                      glimmer_routing.F90 glimmer_ncio.F90 glimmer_ncparams.F90  \
+                      glimmer_routing.F90 glimmer_ncio.F90 glimmer_ncparams.F90 glide_bwater.F90 \
                       glimmer_restart_gcm.F90
 
 test_setup_SOURCES = test_setup.F90

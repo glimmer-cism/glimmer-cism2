@@ -122,7 +122,9 @@ contains
 !lipscomb - TO DO - build glimmer_vers file or put this character elsewhere?
     character(len=100), external :: glimmer_version_char
 
+#ifdef GLC_DEBUG
     integer :: i, j, k
+#endif
 
     call write_log(trim(glimmer_version_char()))
 
@@ -160,11 +162,11 @@ contains
     ! Write projection info to log
     call glimmap_printproj(model%projection)
 
-    if (GLC_DEBUG) then
+#ifdef GLC_DEBUG
        write(6,*) 'Opened input files'
        write(6,*) 'i, j, thck, thck(m):', itest, jtest, &
                model%geometry%thck(itest,jtest), model%geometry%thck(itest,jtest)*thk0
-    endif
+#endif
 
     ! read lithot if required
     if (model%options%gthf.gt.0) then
@@ -198,6 +200,8 @@ contains
     ! initialise ice age
     ! This is a placeholder; currently the ice age is not computed.  
     !lipscomb - TO DO - Compute and advect the ice age.
+    !! Currently the ice age is only computed for remapping transport
+    !! (whichevol = 3 or 4)
     model%geometry%age(:,:,:) = 0._dp
 
     if (model%options%hotstart.ne.1) then
@@ -223,7 +227,8 @@ contains
     call glide_prof_init(model)
 #endif
 
-    if (GLC_DEBUG) then
+    
+#ifdef GLC_DEBUG
        write(6,*) ' '
        write(6,*) 'End of glide_init'
        i = itest
@@ -236,7 +241,7 @@ contains
             write(6,300) k, model%temper%temp(k,i,j)
        enddo
   300  format(i3, Z24.20)
-    endif
+#endif
 
   end subroutine glide_initialise
   
@@ -264,12 +269,12 @@ contains
 
     model%thckwk%oldtime = model%numerics%time - (model%numerics%dt * tim0/scyr)
 
-    if (GLC_DEBUG) then
+#ifdef GLC_DEBUG
        write(6,*) ' '
        write(6,*) 'time =', model%numerics%time
        write(6,*) 'tinc =', model%numerics%tinc
        write(6,*) 'oldtime =', model%thckwk%oldtime
-    endif
+#endif
 
     ! ------------------------------------------------------------------------ 
     ! Calculate various derivatives...
@@ -277,6 +282,7 @@ contains
 #ifdef PROFILING
     call glide_prof_start(model,model%glide_prof%geomderv)
 #endif
+    !EIB! from gc2 - think this was all replaced by geometry_derivs??
     call stagvarb(model%geometry% thck, &
          model%geomderv% stagthck,&
          model%general%  ewn, &
@@ -293,7 +299,8 @@ contains
          model%geomderv%dthckdew, & 
          model%geomderv%dthckdns, &
          .false., .false.)
-
+    !EIB!
+    
 #ifdef PROFILING
     call glide_prof_stop(model,model%glide_prof%geomderv)
 #endif
@@ -440,16 +447,15 @@ contains
     
     logical,optional, intent(in) :: no_write
     logical nw
+#ifdef GLC_DEBUG
     integer :: i, j, k, upn 
-
-    if (GLC_DEBUG) then
        upn = model%general%upn
 
        i = itest
        j = jtest
        write(6,*) ' '
        write(6,*) 'Starting tstep_p3, i, j, thck =', i, j, model%geometry%thck(i,j)
-    endif
+#endif
 
     ! ------------------------------------------------------------------------ 
     ! Calculate isostasy
@@ -470,9 +476,6 @@ contains
     call glide_calclsrf(model%geometry%thck, model%geometry%topg,  &
                         model%climate%eus,   model%geometry%lsrf)
     model%geometry%usrf = max(0.d0,model%geometry%thck + model%geometry%lsrf)
-
-       ! For exact restart, compute wgrd here and write it to the hotstart file.
-       ! (This is easier than writing thckwk quantities to the restart file.)
 
        ! Calculate time-derivatives of thickness and upper surface elevation ------------
 
@@ -500,19 +503,19 @@ contains
             model%geometry%thck,   &
             model%velocity%wgrd)
 
-       if (GLC_DEBUG) then
-          i = itest
-          j = jtest
-          write(6,*) ' '
-          write(6,*) 'Before restart write, i, j, thck =', i, j, model%geometry%thck(i,j)
-          write(6,300) k, model%geometry%thck(i,j)
-          write(6,*) ' '
-          write(6,*) 'k, temperature'
-          do k = 1, upn
-               write(6,300) k, model%temper%temp(k,i,j)
-          enddo
-  300     format(i3, Z24.20)
-       endif
+#ifdef GLC_DEBUG
+       i = itest
+       j = jtest
+       write(6,*) ' '
+       write(6,*) 'Before restart write, i, j, thck =', i, j, model%geometry%thck(i,j)
+       write(6,300) k, model%geometry%thck(i,j)
+       write(6,*) ' '
+       write(6,*) 'k, temperature'
+       do k = 1, upn
+            write(6,300) k, model%temper%temp(k,i,j)
+       enddo
+  300  format(i3, Z24.20)
+#endif
 
     ! ------------------------------------------------------------------------ 
     ! write to netCDF file

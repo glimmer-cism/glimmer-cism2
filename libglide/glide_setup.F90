@@ -69,6 +69,12 @@ contains
     if (associated(section)) then
        call handle_options(section, model)
     end if
+    !read options for higher-order computation
+    call GetSection(config,section,'ho_options')
+    if (associated(section)) then
+        call handle_ho_options(section, model)
+    end if
+
     ! read parameters
     call GetSection(config,section,'parameters')
     if (associated(section)) then
@@ -546,12 +552,23 @@ contains
     call GetValue(section,'basal_mass_balance',model%options%basal_mbal)
   end subroutine handle_options
 
+    !Higher order options
+  subroutine handle_ho_options(section, model)
+    use glimmer_config
+    use glide_types
+    implicit none
+    type(ConfigSection), pointer :: section
+    type(glide_global_type) :: model
+    
+    call GetValue(section, 'which_disp',         model%options%which_disp)
+  end subroutine handle_ho_options
+
   subroutine print_options(model)
     use glide_types
     use glimmer_log
     implicit none
     type(glide_global_type)  :: model
-    character(len=100) :: message
+    character(len=500) :: message
 
     ! local variables
     character(len=*), dimension(0:1), parameter :: temperature = (/ &
@@ -668,7 +685,8 @@ contains
     call GetValue(section,'marine_limit',model%numerics%mlimit)
     call GetValue(section,'calving_fraction',model%numerics%calving_fraction)
     call GetValue(section,'geothermal',model%paramets%geot)
-    call GetValue(section,'flow_factor',model%paramets%fiddle)
+    call GetValue(section,'flow_factor',model%paramets%flow_factor)
+    call GetValue(section,'default_flwa',model%paramets%default_flwa)
     call GetValue(section,'hydro_time',model%paramets%hydtim)
     call GetValue(section,'basal_tract',temp,5)
     if (associated(temp)) then
@@ -679,6 +697,7 @@ contains
     call GetValue(section,'basal_tract_max',model%paramets%btrac_max)
     call GetValue(section,'basal_tract_slope',model%paramets%btrac_slope)
     call GetValue(section,'basal_water_smoothing',model%paramets%bwat_smooth)
+    call GetValue(section,'sliding_constant',model%climate%slidconst)
   end subroutine handle_parameters
 
   subroutine print_parameters(model)
@@ -700,7 +719,7 @@ contains
     end if
     write(message,*) 'geothermal heat flux  : ',model%paramets%geot
     call write_log(message)
-    write(message,*) 'flow enhancement      : ',model%paramets%fiddle
+    write(message,*) 'flow enhancement      : ',model%paramets%flow_factor
     call write_log(message)
     write(message,*) 'basal hydro time const: ',model%paramets%hydtim
     call write_log(message)

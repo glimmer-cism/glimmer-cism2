@@ -57,6 +57,8 @@ module glimmer_global
 
 #endif
 
+  integer,parameter :: size_t = kind(1)
+
   integer,parameter :: fname_length=200 !< Specifies the length of character string variables used to hold filenames.
   integer,parameter :: msg_length=500  !< lenght of message buffers
 
