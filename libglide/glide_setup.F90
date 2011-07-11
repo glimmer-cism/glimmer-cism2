@@ -32,7 +32,7 @@
 #endif
 
 module glide_setup
-
+  use glimmer_global, only: dp
   !*FD Contains general routines for initialisation, etc, called
   !*FD from the top-level glimmer subroutines.
 
@@ -402,7 +402,7 @@ contains
        call write_log('Calculating sigma levels')
        do up=1,upn
           level = real(up-1,kind=dp)/real(upn-1,kind=dp)
-          model%numerics%sigma(up) = glide_find_level(level, 1, up, upn)
+          model%numerics%sigma(up) = glide_find_level(level, model%options%which_sigma_builtin, up, upn)
        end do
     case(1)
        there = .false.
@@ -439,7 +439,20 @@ contains
     integer  :: scheme, up, upn
     real(dp) :: glide_find_level
 
+    select case(scheme)
+      case (SIGMA_BUILTIN_DEFAULT)
         glide_find_level = glide_calc_sigma(level,2D0)
+      case (SIGMA_BUILTIN_EVEN)
+        glide_find_level = level
+      case (SIGMA_BUILTIN_PATTYN)
+        if (up == 1) then
+          glide_find_level = 0
+        else if (up == upn) then
+          glide_find_level = 1
+        else
+           glide_find_level = glide_calc_sigma_pattyn(level)
+        end if
+    end select
      
   end function glide_find_level
 
@@ -451,6 +464,16 @@ contains
       glide_calc_sigma = (1-(x+1)**(-n))/(1-2**(-n))
   end function glide_calc_sigma
 
+  !Implements an alternate set of sigma levels that encourages better
+  !convergance for higher-order velocities
+  function glide_calc_sigma_pattyn(x)
+        use glimmer_global, only:dp
+        implicit none
+        real(dp) :: glide_calc_sigma_pattyn, x
+
+      glide_calc_sigma_pattyn=(-2.5641025641D-4)*(41D0*x)**2+3.5256410256D-2*(41D0*x)-&
+                               8.0047080075D-13
+end function glide_calc_sigma_pattyn
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! private procedures
@@ -470,6 +493,7 @@ contains
     call GetValue(section,'dew',model%numerics%dew)
     call GetValue(section,'dns',model%numerics%dns)
     call GetValue(section,'sigma_file',model%funits%sigfile)
+    call GetValue(section,'sigma_builtin',model%options%which_sigma_builtin)
 
     ! We set this flag to one to indicate we've got a sigfile name.
     ! A warning/error is generated if sigma levels are specified in some other way
@@ -486,7 +510,7 @@ contains
     use glimmer_log
     implicit none
     type(glide_global_type)  :: model
-    character(len=100) :: message
+    character(len=512) :: message
 
 
     call write_log('Grid specification')
@@ -521,7 +545,8 @@ contains
     call GetValue(section,'nvel',model%numerics%nvel)
     call GetValue(section,'profile',model%numerics%profile_period)
     call GetValue(section,'ndiag',model%numerics%ndiag)
-
+    call GetValue(section,'idiag',model%numerics%idiag)
+    call GetValue(section,'jdiag',model%numerics%jdiag)
   end subroutine handle_time
   
   subroutine print_time(model)
@@ -561,6 +586,7 @@ contains
     call GetValue(section,'ioparams',model%funits%ncfile)
     call GetValue(section,'temperature',model%options%whichtemp)
     call GetValue(section,'flow_law',model%options%whichflwa)
+    call GetValue(section,'basal_proc',model%options%which_bmod)
     call GetValue(section,'basal_water',model%options%whichbwat)
     call GetValue(section,'marine_margin',model%options%whichmarn)
     call GetValue(section,'slip_coeff',model%options%whichbtrc)
@@ -570,6 +596,9 @@ contains
     call GetValue(section,'hotstart',model%options%hotstart)
     call GetValue(section,'periodic_ew',model%options%periodic_ew)
     call GetValue(section,'basal_mass_balance',model%options%basal_mbal)
+    call GetValue(section,'periodic_ns',model%options%periodic_ns)
+    call GetValue(section,'diagnostic_run',model%options%diagnostic_run)
+    !call GetValue(section, 'use_plume',model%options%use_plume)   !! For future releases
   end subroutine handle_options
 
     !Higher order options
@@ -580,7 +609,19 @@ contains
     type(ConfigSection), pointer :: section
     type(glide_global_type) :: model
     
+    call GetValue(section, 'diagnostic_scheme',  model%options%which_ho_diagnostic)
+    call GetValue(section, 'prognostic_scheme', model%options%which_ho_prognostic)
+    call GetValue(section, 'guess_specified',    model%velocity%is_velocity_valid)
+    call GetValue(section, 'which_ho_source',    model%options%which_ho_source)
+    call GetValue(section, 'include_thin_ice',   model%options%ho_include_thinice)
+    call GetValue(section, 'which_ho_babc',      model%options%which_ho_babc)
+    call GetValue(section, 'which_ho_efvs',      model%options%which_ho_efvs)
+    call GetValue(section, 'which_ho_resid',     model%options%which_ho_resid)
     call GetValue(section, 'which_disp',         model%options%which_disp)
+    call GetValue(section, 'which_bmelt',        model%options%which_bmelt)
+    call GetValue(section, 'which_ho_nonlinear', model%options%which_ho_nonlinear)
+    call GetValue(section, 'which_ho_sparse',    model%options%which_ho_sparse)
+    call GetValue(section, 'which_ho_sparse_fallback', model%options%which_ho_sparse_fallback)
   end subroutine handle_ho_options
 
   subroutine print_options(model)
@@ -591,37 +632,97 @@ contains
     character(len=500) :: message
 
     ! local variables
-    character(len=*), dimension(0:1), parameter :: temperature = (/ &
-         'isothermal', &
-         'full      '/)
+    character(len=*), dimension(0:3), parameter :: temperature = (/ &
+         'isothermal         ', &
+         'full               ', &
+         'steady             ', &
+         'remapping advection' /)  !whl - whichtemp mod - new option
     character(len=*), dimension(0:2), parameter :: flow_law = (/ &
-         'Patterson and Budd               ', &
-         'Patterson and Budd (temp=-10degC)', &
+         'Paterson and Budd                ', &
+         'Paterson and Budd (temp=-10degC) ', &
          'const 1e-16a^-1Pa^-n             ' /)
-    character(len=*), dimension(0:2), parameter :: basal_water = (/ &
-         'local water balance', &
-         'local + const flux ', &
-         'none               ' /)
-    character(len=*), dimension(0:4), parameter :: marine_margin = (/ &
-         'ignore            ', &
-         'no ice shelf      ', &
-         'threshold         ', &
-         'const calving rate', &
-         'edge threshold    '/)
+  !*mb* added options for basal processes model       
+    character(len=*), dimension(0:2), parameter :: which_bmod = (/ &
+         'Basal proc mod disabled '  , &
+         'Basal proc, high res.   '   , &
+         'Basal proc, fast calc.  ' /)
+    character(len=*), dimension(0:4), parameter :: basal_water = (/ &
+         'local water balance   ', &
+         'local + const flux    ', &
+         'none                  ', &
+         'From basal proc model ', &
+         'Constant value (=10m) '/)
+    character(len=*), dimension(0:7), parameter :: marine_margin = (/ &
+         'ignore              ', &
+         'no ice shelf        ', &
+         'threshold           ', &
+         'const calving rate  ', &
+         'edge threshold      ', &
+         'van der Veen        ', &
+         'Pattyn Grnd Line    ', &
+         'Huybrechts Greenland'/)
     character(len=*), dimension(0:5), parameter :: slip_coeff = (/ &
-         'zero           ', &
-         'const          ', &
-         'const if bwat>0', &
-         '~basal water   ', &
-         '~basal melt    ', &
-         'const if T>Tpmp'/)
-    character(len=*), dimension(0:2), parameter :: evolution = (/ &
-         'pseudo-diffusion', &
-         'ADI scheme      ', &
-         'diffusion       ' /)
+         'zero        ', &
+         'const       ', &
+         'const if T>0', &
+         '~basal water', &
+         '~basal melt ', &
+         'taub^3      ' /)
+    character(len=*), dimension(0:4), parameter :: evolution = (/ &
+         'pseudo-diffusion                      ', &
+         'ADI scheme                            ', &
+         'iterated diffusion                    ', &
+         'remap thickness                       ', &   
+         '1st order upwind                      ' /)   
     character(len=*), dimension(0:1), parameter :: vertical_integration = (/ &
          'standard     ', &
          'obey upper BC' /)
+    character(len=*), dimension(0:1), parameter :: ho_diagnostic = (/ &
+         'Do not compute higher-order velocities', &
+         'Payne/Price (on B-grid)               ' /)    
+    character(len=*), dimension(0:1), parameter :: ho_prognostic = (/ &
+         'Evolve ice with SIA only', &
+         'Pattyn scheme           ' /)
+    character(len=*), dimension(0:7), parameter :: ho_whichbabc = (/ &
+         'constant B^2                           ', &
+         'simple pattern of B^2                  ', &
+         'till yield stress (Picard)             ', &
+         'circular ice shelf                     ', &
+         'no slip (using large B^2)              ', &
+         'B^2 passed from CISM                   ', &
+         'no slip (Dirichlet implementation)     ', &
+         'till yield stress (Newton)             ' /)
+    character(len=*), dimension(0:1), parameter :: ho_whichefvs = (/ &
+         'from eff strain rate    ', &
+         'constant value          ' /)
+    character(len=*), dimension(0:3), parameter :: ho_whichresid = (/ &
+         'max value               ', &
+         'max value ignoring ubas ', &
+         'mean value              ', &
+         'L2 norm of Ax-b=resid   ' /)
+    character(len=*), dimension(0:2), parameter :: ho_whichsource = (/ &
+         'vertically averaged     ', &
+         'vertically explicit     ', &
+         'shelf front disabled    '/)
+    character(len=*), dimension(0:2), parameter :: dispwhich = (/ &
+         '0-order SIA                       ', &
+         '1-st order model (Blatter-Pattyn) ', &
+         '1-st order depth-integrated (SSA) ' /)
+    character(len=*), dimension(0:2), parameter :: bmeltwhich = (/ &
+         '0-order SIA                       ', &
+         '1-st order model (Blatter-Pattyn) ', &
+         '1-st order depth-integrated (SSA) ' /)
+    character(len=*), dimension(0:1), parameter :: which_ho_nonlinear = (/ &
+         'use standard Picard iteration  ', &
+         'use JFNK                       '/)
+    character(len=*), dimension(0:5), parameter :: ho_whichsparse = (/ &
+         'BiCG with LU precondition       ', &
+         'GMRES with LU precondition      ', &
+         'UMFPACK Unsymmetric Multifrontal', &
+         'Compatible Trilinos interface   ', &
+         'Standalone Trilinos interface   ', &
+         'PARDISO Parllel Direct Method   '/)
+
     character(len=*), dimension(0:1), parameter :: b_mbal = (/ &
          'not in continutity eqn', &
          'in continutity eqn    ' /)
@@ -639,6 +740,11 @@ contains
        call write_log('Error, flow_law out of range',GM_FATAL)
     end if
     write(message,*) 'flow law                : ',model%options%whichflwa,flow_law(model%options%whichflwa)
+    call write_log(message)
+    if (model%options%which_bmod.lt.0 .or. model%options%which_bmod.ge.size(which_bmod)) then
+       call write_log('Error, basal_proc out of range',GM_FATAL)
+    end if
+    write(message,*) 'basal_proc              : ',model%options%which_bmod,which_bmod(model%options%which_bmod)
     call write_log(message)
     if (model%options%whichbwat.lt.0 .or. model%options%whichbwat.ge.size(basal_water)) then
        call write_log('Error, basal_water out of range',GM_FATAL)
@@ -673,8 +779,8 @@ contains
     if (model%options%whichrelaxed.eq.1) then
        call write_log('First topo time slice is relaxed')
     end if
-    if (model%options%periodic_ew.eq.1) then
-       if (model%options%whichevol .eq.1) then
+    if (model%options%periodic_ew) then
+       if (model%options%whichevol .eq. EVOL_ADI) then
           call write_log('Periodic boundary conditions not implemented in ADI scheme',GM_FATAL)
        end if
        call write_log('Periodic EW lateral boundary condition')
@@ -683,6 +789,77 @@ contains
     if (model%options%hotstart.eq.1) then
        call write_log('Hotstarting model')
     end if
+
+    !HO options
+    call write_log("***Higher-order options:")
+    if (model%options%which_ho_diagnostic < 0 .or. model%options%which_ho_diagnostic >= size(ho_diagnostic)) then
+        call write_log('Error, diagnostic_scheme out of range', GM_FATAL)
+    end if
+    write(message,*) 'ho_diagnostic           :',model%options%which_ho_diagnostic, &
+                       ho_diagnostic(model%options%which_ho_diagnostic)
+    call write_log(message)
+
+    if (model%options%which_ho_prognostic < 0 .or. model%options%which_ho_prognostic >= size(ho_prognostic)) then
+        call write_log('Error, prognostic_scheme out of range', GM_FATAL)
+    end if
+    write(message,*) 'ho_prognostic :',model%options%which_ho_prognostic, &
+                        ho_prognostic(model%options%which_ho_prognostic)
+    call write_log(message)    
+
+    if (model%options%which_ho_source < 0 .or. model%options%which_ho_source >= size(ho_whichsource)) then
+        call write_log('Error, which_ho_source out of range', GM_FATAL)
+    end if
+    write(message,*) 'ice_shelf_source_term   :',model%options%which_ho_source, &
+                       ho_whichsource(model%options%which_ho_source)
+    call write_log(message)
+
+    write(message,*) 'ho_whichbabc            :',model%options%which_ho_babc,  &
+                      ho_whichbabc(model%options%which_ho_babc)
+    call write_log(message)
+    if (model%options%which_ho_babc < 0 .or. model%options%which_ho_babc >= size(ho_whichbabc)) then
+        call write_log('Error, HO basal BC input out of range', GM_FATAL)
+    end if
+    write(message,*) 'ho_whichefvs            :',model%options%which_ho_efvs,  &
+                      ho_whichefvs(model%options%which_ho_efvs)
+    call write_log(message)
+    if (model%options%which_ho_efvs < 0 .or. model%options%which_ho_efvs >= size(ho_whichefvs)) then
+        call write_log('Error, HO effective viscosity input out of range', GM_FATAL)
+    end if
+    write(message,*) 'ho_whichresid           :',model%options%which_ho_resid,  &
+                      ho_whichresid(model%options%which_ho_resid)
+    call write_log(message)
+    if (model%options%which_ho_resid < 0 .or. model%options%which_ho_resid >= size(ho_whichresid)) then
+        call write_log('Error, HO residual input out of range', GM_FATAL)
+    end if
+    write(message,*) 'dispwhich               :',model%options%which_disp,  &
+                      dispwhich(model%options%which_disp)
+    call write_log(message)
+    if (model%options%which_disp < 0 .or. model%options%which_disp >= size(dispwhich)) then
+        call write_log('Error, which dissipation input out of range', GM_FATAL)
+    end if
+    write(message,*) 'bmeltwhich              :',model%options%which_bmelt,  &
+                      bmeltwhich(model%options%which_bmelt)
+    call write_log(message)
+    if (model%options%which_bmelt < 0 .or. model%options%which_bmelt >= size(bmeltwhich)) then
+        call write_log('Error, which bmelt input out of range', GM_FATAL)
+    end if
+    write(message,*) 'which_ho_nonlinear       :',model%options%which_ho_nonlinear,  &
+                      which_ho_nonlinear(model%options%which_ho_nonlinear)
+    call write_log(message)
+    if (model%options%which_ho_nonlinear < 0 .or. model%options%which_ho_nonlinear >= size(which_ho_nonlinear)) then
+        call write_log('Error, HO nonlinear solution input out of range', GM_FATAL)
+    end if
+    write(message,*) 'ho_whichsparse          :',model%options%which_ho_sparse,  &
+                      ho_whichsparse(model%options%which_ho_sparse)
+    call write_log(message)
+    if (model%options%which_ho_sparse < 0 .or. model%options%which_ho_sparse >= size(ho_whichsparse)) then
+        call write_log('Error, HO sparse solver input out of range', GM_FATAL)
+    end if
+    if (model%options%whichtemp == TEMP_REMAP_ADV .and. model%options%whichevol /= EVOL_INC_REMAP) then
+        call write_log('Error, must use remapping for thickness evolution if remapping temperature', GM_FATAL)
+    end if
+
+
     call write_log('')
   end subroutine print_options
 
@@ -716,7 +893,8 @@ contains
     call GetValue(section,'basal_tract_const',model%paramets%btrac_const)
     call GetValue(section,'basal_tract_max',model%paramets%btrac_max)
     call GetValue(section,'basal_tract_slope',model%paramets%btrac_slope)
-    call GetValue(section,'basal_water_smoothing',model%paramets%bwat_smooth)
+    call GetValue(section,'stressin',model%climate%stressin)
+    call GetValue(section,'stressout',model%climate%stressout)
     call GetValue(section,'sliding_constant',model%climate%slidconst)
   end subroutine handle_parameters
 
@@ -765,8 +943,6 @@ contains
        write(message,*) '                        ',model%paramets%bpar(5)
        call write_log(message)
     end if
-    write(message,*) 'basal water field smoothing strength: ',model%paramets%bwat_smooth
-    call write_log(message)
     call write_log('')
   end subroutine print_parameters
 

@@ -351,18 +351,20 @@ contains
 
   end subroutine nc_prefix_outfiles
 
+  !> handle netCDF error
+  subroutine nc_errorhandle(file,line,status)
+        use netcdf
+        use glimmer_log
+        implicit none
+        character(len=*), intent(in) :: file !< name of f90 file error occured in
+        integer, intent(in) :: line          !< line number error occured at
+        integer, intent(in) :: status        !< netCDF return value
+  
+        if (status.ne.NF90_NOERR) then
+            call write_log(nf90_strerror(status),type=GM_FATAL,file=file,line=line)
+        end if
+   end subroutine nc_errorhandle
+
 end module glimmer_ncdf
 
-!> handle netCDF error
-subroutine nc_errorhandle(file,line,status)
-  use netcdf
-  use glimmer_log
-  implicit none
-  character(len=*), intent(in) :: file !< name of f90 file error occured in
-  integer, intent(in) :: line          !< line number error occured at
-  integer, intent(in) :: status        !< netCDF return value
-  
-  if (status.ne.NF90_NOERR) then
-     call write_log(nf90_strerror(status),type=GM_FATAL,file=file,line=line)
-  end if
-end subroutine nc_errorhandle
+

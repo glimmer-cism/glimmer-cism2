@@ -27,6 +27,22 @@
 !
 ! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+! JCC - Turn some of these changes into if-else statements so the
+! "velocity%uvel" and "velocity%vvel" are only used when higher-order
+! physics are on.
+!
+!whl - Dec. 2010: Moved several subroutines (finddisp, corrpmpt, calcpmpt, calcpmptb,
+!       calcflwa, patebudd) to a new module, glide_temp_utils.
+!      Those subroutines can then be called from an alternate temperature driver
+!       without using glide_temp.
+!      Also removed subroutines swappnt, swapbndt, and temperature_smoothing,
+!       which were not being used.
+! *sfp* this version contains hacks to replace SIA calc horiz vel fields 
+! with their higher-order counterparts. That is, all "velocity%uvel" and
+! "velocity%vvel" were replaced with "velocity%uvel" and "velocity%vvel".
+! Note that dissip and basal melt calcs still need to be updated to account for
+! higher-order stress and velocity fields.
+
 #ifdef HAVE_CONFIG_H
 #include "config.inc"
 #endif
@@ -67,7 +83,7 @@ contains
 
 !------------------------------------------------------------------------------------
 
-  subroutine init_temp(model)
+  subroutine glide_init_temp(model)
 
     !*FD initialise temperature module
     use glimmer_physcon, only : rhoi, shci, coni, scyr, grav, gn, lhci, rhow
@@ -169,6 +185,7 @@ contains
        case(0)
           model%paramets%hydtim = tim0 / (model%paramets%hydtim * scyr)
           estimate = 0.2d0 / model%paramets%hydtim
+          !EIB! following not in lanl glide_temp
           call find_dt_wat(model%numerics%dttem,estimate,model%tempwk%dt_wat,model%tempwk%nwat) 
           
           model%tempwk%c = (/ model%tempwk%dt_wat, 1.0d0 - 0.5d0 * model%tempwk%dt_wat * model%paramets%hydtim, &
@@ -185,13 +202,21 @@ contains
           !     0.25d0 * model%tempwk%dt_wat / model%numerics%dew, 0.25d0 * model%tempwk%dt_wat / model%numerics%dns, &
           !     0.5d0 * model%tempwk%dt_wat / model%numerics%dew, 0.5d0 * model%tempwk%dt_wat / model%numerics%dns /)
           
-       end select
+       case(3)
 
-  end subroutine init_temp
+          write(*,*)"ERROR: Current release does not support use of the basal processes module."
+          write(*,*)"       Re-run code with alternate option selected for 'whichbwat'."
+          stop
+
+       end select
+       ! JCC - was in LANL but not in parallel
+       !      model%temper%temp = -10.0
+
+  end subroutine glide_init_temp
 
 !****************************************************    
 
-  subroutine timeevoltemp(model,which)
+  subroutine glide_temp_driver(model,whichtemp,which_ho_diagnostic)
 
     !*FD Calculates the ice temperature, according to one
     !*FD of several alternative methods.
@@ -213,7 +238,8 @@ contains
     !------------------------------------------------------------------------------------
 
     type(glide_global_type),intent(inout) :: model                  !*FD Ice model parameters.
-    integer,                intent(in)    :: which                  !*FD Flag to choose method.
+    integer,                intent(in)    :: whichtemp              !*FD Flag to choose method.
+    integer,                intent(in)    :: which_ho_diagnostic 
 
     !------------------------------------------------------------------------------------
     ! Internal variables
@@ -240,7 +266,7 @@ contains
     ! Calculate the ice thickness according to different methods
     !------------------------------------------------------------------------------------
 
-    select case(which)
+    select case(whichtemp)
 
     case(0) ! Set column to surface air temperature -------------------------------------
 
@@ -253,6 +279,13 @@ contains
     case(1) ! Do full temperature solution ---------------------------------------------
 
        ! Calculate the actual vertical velocity; method depends on whichwvel ------------
+
+       ! *sfp* Added the if clause here so that this calc only gets done if has NOT
+       ! *sfp* already been done at the end of the HO velocity calculation. If using HO
+       ! *sfp* velocity calc, then this has already been done at the end of call to
+       ! *sfp* 'run_ho_diagnostic' in glide_velo_higher.
+
+       if( which_ho_diagnostic == 0 )then
 
          call gridwvel(model%numerics%sigma,  &
               model%numerics%thklim, &
@@ -299,8 +332,9 @@ contains
                     model%geometry%thck,                        &
                     model%climate% acab)
          end select
+       end if
        ! apply periodic ew BC
-       if (model%options%periodic_ew.eq.1) then
+       if (model%options%periodic_ew) then
           call wvel_ew(model)
        end if
 
@@ -318,6 +352,8 @@ contains
             model%geomderv%dusrfdns, &
             model%temper%flwa)
 
+       !JCC - Don't use ho velocity fields unless we're using the ho model
+       if (model%options%which_ho_diagnostic .EQ. 0 ) then
           ! translate velo field
           do ns = 2,model%general%nsn-1
               do ew = 2,model%general%ewn-1
@@ -327,6 +363,17 @@ contains
                     + model%velocity%vvel(:,ew-1,ns) + model%velocity%vvel(:,ew,ns-1) + model%velocity%vvel(:,ew,ns) )
               end do
           end do
+      else ! Using ho physics
+          ! translate velo field
+          do ns = 2,model%general%nsn-1
+              do ew = 2,model%general%ewn-1
+                model%tempwk%hadv_u(:,ew,ns) = model%tempwk%advconst(1) * ( model%velocity%uvel(:,ew-1,ns-1) &
+                    + model%velocity%uvel(:,ew-1,ns) + model%velocity%uvel(:,ew,ns-1) + model%velocity%uvel(:,ew,ns) )
+                model%tempwk%hadv_v(:,ew,ns) = model%tempwk%advconst(2) * ( model%velocity%vvel(:,ew-1,ns-1) &
+                    + model%velocity%vvel(:,ew-1,ns) + model%velocity%vvel(:,ew,ns-1) + model%velocity%vvel(:,ew,ns) )
+              end do
+          end do
+      end if ! model%options%which_ho_diagnostic .EQ. 0
 
        call hadvall(model, &
             model%temper%temp, &
@@ -444,7 +491,7 @@ contains
        end do
 
        ! apply periodic ew BC
-       if (model%options%periodic_ew.eq.1) then
+       if (model%options%periodic_ew) then
           model%temper%temp(:,0,:) = model%temper%temp(:,model%general%ewn-2,:)
           model%temper%temp(:,1,:) = model%temper%temp(:,model%general%ewn-1,:)
           model%temper%temp(:,model%general%ewn,:) = model%temper%temp(:,2,:)
@@ -454,6 +501,7 @@ contains
        ! Calculate basal melt rate --------------------------------------------------
 
        call calcbmlt(model, &
+            model%options%which_bmelt, &
             model%temper%temp, &
             model%geometry%thck, &
             model%geomderv%stagthck, &
@@ -504,7 +552,7 @@ contains
          real(model%temper%temp(model%general%upn,model%general%ewn/2+1,model%general%nsn/2+1))
 #endif
 
-  end subroutine timeevoltemp
+  end subroutine glide_temp_driver
 
   !-------------------------------------------------------------------------
 
@@ -759,7 +807,7 @@ contains
 
   !-----------------------------------------------------------------------
 
-  subroutine calcbmlt(model,temp,thck,stagthck,dusrfdew,dusrfdns,ubas,vbas,bmlt,floater)
+  subroutine calcbmlt(model,whichbmelt,temp,thck,stagthck,dusrfdew,dusrfdns,ubas,vbas,bmlt,floater)
 
     use glimmer_global, only : dp 
     use glide_temp_utils, only: calcpmpt
@@ -771,6 +819,7 @@ contains
     real(dp), dimension(:,:), intent(in) :: thck,  stagthck, dusrfdew, dusrfdns, ubas, vbas  
     real(dp), dimension(:,:), intent(inout) :: bmlt
     logical, dimension(:,:), intent(in) :: floater
+    integer, intent(in) :: whichbmelt
 
     real(dp), dimension(size(model%numerics%sigma)) :: pmptemp
     real(dp) :: slterm, newmlt
@@ -787,12 +836,58 @@ contains
 
                 slterm = 0.0d0
 
+                select case( whichbmelt )    !*sfp* added for calculating differently based on model physics
+
+                case( SIA_BMELT )                   ! 0-order SIA approx. --> Tau_d = Tau_b                                     
+
                     do nsp = ns-1,ns
                         do ewp = ew-1,ew
                             slterm = slterm - stagthck(ewp,nsp) * &
                             (dusrfdew(ewp,nsp) * ubas(ewp,nsp) + dusrfdns(ewp,nsp) * vbas(ewp,nsp))
                         end do
                     end do
+
+                    !*sfp* NOTE that multiplication by this term has been moved up from below
+                    slterm = model%tempwk%f(4) * slterm 
+
+
+                case( FIRSTORDER_BMELT )                   ! 1st-order SIA approx. (HO model)
+                    do nsp = ns-1,ns 
+                        do ewp = ew-1,ew
+                        !*sfp* Note that vel and stress arrays have diff vert dims (upn for vel, upn-1 for stress)
+                        ! so that for now, basal vel at upn is multiplied by basal stress at upn-1 to get frictional
+                        ! heating term. This may not be entirely correct ... 
+                             slterm = slterm - &
+                                
+                                !! NEW version: uses consistent basal tractions                
+                                ( -model%velocity%btraction(1,ewp,nsp) * &
+                                   model%velocity%uvel(model%general%upn,ewp,nsp)  &
+                                  -model%velocity%btraction(2,ewp,nsp) * &
+                                   model%velocity%vvel(model%general%upn,ewp,nsp) )
+                                
+                                !!!! OLD version: uses HO basal shear stress calc. from FD                
+                                !( model%stress%tau%xz(model%general%upn-1,ewp,nsp) * &
+                                !  model%stress%uvel(model%general%upn,ewp,nsp) + &
+                                !  model%stress%tau%yz(model%general%upn-1,ewp,nsp) * &
+                                !  model%stress%vvel(model%general%upn,ewp,nsp) )
+
+                        end do
+                    end do
+
+                    slterm = model%tempwk%f(5) * slterm
+
+!                case( SSA_BMELT )                  ! 1st-order, depth-integrated approx. (SSA) 
+!                                            ! NOTE: need to pass 2d basal shear stress arrays from SSA model
+!                   do nsp = ns-1,ns 
+!                         do ewp = ew-1,ew
+!                             slterm = slterm - &
+!                                 ( taubxs(upn,ewp,nsp) * ubas(ewp,nsp) + taubys(upn,ewp,nsp) * vbas(ewp,nsp))
+!                         end do
+!                   end do
+!
+!                   slterm = model%tempwk%f(5) * slterm
+
+                end select
 
                 bmlt(ew,ns) = 0.0d0
                 !*sfp* changed this so that 'slterm' is multiplied by f(4) const. above ONLY for the 0-order SIA case,
@@ -837,7 +932,7 @@ contains
 
     ! apply periodic BC
 
-    if (model%options%periodic_ew.eq.1) then
+    if (model%options%periodic_ew) then
        do ns = 2,model%general%nsn-1
           bmlt(1,ns) = bmlt(model%general%ewn-1,ns)
           bmlt(model%general%ewn,ns) = bmlt(2,ns)

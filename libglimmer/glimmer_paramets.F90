@@ -50,6 +50,8 @@ module glimmer_paramets
 
   integer :: stdout = 6
 
+! logical flag to turn on special DEBUG output (related to test points), false by default
+#ifdef GLC_DEBUG
 ! some parameters for debugging and diagnostics
    integer, parameter ::   &
       itest = 133, jtest = 84,  &          ! in Greenland (FV2), lat 67.3 N, lon 330 E
@@ -58,17 +60,23 @@ module glimmer_paramets
 
    integer, parameter :: idiag = 30, jdiag = 50  ! point for diagnostic output
 
-! logical flag to turn on special DEBUG output (related to test points), false by default
-   logical :: GLC_DEBUG = .false.
+#endif
 
 ! scaling parameters
 ! TO DO - Remove these at some point?
 
+#ifdef NO_RESCALE
+  real(dp), parameter :: thk0 = 1.d0           ! m
+  real(dp), parameter :: len0 = 1.d0           ! m
+  real(dp), parameter :: vel0 = 1.d0 / scyr    ! m yr^{-1} converted to S.I. units
+  real(dp), parameter :: vis0 = 1.d0 / scyr 
+#else
   real(dp), parameter :: thk0 = 2000.0d0          ! m
   real(dp), parameter :: len0 = 200.0d3        ! m
   real(dp), parameter :: vel0 = 500.0 / scyr    ! m yr^{-1} converted to S.I. units
   !real(dp), parameter :: vis0 = 5.70d-18 / scyr  ! yr^{-1} Pa^{-3} converted to S.I. units
   real(dp), parameter :: vis0 = 1d-16 / scyr 
+#endif
 
   ! *sfp* defined these to convert scales to values used by GLAM
   real(dp), parameter :: tau0 = rhoi*grav*thk0                   ! stress scale in GLAM ( Pa )  

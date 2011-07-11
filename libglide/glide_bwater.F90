@@ -41,7 +41,7 @@ contains
     ! which = BWATER_NONE Nothing, basal water = 0.
     ! which = BWATER_BASAL_PROC, till water content in the basal processes module
 
-    case(0)
+    case(BWATER_LOCAL)
 
        ! model%tempwk%c(1) =  model%tempwk%dt_wat
        !              c(2) =  1.0d0 - 0.5d0 * model%tempwk%dt_wat * model%paramets%hydtim
@@ -72,7 +72,7 @@ contains
           end do
        end do
        ! apply periodic BC
-       if (model%options%periodic_ew.eq.1) then
+       if (model%options%periodic_ew) then
           do ns = 2,model%general%nsn-1
              call smooth_bwat(model%general%ewn-1,1,2,ns-1,ns,ns+1)
              call smooth_bwat(model%general%ewn-1,model%general%ewn,2,ns-1,ns,ns+1)
@@ -83,14 +83,14 @@ contains
 
     ! Case added by Jesse Johnson 11/15/08
     ! Steady state routing of basal water using flux calculation
-    case(1)
+    case(BWATER_FLUX)
 
       call effective_pressure(bwat,c_effective_pressure,N)
       call pressure_wphi(thck,topg,N,wphi,model%numerics%thklim,floater)
       call route_basal_water(wphi,bmlt,model%numerics%dew,model%numerics%dns,bwatflx,lakes)
       call flux_to_depth(bwatflx,wphi,c_flux_to_depth,p_flux_to_depth,q_flux_to_depth,model%numerics%dew,model%numerics%dns,bwat)
 
-    case(3)
+    case(BWATER_BASAL_PROC)
     !Normalized basal water 
 
 !    bwat=model%basalproc%Hwater/thk0
@@ -99,7 +99,7 @@ contains
     stop
 
 
-    case(4)
+    case(BWATER_CONST)
     !Use a constant thickness of water, to force Tpmp. Normalized too.
     bwat=10.0/thk0
 

@@ -42,7 +42,11 @@ module glide
   use glide_lithot
   use glide_profile
   use glimmer_config
-  use glimmer_paramets, only: itest, jtest, thk0, GLC_DEBUG
+  use glimmer_global
+
+#ifdef GLC_DEBUG
+    use glimmer_paramets, only: itest, jtest, thk0
+#endif
 
   integer, private, parameter :: dummyunit=99
 
@@ -190,12 +194,26 @@ contains
 
     ! initialise glide components
     call init_velo(model)
-    call init_temp(model)
+
+       call glide_init_temp(model)
+
     call init_thck(model)
+
     if (model%options%gthf.gt.0) then
        call glide_lithot_io_createall(model)
        call init_lithot(model)
     end if
+
+    ! *mb* added; initialization of basal proc. module
+    if (model%options%which_bmod == BAS_PROC_FULLCALC .or. &
+        model%options%which_bmod == BAS_PROC_FASTCALC) then
+        
+!        call Basal_Proc_init (model%general%ewn, model%general%nsn,model%basalproc,     &
+!                              model%numerics%ntem)
+    write(*,*)"ERROR: Basal processes module is not supported in this release of CISM."
+    stop
+
+    end if      
 
     ! initialise ice age
     ! This is a placeholder; currently the ice age is not computed.  
@@ -206,13 +224,18 @@ contains
 
     if (model%options%hotstart.ne.1) then
        ! initialise Glen's flow parameter A using an isothermal temperature distribution
-       call timeevoltemp(model,0)
+       call glide_temp_driver(model,0,0)
     end if
 
     ! calculate mask
     if (model%options%hotstart.ne.1) then  ! setting the mask destroys exact restart
        call glide_set_mask(model)
     end if
+
+    ! calculate mask
+    !if (model%options%hotstart.ne.1) then  ! setting the mask destroys exact restart
+    !   call glide_set_mask(model)
+    !end if
 
     ! and calculate lower and upper ice surface
     call glide_calclsrf(model%geometry%thck, model%geometry%topg, model%climate%eus,model%geometry%lsrf)
@@ -227,6 +250,10 @@ contains
     call glide_prof_init(model)
 #endif
 
+    ! register the newly created model so that it can be finalised in the case
+    ! of an error without needing to pass the whole thing around to every
+    ! function that might cause an error
+    call register_model(model)
     
 #ifdef GLC_DEBUG
        write(6,*) ' '
@@ -247,7 +274,7 @@ contains
   
   subroutine glide_tstep_p1(model,time)
     !*FD Performs first part of time-step of an ice model instance.
-    !*FD Calculate temperature evolution
+    !*FD calculate velocity and temperature
     use glimmer_global, only : rk
     use glide_thck
     use glide_velo
@@ -337,7 +364,11 @@ contains
     call glide_prof_start(model,model%glide_prof%temperature)
 #endif
     if ( model%numerics%tinc >  mod(model%numerics%time,model%numerics%ntem)) then
-       call timeevoltemp(model, model%options%whichtemp)
+
+         ! standard Glide driver, including temperature advection
+
+         call glide_temp_driver(model, model%options%whichtemp, model%options%which_ho_diagnostic)
+
        model%temper%newtemps = .true.
     end if
 #ifdef PROFILING
@@ -349,13 +380,26 @@ contains
     ! ------------------------------------------------------------------------ 
     call calc_btrc(model,model%options%whichbtrc,model%velocity%btrc)
 
+    ! ------------------------------------------------------------------------ 
+    ! Calculate basal shear strength from Basal Proc module, if necessary
+    ! ------------------------------------------------------------------------    
+    if (model%options%which_bmod == BAS_PROC_FULLCALC .or. &
+        model%options%which_bmod == BAS_PROC_FASTCALC) then
+!        call Basal_Proc_driver (model%general%ewn,model%general%nsn,model%general%upn,       &
+!                                model%numerics%ntem,model%velocity%uvel(model%general%upn,:,:), &
+!                                model%velocity%vvel(model%general%upn,:,:), &
+!                                model%options%which_bmod,model%temper%bmlt,model%basalproc)
+    write(*,*)"ERROR: Basal processes module is not supported in this release of CISM."
+    stop
+    end if
+
   end subroutine glide_tstep_p1
 
 !----------------------------------------------------------------------------- 
 
-  subroutine glide_tstep_p2(model)
+  subroutine glide_tstep_p2(model,no_write)
     !*FD Performs second part of time-step of an ice model instance.
-    !*FD Calculate thickness evolution
+    !*FD write data and move ice
     use glide_thck
     use glide_velo
     use glide_setup
@@ -365,6 +409,20 @@ contains
     implicit none
 
     type(glide_global_type) :: model        !*FD model instance
+    logical,optional :: no_write
+
+    logical nw
+
+    ! ------------------------------------------------------------------------ 
+    ! write to netCDF file
+    ! ------------------------------------------------------------------------ 
+    if (present(no_write)) then
+       nw=no_write
+    else
+       nw=.false.
+    end if 
+
+    if (.not. nw) call glide_io_writeall(model,model)
 
     ! ------------------------------------------------------------------------ 
     ! Calculate flow evolution by various different methods
@@ -373,18 +431,18 @@ contains
     call glide_prof_start(model,model%glide_prof%ice_evo)
 #endif
     select case(model%options%whichevol)
-    case(0) ! Use precalculated uflx, vflx -----------------------------------
+    case(EVOL_PSEUDO_DIFF) ! Use precalculated uflx, vflx -----------------------------------
 
        call thck_lin_evolve(model,model%temper%newtemps)
 
-    case(1) ! Use explicit leap frog method with uflx,vflx -------------------
+    case(EVOL_ADI) ! Use explicit leap frog method with uflx,vflx -------------------
 
        call stagleapthck(model,model%temper%newtemps)
 
-    case(2) ! Use non-linear calculation that incorporates velocity calc -----
+    case(EVOL_DIFFUSION) ! Use non-linear calculation that incorporates velocity calc -----
 
        call thck_nonlin_evolve(model,model%temper%newtemps)
-
+ 
     end select
 #ifdef PROFILING
     call glide_prof_stop(model,model%glide_prof%ice_evo)

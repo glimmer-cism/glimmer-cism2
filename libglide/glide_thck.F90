@@ -37,6 +37,7 @@ module glide_thck
   use glimmer_sparse
   use glimmer_sparse_type
   use glide_grids
+  use glimmer_deriv           !*sfp* added
 
   private
   public :: init_thck, thck_nonlin_evolve, thck_lin_evolve, timeders, &
@@ -125,8 +126,23 @@ contains
        call velo_calc_diffu(model%velowk,model%geomderv%stagthck,model%geomderv%dusrfdew, &
             model%geomderv%dusrfdns,model%velocity%diffu)
 
+       !EIB! added from lanl
+       !Calculate higher-order velocities if the user asked for them
+
+! *sfp* not needed anymore? Causes circular ref error when building w/ fo_upwind code
+!       if (model%options%diagnostic_run == 1) then
+!          call glide_finalise_all(.true.)
+!          stop
+!       end if
+
+
+       if (model%options%which_ho_prognostic == HO_PROG_SIAONLY) then
        ! get new thicknesses
           call thck_evolve(model,model%velocity%diffu, model%velocity%diffu, .true.,model%geometry%thck,model%geometry%thck)
+       else if (model%options%which_ho_prognostic == HO_PROG_PATTYN) then
+          call thck_evolve(model,model%velocity%diffu_x, model%velocity%diffu_y, .true.,&
+                            model%geometry%thck, model%geometry%thck)
+       end if
 
        ! calculate horizontal velocity field
        ! (These calls must appear after thck_evolve, as thck_evolve uses ubas,
@@ -166,6 +182,18 @@ contains
     integer p
     logical first_p
 
+#ifdef USE_UNSTABLE_MANIFOLD
+    ! local variables used by unstable manifold correction
+    real(kind=dp), dimension(model%general%ewn*model%general%nsn) :: umc_new_vec   
+    real(kind=dp), dimension(model%general%ewn*model%general%nsn) :: umc_old_vec 
+    real(kind=dp), dimension(model%general%ewn*model%general%nsn) :: umc_correction_vec
+    logical :: umc_continue_iteration
+    integer :: linearize_start
+
+    umc_correction_vec = 0
+    umc_new_vec = 0
+    umc_old_vec = 0
+#endif
 
     if (model%geometry%empty) then
 
@@ -204,16 +232,42 @@ contains
           call velo_calc_diffu(model%velowk,model%geomderv%stagthck,model%geomderv%dusrfdew, &
                model%geomderv%dusrfdns,model%velocity%diffu)
 
+          ! Calculate higher-order velocities if the user asked for them
+
           ! get new thicknesses
+          if (model%options%which_ho_prognostic == HO_PROG_SIAONLY) then
+ 
               call thck_evolve(model, model%velocity%diffu, model%velocity%diffu, &
                                first_p, model%geometry%thck, model%geometry%thck)
+          else if (model%options%which_ho_prognostic == HO_PROG_PATTYN) then
+              call thck_evolve(model, model%velocity%diffu_x, model%velocity%diffu_y, .true.,&
+                               model%geometry%thck, model%geometry%thck)
+          end if          
 
           first_p = .false.
+
+#ifdef USE_UNSTABLE_MANIFOLD
+          linearize_start = 1
+          call linearize_2d(umc_new_vec, linearize_start, model%geometry%thck)
+          linearize_start = 1
+          call linearize_2d(umc_old_vec, linearize_start, model%thckwk%oldthck2)
+          umc_continue_iteration = unstable_manifold_correction(umc_new_vec, umc_old_vec, &
+                                                                umc_correction_vec, size(umc_correction_vec),&
+                                                                tol)
+          !Only the old thickness might change as a result of this call
+           linearize_start = 1
+           call delinearize_2d(umc_old_vec, linearize_start, model%thckwk%oldthck2)
+          
+          if (umc_continue_iteration) then
+            exit
+          end if
+#else
           residual = maxval(abs(model%geometry%thck-model%thckwk%oldthck2))
           if (residual.le.tol) then
              exit
           end if
           model%thckwk%oldthck2 = model%geometry%thck
+#endif
 
        end do
 #ifdef DEBUG_PICARD
@@ -246,6 +300,11 @@ contains
 
     use glide_setup, only: glide_calclsrf
     use glimmer_global, only : dp
+!    use glide_stop   *sfp* if active, causes circular ref error when built w/ fo_upwind code
+    use glimmer_log
+#if DEBUG
+    use glimmer_paramets, only: vel0, thk0
+#endif
 
     implicit none
 
@@ -295,7 +354,7 @@ contains
     end do
 
     !left and right BC
-    if (model%options%periodic_ew.eq.1) then
+    if (model%options%periodic_ew) then
        do ns=2,model%general%nsn-1
           ew = 1
           if (model%geometry%mask(ew,ns) /= 0) then
@@ -487,6 +546,54 @@ subroutine geometry_derivs(model)
     !TODO: correct signs
     model%geomderv%dlsrfdew = model%geomderv%dusrfdew - model%geomderv%dthckdew
     model%geomderv%dlsrfdns = model%geomderv%dusrfdns - model%geomderv%dthckdns
+      
+    !Compute second derivatives.
+    !TODO: Turn this on and off conditionally based on whether the computation
+    !is requred
+    
+    !Compute seond derivatives
+    !TODO: maybe turn this on and off conditionally?
+    call d2f_field_stag(model%geometry%usrf, model%numerics%dew, model%numerics%dns, &
+                        model%geomderv%d2usrfdew2, model%geomderv%d2usrfdns2, &
+                        .false., .false.)
+
+    call d2f_field_stag(model%geometry%thck, model%numerics%dew, model%numerics%dns, &
+                        model%geomderv%d2thckdew2, model%geomderv%d2thckdns2, &
+                        .false., .false.)
+
+end subroutine
+
+!*FD Computes derivatives of the geometry onto variables on a nonstaggered
+!*FD grid.  Used for some higher-order routines
+subroutine geometry_derivs_unstag(model)
+   implicit none
+   type(glide_global_type) :: model
+
+   !Fields allow us to upwind derivatives at the ice sheet lateral boundaries
+   !so that we're not differencing out of the domain
+   real(dp), dimension(model%general%ewn, model%general%nsn) :: direction_x, direction_y
+
+   !Compute first derivatives of geometry
+   call df_field_2d(model%geometry%usrf, model%numerics%dew, model%numerics%dns, &
+                    model%geomderv%dusrfdew_unstag, model%geomderv%dusrfdns_unstag, &
+                    .false., .false., direction_x, direction_y)
+
+   call df_field_2d(model%geometry%lsrf, model%numerics%dew, model%numerics%dns, &
+                    model%geomderv%dlsrfdew_unstag, model%geomderv%dlsrfdns_unstag, &
+                    .false., .false., direction_x, direction_y)
+
+   call df_field_2d(model%geometry%thck, model%numerics%dew, model%numerics%dns, &
+                    model%geomderv%dthckdew_unstag, model%geomderv%dthckdns_unstag, &
+                    .false., .false., direction_x, direction_y)
+
+   call d2f_field(model%geometry%usrf, model%numerics%dew, model%numerics%dns, &
+                  model%geomderv%d2usrfdew2_unstag, model%geomderv%d2usrfdns2_unstag, &
+                  direction_x, direction_y)
+
+   call d2f_field(model%geometry%thck, model%numerics%dew, model%numerics%dns, &
+                  model%geomderv%d2thckdew2_unstag, model%geomderv%d2thckdns2_unstag, &
+                  direction_x, direction_y)
+
 
 end subroutine
 
