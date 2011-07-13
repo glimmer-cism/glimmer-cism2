@@ -526,7 +526,32 @@ contains
             is_float(model%geometry%thkmask), &
             model%tempwk%wphi)
 
+       !EIB! rest of case not present in lanl
        ! Transform basal temperature and pressure melting point onto velocity grid -
+!    case(2) ! *sfp* stealing this un-used option ... 
+
+!        call stagvarb(model%temper%temp(model%general%upn,1:model%general%ewn,1:model%general%nsn), &
+!             model%temper%stagbtemp ,&
+!             model%general%  ewn, &
+!             model%general%  nsn)
+!        
+!        call calcbpmp(model,model%geometry%thck,model%temper%bpmp)
+! 
+!        call stagvarb(model%temper%bpmp, &
+!             model%temper%stagbpmp ,&
+!             model%general%  ewn, &
+!             model%general%  nsn)
+
+!    case(2) ! Do something else, unspecified ---------------------------------------
+!
+!       do ns = 1,model%general%nsn
+!          do ew = 1,model%general%ewn
+!             model%temper%temp(:,ew,ns) = dmin1(0.0d0,dble(model%climate%artm(ew,ns))) * (1.0d0 - model%numerics%sigma)
+!             call corrpmpt(model%temper%temp(:,ew,ns),model%geometry%thck(ew,ns),model%temper%bwat(ew,ns),&
+!                  model%numerics%sigma,model%general%upn)
+!          end do
+!       end do
+
 
     case(2) ! *sfp* stealing this un-used option ... 
 
@@ -680,6 +705,10 @@ contains
 
     real(dp) :: fact(3)
 
+! These constants are precomputed:
+! model%tempwk%cons(1) = 2.0d0 * tim0 * model%numerics%dttem * coni / (2.0d0 * rhoi * shci * thk0**2)
+! model%tempwk%cons(2) = model%numerics%dttem / 2.0d0 
+
     fact(1) = VERT_DIFF*model%tempwk%cons(1) / model%geometry%thck(ew,ns)**2
     fact(2) = VERT_ADV*model%tempwk%cons(2) / model%geometry%thck(ew,ns)    
     
@@ -751,6 +780,10 @@ contains
        ! sliding contribution to basal heat flux
        slterm = 0.
        slide_count = 0
+
+       !whl - BUG! - The following expression for taub*ubas is valid only for the SIA
+       !             Need a different expression for HO dynamics
+
        ! only include sliding contrib if temperature node is surrounded by sliding velo nodes
        do nsp = ns-1,ns
           do ewp = ew-1,ew

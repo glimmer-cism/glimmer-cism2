@@ -37,7 +37,7 @@ module glide_thck
   use glimmer_sparse
   use glimmer_sparse_type
   use glide_grids
-  use glimmer_deriv           !*sfp* added
+  use glide_deriv           !*sfp* added
 
   private
   public :: init_thck, thck_nonlin_evolve, thck_lin_evolve, timeders, &
@@ -143,6 +143,8 @@ contains
           call thck_evolve(model,model%velocity%diffu_x, model%velocity%diffu_y, .true.,&
                             model%geometry%thck, model%geometry%thck)
        end if
+       !EIB! old? from gc2
+       !call thck_evolve(model,.true.,model%geometry%thck,model%geometry%thck)
 
        ! calculate horizontal velocity field
        ! (These calls must appear after thck_evolve, as thck_evolve uses ubas,
@@ -156,6 +158,10 @@ contains
             model%geomderv%dusrfdns,model%temper%flwa,model%velocity%diffu,model%velocity%ubas, &
             model%velocity%vbas,model%velocity%uvel,model%velocity%vvel,model%velocity%uflx,model%velocity%vflx,&
             model%velocity%surfvel)
+       !EIB! old
+       !call velo_calc_velo(model%velowk,model%geomderv%stagthck,model%geomderv%dusrfdew, &
+       !     model%geomderv%dusrfdns,model%temper%flwa,model%velocity%diffu,model%velocity%ubas, &
+       !     model%velocity%vbas,model%velocity%uvel,model%velocity%vvel,model%velocity%uflx,model%velocity%vflx)
     end if
   end subroutine thck_lin_evolve
 
@@ -170,6 +176,7 @@ contains
     use glimmer_global, only : dp
     use glide_velo
     use glide_setup
+    !EIB! use glide_deriv, only : df_field_2d_staggered 
     implicit none
     ! subroutine arguments
     type(glide_global_type) :: model
@@ -288,6 +295,10 @@ contains
             model%geomderv%dusrfdns,model%temper%flwa,model%velocity%diffu,model%velocity%ubas, &
             model%velocity%vbas,model%velocity%uvel,model%velocity%vvel,model%velocity%uflx,model%velocity%vflx,&
             model%velocity%surfvel)
+       !EIB! old way
+       !call velo_calc_velo(model%velowk,model%geomderv%stagthck,model%geomderv%dusrfdew, &
+       !     model%geomderv%dusrfdns,model%temper%flwa,model%velocity%diffu,model%velocity%ubas, &
+       !     model%velocity%vbas,model%velocity%uvel,model%velocity%vvel,model%velocity%uflx,model%velocity%vflx)
     end if
   end subroutine thck_nonlin_evolve
 
@@ -495,7 +506,7 @@ contains
 !---------------------------------------------------------------------------------
 
 subroutine geometry_derivs(model)
-   use glimmer_deriv, only : df_field_2d_staggered 
+   use glide_deriv, only : df_field_2d_staggered 
    implicit none
 
    !*FD Computes derivatives of the ice and bed geometry, as well as averaging

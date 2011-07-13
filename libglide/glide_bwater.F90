@@ -279,7 +279,7 @@ contains
   !*FD or Manning flow, both of which take the form of a constant times water
   !*FD depth to a power, times pressure wphi to a power.
 
-    use glimmer_deriv, only: df_field_2d              ! Find grad_wphi
+    use glide_deriv, only: df_field_2d              ! Find grad_wphi
     use glimmer_physcon, only : scyr                ! Seconds per year
 
     real(dp),dimension(:,:),intent(in) :: flux      ! Basal water flux
