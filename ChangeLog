@@ -1,3 +1,7 @@
+2011-07-13 Ian Rutt
+ * Reverted glide_thkmask to use thickness>0.0 and acab>0.0 as criteria
+   for inclusion in SIA thickness calculation.
+
 2011-07-05 Ian Rutt
  * glide_temp.F90: removed pair of calls to timeders. Duplication of these (also in glide.F90, time step part 3) 
    means that a zero time derivative of surface and thickness was being used in the thermal calculation.
