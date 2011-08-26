@@ -14,7 +14,8 @@ module remap_glamutils
   !whl - to do - Hardwired ntrace and nghost for now.  Better to pass them in at initialization?
   !whl - The current remapping scheme requires nghost = 2.
 
-    integer, parameter  :: ntrace_ir = 3    ! number of tracers (e.g., temperature, ice age)
+    !ntrace_ir = 2 for damage, ice age. 3 if including damage.
+    integer, parameter  :: ntrace_ir = 1    ! number of tracers (e.g., temperature, ice age)
     integer, parameter  :: nghost_ir = 2    ! number of ghost cell (halo) layers
     
     ! *sfp** arrays needed to pass GLAM variables to/from inc. remapping solver
@@ -302,6 +303,7 @@ module remap_glamutils
 !     end if
 ! JCC - Above used for periodic, disabled.
     if (present(age) .and. ntrace_ir >= 2) then
+       print *, 'age is present'
        do k = 1, wk%upn_ir
           wk%trace_ir(:,:,2,k) = age(k,:,:)
        enddo
@@ -310,6 +312,7 @@ module remap_glamutils
     !whl - Add other tracer fields here, if desired
 
     if (present(damage) .and. ntrace_ir >= 3) then
+       print *, 'advecting damage '
        do k = 1, wk%upn_ir
           wk%trace_ir(:,:,3,k) = damage(k,:,:)
        enddo
@@ -336,7 +339,7 @@ module remap_glamutils
         write(*,*) "WARNING: CFL violation in incremental remapping scheme.  Time step should be <= ", dt_cfl
     end if
 
-    end subroutine horizontal_remap_in
+   end subroutine horizontal_remap_in
 
 !----------------------------------------------------------------------
 

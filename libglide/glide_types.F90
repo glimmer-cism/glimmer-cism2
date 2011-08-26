@@ -1044,7 +1044,9 @@ contains
     call coordsystem_allocate(model%general%ice_grid, model%temper%lcondflx)
     call coordsystem_allocate(model%general%ice_grid, model%temper%dissipcol)
 
-    call coordsystem_allocate(model%general%ice_grid,upn-1, model%damage%sclr_damage)
+    call coordsystem_allocate(model%general%ice_grid,upn-1, model%damage%sclr_damage) 
+    model%damage%sclr_damage = 0.d0
+
 
 !whl - For whichtemp = TEMP_REMAP_ADV, temperature and flow factor live on the staggered
 !      vertical grid.  In this case, temperature and flwa are defined at the

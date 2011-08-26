@@ -417,7 +417,6 @@ subroutine glam_velo_fordsiapstr(ewn,      nsn,    upn,  &
                      dusrfdew,   dthckdew, &
                      dusrfdns,   dthckdns, &
                      umask)
-
     end if
 
     ! calculate coeff. for stress balance in y-direction 
@@ -1068,9 +1067,18 @@ subroutine findefvs_with_damage(ewn,  nsn, upn,       &
 
   integer, intent(in) :: whichefvs, counter
 
-  print *, 'inside findefvs_with_damage'
-
-
+  !print *, 'inside findefvs_with_damage' 
+  call findefvsstr(ewn,  nsn, upn,       &
+                   stagsigma, counter,   &
+                   whichefvs, efvs,      &
+                   uvel,      vvel,      &
+                   flwa,      thck,      &
+                   dusrfdew,  dthckdew,  &
+                    dusrfdns,  dthckdns,  &
+                    mask)
+  !efvs(:,:,:) = (1.d0 - damage(:,:,:))*efvs(:,:,:)
+  ! Raj : uncomment line below when working
+  efvs = (1.d0 - damage)*efvs
 end subroutine findefvs_with_damage
 
 subroutine findefvsstr(ewn,  nsn, upn,       &

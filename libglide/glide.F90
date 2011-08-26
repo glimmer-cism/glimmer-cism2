@@ -123,6 +123,7 @@ contains
     use isostasy
     use glimmer_map_init
     use glide_ground
+    use glide_damage
     use glam_strs2, only : glam_velo_fordsiapstr_init
     use remap_glamutils, only : horizontal_remap_init
     use fo_upwind_advect, only : fo_upwind_advect_init
@@ -173,6 +174,7 @@ contains
     call openall_in(model)
     ! and read first time slice
     call glide_io_readall(model,model)
+    print *, 'temperature after glide_io_readall', model%temper%temp(5,15,:)
     ! Write projection info to log
     call glimmap_printproj(model%projection)
 
@@ -331,6 +333,10 @@ contains
        enddo
   300  format(i3, Z24.20)
 #endif
+
+   if (model%options%use_damage == 1) then
+	call glide_damage_init(model)
+   end if
 
   end subroutine glide_initialise
   

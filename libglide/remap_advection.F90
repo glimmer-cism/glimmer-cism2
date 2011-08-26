@@ -1705,7 +1705,6 @@
 
       ! For nghost = 1, loop over physical cells and update ghost cells later.
       ! For nghost = 2, loop over a layer of ghost cells and skip update.
-
       do j = jlo-nghost+1, jhi+nghost-1
       do i = ilo-nghost+1, ihi+nghost-1
 
@@ -1718,6 +1717,28 @@
             l_stop = .true.
             istop = i
             jstop = j
+
+            ! Raj: Remove prints when working with tracers.
+            if (dpx(i,j) < -htn(i,j)) then
+              print *, 'Bad departure point at i,j',i,j
+              print *, 'dpx(i,j), htn(i,j)', dpx(i,j), htn(i,j)
+            end if
+
+            if (dpx(i,j) > htn(i+1,j)) then
+              print *, 'Bad departure point at i,j',i,j
+              print *, 'dpx(i,j), htn(i+1,j)', dpx(i,j), htn(i+1,j)
+            end if
+
+            if (dpy(i,j) < -hte(i,j)) then
+              print *, 'Bad departure point at i,j',i,j
+              print *, 'dpy(i,j), hte(i,j)', dpy(i,j), hte(i,j)
+            end if
+
+            if (dpy(i,j) > hte(i,j+1)) then
+              print *, 'Bad departure point at i,j',i,j
+              print *, 'dpy(i,j), hte(i,j+1)', dpy(i,j), hte(i,j+1)
+            end if
+
          endif
 
       enddo
@@ -3468,7 +3489,6 @@
     !-------------------------------------------------------------------
     ! Save starting values of mass*tracer
     !-------------------------------------------------------------------
-
       if (present(tm)) then
          do nt = 1, ntrace
             if (tracer_type(nt)==1) then ! does not depend on other tracers
@@ -3514,6 +3534,13 @@
             l_stop = .true.
             istop = i
             jstop = j
+            print *, 'New mass < 0, i, j=', i, j
+            print *, 'Calc is mflxe(i,j) - mflxe(i-1,j) + mflxn(i,j) - mflxn(i,j-1)'
+            print *, 'This gives ',mflxe(i,j),' - ',mflxe(i-1,j),' + ',mflxn(i,j),' - ',mflxn(i,j-1)
+            print *, 'w1 is ', w1
+            print *, 'Old mass =', mm(i,j) + w1*tarea_r(i,j)
+            print *, 'New mass =', mm(i,j)
+            print *,'Net transport =', -w1*tarea_r(i,j)
          elseif (mm(i,j) < c0) then   ! set to zero
             mm(i,j) = c0
          endif

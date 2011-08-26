@@ -77,13 +77,14 @@ program simple_glide
   ret = gptlstart ('total')
 #endif
 
+
+
 #ifdef GLIMMER_MPI
  call MPI_Init(ierr)
 ! call MPI_Comm_size(MPI_COMM_WORLD,nproc,ierr)
 ! call MPI_Comm_rank(MPI_COMM_WORLD,irank,ierr)
 #endif
   call glimmer_GetCommandline()
-
 
   ! start logging
   call open_log(unit=50, fname=logname(commandline_configname))
@@ -92,8 +93,9 @@ program simple_glide
   call filenames_init(commandline_configname)
 
   ! read configuration
+  print *, 'opening config'
   call ConfigRead(commandline_configname,config)
-
+  print *, 'after opening config'
   ! start timing
   call system_clock(clock,clock_rate)
   t1 = real(clock,kind=dp)/real(clock_rate,kind=dp)
@@ -102,6 +104,9 @@ program simple_glide
   call glide_config(model,config)
   call simple_initialise(climate,config)
   call glide_initialise(model)
+
+  print *,'initial temp',  model%temper%temp(5,15,:)
+
   call CheckSections(config)
   ! fill dimension variables
   call glide_nc_fillall(model)
@@ -136,6 +141,7 @@ program simple_glide
   t2 = real(clock,kind=dp)/real(clock_rate,kind=dp)
   call glimmer_write_stats(commandline_resultsname,commandline_configname,t2-t1)
   call close_log
+
 
 #ifdef GLIMMER_MPI
  call MPI_Finalize(ierr)

@@ -119,7 +119,7 @@ module stress_hom
         ! one gets the same thing as if one took Tau_eff = N_eff * Eps_eff, where Eps_eff is the 
         ! 1st order approx. to the 2nd strain-rate invariant (outlined in model description document).
         tau = sqrt(tauxz**2 + tauyz**2 + tauxx**2 + tauyy**2 + tauxx*tauyy + tauxy**2)
-
+        
         return
 
     end subroutine calcstrsstr
