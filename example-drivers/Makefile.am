@@ -1,5 +1,5 @@
-SUBDIRS = eis EISMINT-3 glint simple_glide
-tests = eis EISMINT-3
+SUBDIRS = simple_glide
+tests = 
 
 data::
 		list='$(tests)'; for dir in $$list; do \

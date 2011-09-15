@@ -93,9 +93,7 @@ program simple_glide
   call filenames_init(commandline_configname)
 
   ! read configuration
-  print *, 'opening config'
   call ConfigRead(commandline_configname,config)
-  print *, 'after opening config'
   ! start timing
   call system_clock(clock,clock_rate)
   t1 = real(clock,kind=dp)/real(clock_rate,kind=dp)
@@ -104,8 +102,6 @@ program simple_glide
   call glide_config(model,config)
   call simple_initialise(climate,config)
   call glide_initialise(model)
-
-  print *,'initial temp',  model%temper%temp(5,15,:)
 
   call CheckSections(config)
   ! fill dimension variables
@@ -119,9 +115,11 @@ program simple_glide
   tstep_count = 0
 
   do while(time.le.model%numerics%tend)
+
      call glide_tstep_p1(model,time)
      call glide_tstep_p2(model)
      call glide_tstep_p3(model)
+
      ! override masking stuff for now
 
      tstep_count = tstep_count + 1
