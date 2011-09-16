@@ -174,7 +174,6 @@ contains
     call openall_in(model)
     ! and read first time slice
     call glide_io_readall(model,model)
-    print *, 'temperature after glide_io_readall', model%temper%temp(5,15,:)
     ! Write projection info to log
     call glimmap_printproj(model%projection)
 
