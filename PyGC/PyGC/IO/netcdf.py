@@ -1,4 +1,4 @@
-# Copyright (C) 2010
+# Copyright (C) 2011
 # Glimmer-CISM contributors - see AUTHORS file for list of contributors
 #
 # This file is part of Glimmer-CISM.
@@ -19,11 +19,23 @@
 # Glimmer-CISM is hosted on BerliOS.de:
 # https://developer.berlios.de/projects/glimmer-cism/
 
-from GC_file import *
-from GC_createfile import *
-from GC_loadfile import *
-from GC_readlines import *
-from GC_epoch import *
-from GC_profile import *
-from GC_proj import *
-from netcdf import NetCDFFile
+# attempt to find a suitable netCDF file module
+
+HAVE_NCFILE=False
+
+if not HAVE_NCFILE:
+    HAVE_NCFILE=True
+    try:
+        from netCDF4 import Dataset as NetCDFFile
+    except:
+        HAVE_NCFILE=False
+
+if not HAVE_NCFILE:
+    HAVE_NCFILE=True
+    try:
+        from Scientific.IO.NetCDF import NetCDFFile
+    except:
+        HAVE_NCFILE=False
+
+if not HAVE_NCFILE:
+    raise ImportError, "Require either netCDF4 or Scientific.IO.NetCDF module"

@@ -1,0 +1,122 @@
+#! /usr/bin/env python
+
+# Copyright (C) 2010
+# Glimmer-CISM contributors - see AUTHORS file for list of contributors
+#
+# This file is part of Glimmer-CISM.
+#
+# Glimmer-CISM is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or (at
+# your option) any later version.
+#
+# Glimmer-CISM is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Glimmer-CISM.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Glimmer-CISM is hosted on BerliOS.de:
+# https://developer.berlios.de/projects/glimmer-cism/
+
+"""load a cf compliant file and produce a Glimmer-CISM input file"""
+
+import PyGC
+import sys,os
+import numpy
+
+class CFFile(object):
+
+    def __init__(self,fname):
+        self.ncfile = PyGC.IO.NetCDFFile(fname,'r')
+        assert hasattr(self.ncfile,'Conventions')
+
+    def getGridMapping(self,vname):
+        assert vname in self.ncfile.variables.keys()
+
+        if hasattr(self.ncfile.variables[vname],'grid_mapping'):
+            mapvar = self.ncfile.variables[self.ncfile.variables[vname].grid_mapping]
+            return PyGC.IO.getGCProj(mapvar)
+
+    def getXCoord(self,vname):
+        assert vname in self.ncfile.variables.keys()
+
+        if hasattr(self.ncfile.variables[vname],'coordinates'):
+            xvar = self.ncfile.variables[self.ncfile.variables[vname].coordinates.split()[0]]
+            return xvar
+
+    def getYCoord(self,vname):
+        assert vname in self.ncfile.variables.keys()
+
+        if hasattr(self.ncfile.variables[vname],'coordinates'):
+            yvar = self.ncfile.variables[self.ncfile.variables[vname].coordinates.split()[1]]
+            return yvar
+    
+    def getVar(self,vname):
+        assert vname in self.ncfile.variables.keys()
+
+        return self.ncfile.variables[vname]
+
+if __name__ == '__main__':
+
+    parser = PyGC.GCOptParser("""usage: %prog [options] infile outfile
+    read a CF compliant netCDF file and produce a Glimmer-CISM input file.""")
+
+    parser.add_option('-i','--input-var',metavar='VAR',help='extract VAR from input file')
+    parser.add_option('-o','--output-var',metavar='VAR',help='store data in output variable VAR')
+    
+    opts = PyGC.GCOptions(parser,2)
+    
+    invname = opts.options.input_var
+    outvname = opts.options.output_var
+
+    inCF = CFFile(opts.args[0])
+    mapping = inCF.getGridMapping(invname)
+
+    # generate lon/lat data
+    lon,lat = numpy.meshgrid(inCF.getXCoord(invname),inCF.getYCoord(invname))
+
+    numx = inCF.getVar(invname).shape[1]
+    numy = inCF.getVar(invname).shape[0]
+
+    for j in range(numy):
+        for i in range(numx):
+            lon[j,i],lat[j,i] = tuple(mapping.proj4([lon[j,i],lat[j,i]],inv=True))
+    
+    outFile = PyGC.IO.GCcreatefile(opts.args[-1])
+    outFile.createDimension('x0',numx-1)
+    outFile.createDimension('x1',numx)
+    outFile.createDimension('y0',numy-1)
+    outFile.createDimension('y1',numy)
+    outFile.createDimension('level',1)
+    outFile.createDimension('lithoz',1)
+    outFile.createDimension('time',None)
+
+    mapping.genCFMap(outFile)
+
+    # creating variables
+    x = numpy.array(inCF.getXCoord(invname)).astype('f')
+    y = numpy.array(inCF.getYCoord(invname)).astype('f')
+    var=outFile.createVariable('x0')
+    var[:]= 0.5*(x[0]+x[1:])
+    var=outFile.createVariable('x1')
+    var[:]= x[:]
+    var=outFile.createVariable('y0')
+    var[:]= 0.5*(y[0]+y[1:])
+    var=outFile.createVariable('y1')
+    var[:]= y[:]
+    var = outFile.createVariable('time')
+    var[0] = 0
+
+    # coordinates
+    var = outFile.createVariable('lon')
+    var[0,:,:] = numpy.array(lon[:,:]).astype('f')
+    var = outFile.createVariable('lat')
+    var[0,:,:] = numpy.array(lat[:,:]).astype('f')
+
+    var = outFile.createVariable(outvname)
+    var[0,:,:] = inCF.getVar(invname)
+
+    outFile.close()

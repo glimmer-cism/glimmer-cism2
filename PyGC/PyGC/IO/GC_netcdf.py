@@ -22,26 +22,7 @@
 __all__ = ['GCNetCDFFile','ScaledMaskedVariable']
 
 import numpy
-
-HAVE_NCFILE=False
-
-if not HAVE_NCFILE:
-    HAVE_NCFILE=True
-    try:
-        from netCDF4 import Dataset as NetCDFFile
-    except:
-        HAVE_NCFILE=False
-
-if not HAVE_NCFILE:
-    HAVE_NCFILE=True
-    try:
-        from Scientific.IO.NetCDF import NetCDFFile
-    except:
-        HAVE_NCFILE=False
-
-if not HAVE_NCFILE:
-    raise ImportError, "Require either netCDF4 or Scientific.IO.NetCDF module"
-
+from netcdf import NetCDFFile
 
 defaultFillVals = {'byte'      : -127,
                    'short'     : -32767,

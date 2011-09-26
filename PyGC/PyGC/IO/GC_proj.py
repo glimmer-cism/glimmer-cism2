@@ -36,6 +36,7 @@ class GCProj(object):
         """Initialise.
 
         var: GC grid mapping variable."""
+        self.mapping_name = None
         self.params = {}
         self.params['proj'] = None
         self.params['ellps'] = 'WGS84' # set default ellipsoid
@@ -94,6 +95,15 @@ class GCProj(object):
         en = self.Proj4.inv(ur)
         return '%f/%f/%f/%fr'%(ws[0],ws[1],en[0],en[1])
 
+    def genCFMap(self,gcfile):
+        if self.mapping_name != None:
+            var = gcfile.file.createVariable('mapping','c',tuple())
+
+            var.grid_mapping_name = self.mapping_name
+            var.false_easting  = self.params['x_0']
+            var.false_northing = self.params['y_0']
+            return var
+
 class GCProj_stere(GCProj):
     """Stereographic Projections."""
 
@@ -131,6 +141,9 @@ class GCProj_stere(GCProj):
             gmt = '%s%f/%f'%(self.gmt_type,
                              self.params['lon_0'],self.params['lat_0'])
         return gmt
+
+    def genCFMap(self,gcfile):
+        raise NotImplementedError
         
 class GCProj_laea(GCProj):
     """Lambert Azimuthal Equal Area"""
@@ -139,6 +152,7 @@ class GCProj_laea(GCProj):
         
         var: GC grid mapping variable."""
         GCProj.__init__(self,var)
+        self.mapping_name = 'lambert_azimuthal_equal_area'
         self.params['proj'] = 'laea'
         self.params['lat_0'] = numpy.squeeze(var.latitude_of_projection_origin)
         self.params['lon_0'] = numpy.squeeze(var.longitude_of_central_meridian)
@@ -150,6 +164,15 @@ class GCProj_laea(GCProj):
         gmt = '%s%f/%f'%(self.gmt_type,
                          self.params['lon_0'],self.params['lat_0'])
         return gmt
+
+    def genCFMap(self,gcfile):
+        var = GCProj.genCFMap(self,gcfile)
+        
+        var.latitude_of_projection_origin = self.params['lat_0']
+        var.longitude_of_central_meridian = self.params['lon_0']
+
+        return var
+        
     
 class GCProj_aea(GCProj_laea):
     """Albers Equal-Area Conic."""
@@ -159,6 +182,7 @@ class GCProj_aea(GCProj_laea):
         
         var: GC grid mapping variable."""
         GCProj_laea.__init__(self,var)
+        self.mapping_name = 'albers_conical_equal_area'
         if len(var.standard_parallel) == 2:
             self.params['lat_1'] = var.standard_parallel[0]
             self.params['lat_2'] = var.standard_parallel[1]
@@ -176,6 +200,14 @@ class GCProj_aea(GCProj_laea):
                                self.params['lon_0'],self.params['lat_0'],
                                self.params['lat_1'],self.params['lat_2'])
         return gmt
+
+    def genCFMap(self,gcfile):
+        var = GCProj_laea.genCFMap(self,gcfile)
+        
+        if 'lat_2' in self.params:
+            var.standard_parallel = [self.params['lat_1'],self.params['lat_2']]
+        else:
+            var.standard_parallel = [self.params['lat_1']]
 
 class GCProj_lcc(GCProj_aea):
     """Lambert Conic Conformal."""

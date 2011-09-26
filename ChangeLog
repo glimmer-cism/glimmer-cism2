@@ -1,3 +1,14 @@
+2011-09-26 Magnus Hagdorn
+ * PyGC/PyGC/IO/GC_netcdf.py: move netCDF module selection to its own file
+ * PyGC/PyGC/IO/GC_proj.py: add method to store CF mapping variable
+ * PyGC/PyGC/IO/Makefile.am: add new file
+ * PyGC/PyGC/IO/__init__.py: load various modules
+ * PyGC/PyGC/IO/netcdf.py: find a suitable netCDF module
+ * PyGC/progs/Makefile.am: add new program
+ * PyGC/progs/cf2GC: new program to convert a CF compliant file into a GC input
+   file. Currently, the data has to be projected to a suitable geographic
+   coord system
+
 2011-06-01 Magnus Hagdorn
  * PyGC/PyGC/IO/GC_loadfile.py: fix index ordering
 
