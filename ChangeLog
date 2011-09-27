@@ -1,3 +1,7 @@
+2011-09-27 Magnus Hagdorn
+ * PyGC/progs/cf2GC: fix bug computing x0,y0. flip coordinate axes if
+   necessary
+
 2011-09-26 Magnus Hagdorn
  * PyGC/PyGC/IO/GC_netcdf.py: move netCDF module selection to its own file
  * PyGC/PyGC/IO/GC_proj.py: add method to store CF mapping variable
