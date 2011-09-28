@@ -76,8 +76,21 @@ if __name__ == '__main__':
     inCF = CFFile(opts.args[0])
     mapping = inCF.getGridMapping(invname)
 
+    # extracting projected coordinates
+    x = numpy.array(inCF.getXCoord(invname)).astype('f')
+    y = numpy.array(inCF.getYCoord(invname)).astype('f')
+
+    flipx=False
+    flipy=False
+    if x[1]<x[0]:
+        flipx=True
+        x = numpy.flipud(x)
+    if y[1]<y[0]:
+        flipy=True
+        y = numpy.flipud(y)
+
     # generate lon/lat data
-    lon,lat = numpy.meshgrid(inCF.getXCoord(invname),inCF.getYCoord(invname))
+    lon,lat = numpy.meshgrid(x,y)
 
     numx = inCF.getVar(invname).shape[1]
     numy = inCF.getVar(invname).shape[0]
@@ -97,19 +110,7 @@ if __name__ == '__main__':
 
     mapping.genCFMap(outFile)
 
-    # creating variables
-    x = numpy.array(inCF.getXCoord(invname)).astype('f')
-    y = numpy.array(inCF.getYCoord(invname)).astype('f')
-
-    flipx=False
-    flipy=False
-    if x[1]<x[0]:
-        flipx=True
-        x = numpy.flipud(x)
-    if y[1]<y[0]:
-        flipy=True
-        y = numpy.flipud(y)
-    
+    # creating variables    
     var=outFile.createVariable('x0')
     var[:]= 0.5*(x[1]-x[0])+x[:-1]
     var=outFile.createVariable('x1')
