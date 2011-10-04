@@ -261,42 +261,75 @@ class GCprofvar(GCvariable):
 
         returns a GMT grid"""
 
-        if 'level' not in self.var.dimensions:
+        if 'level' not in self.var.dimensions and 'lithoz' not in self.var.dimensions:
             raise ValueError, 'Not a 3D variable'
 
         if time not in self.__data2d:
-            # load ice thickness and bedrock profiles
-            ihprof = numpy.array(GCprofvar(self.cffile,'thk').getProfile(time))
-            try:
-                rhprof = numpy.array(GCprofvar(self.cffile,'topg').getProfile(time))
-            except:
-                rhprof = numpy.zeros(len(ihprof))
-            ymin=min(rhprof)
-            ymax=max(rhprof+ihprof)
-            numy=int((ymax-ymin)/self.yres)+1
+            if 'level' in self.var.dimensions:         
+                # load ice thickness and bedrock profiles
+                ihprof = numpy.array(GCprofvar(self.cffile,'thk').getProfile(time))
+                try:
+                    rhprof = numpy.array(GCprofvar(self.cffile,'topg').getProfile(time))
+                except:
+                    rhprof = numpy.zeros(len(ihprof))
+                ymin=min(rhprof)
+                ymax=max(rhprof+ihprof)
+                numy=int((ymax-ymin)/self.yres)+1
 
-            # load data
-            data = numpy.zeros([len(self.file.variables['level']), len(self.cffile.xvalues)], 'f')
-            for i in range(0,len(self.file.variables['level'])):
-                prof = self.getProfile(time,level=len(self.file.variables['level'])-i-1)
-                data[i,:] = prof
+                # load data
+                data = numpy.zeros([len(self.file.variables['level']), len(self.cffile.xvalues)], 'f')
+                for i in range(0,len(self.file.variables['level'])):
+                    prof = self.getProfile(time,level=len(self.file.variables['level'])-i-1)
+                    data[i,:] = prof
 
-            grid = numpy.zeros([len(self.cffile.xvalues),numy], 'f')
-            mask = numpy.ones([len(self.cffile.xvalues),numy], bool)
-            # interpolate
-            rhprof = rhprof-ymin
-            for j in range(0,len(self.cffile.xvalues)):
-                if ihprof[j]>0.:
-                    start = int(rhprof[j]/self.yres)
-                    end   = int((rhprof[j]+ihprof[j])/self.yres)+1
+                grid = numpy.zeros([len(self.cffile.xvalues),numy], 'f')
+                mask = numpy.ones([len(self.cffile.xvalues),numy], bool)
+                # interpolate
+                rhprof = rhprof-ymin
+                for j in range(0,len(self.cffile.xvalues)):
+                    if ihprof[j]>0.:
+                        start = int(rhprof[j]/self.yres)
+                        end   = int((rhprof[j]+ihprof[j])/self.yres)+1
+                        pos = numpy.arange(start*self.yres,end*self.yres,self.yres)
+                        grid[j,start:end] = GCinterpolate_linear(rhprof[j]+ihprof[j]*self.file.variables['level'][:],
+                                                                 data[:,j],
+                                                                 pos)
+                        mask[j,start:end] = False
+
+                #self.__data2d[time] = grid
+                return [ymin,ymax],numpy.transpose(numpy.ma.array(grid,mask=mask))
+            elif 'lithoz' in self.var.dimensions:
+                try:
+                    rhprof = numpy.array(GCprofvar(self.cffile,'topg').getProfile(time))
+                except:
+                    rhprof = numpy.zeros(len(ihprof))
+
+                base = self.file.variables['lithoz'][-1]
+                ymin=min(rhprof+base)
+                ymax=max(rhprof)
+                numy=int((ymax-ymin)/self.yres)+1
+
+                # load data
+                data = numpy.zeros([len(self.file.variables['lithoz']), len(self.cffile.xvalues)], 'f')
+                for i in range(0,len(self.file.variables['lithoz'])):
+                    prof = self.getProfile(time,level=i)
+                    data[i,:] = prof
+
+                grid = numpy.zeros([len(self.cffile.xvalues),numy], 'f')
+                mask = numpy.ones([len(self.cffile.xvalues),numy], bool)
+                # interpolate
+                rhprof = rhprof-ymin
+                for j in range(0,len(self.cffile.xvalues)):
+                    start = int((rhprof[j]+base)/self.yres)
+                    end   = int(rhprof[j]/self.yres)+1
                     pos = numpy.arange(start*self.yres,end*self.yres,self.yres)
-                    grid[j,start:end] = GCinterpolate_linear(rhprof[j]+ihprof[j]*self.file.variables['level'][:],
-                                                             data[:,j],
+                    grid[j,start:end] = GCinterpolate_linear(rhprof[j]+numpy.flipud(self.file.variables['lithoz'][:]),
+                                                             numpy.flipud(data[:,j]),
                                                              pos)
                     mask[j,start:end] = False
+                return [ymin,ymax],numpy.transpose(numpy.ma.array(grid,mask=mask))
 
-            #self.__data2d[time] = grid
-            return [ymin,ymax],numpy.transpose(numpy.ma.array(grid,mask=mask))
+            
         #return self.__data2d[time]
 
     def getProfileTS(self,time=None,level=0):
