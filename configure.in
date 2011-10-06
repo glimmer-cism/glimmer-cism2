@@ -444,6 +444,7 @@ AC_CONFIG_FILES([Makefile m4macros/Makefile scripts/Makefile \
                 tests/exact-isothermal/Makefile tests/exact-isothermal/src/Makefile \
                 tests/exact-isothermal/matlab/Makefile tests/exact-isothermal/scripts/Makefile \
                 tests/exact-isothermal/tests/Makefile \
+		tools/Makefile \
                 PyGC/Makefile PyGC/PyGC/Makefile PyGC/PyGC/IO/Makefile PyGC/src/Makefile PyGC/progs/Makefile \
                 PyGC/data/Makefile \
                 example-drivers/eis/Makefile example-drivers/eis/src/Makefile \

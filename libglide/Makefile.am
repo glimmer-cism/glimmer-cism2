@@ -18,19 +18,20 @@ libglide_la_SOURCES = glide.F90 glide_setup.F90 glide_types.F90 glide_temp.F90 \
                       isostasy_types.F90 glide_lithot.F90 glide_lithot3d.F90 \
                       glide_lithot1d.F90 glide_profile.F90 glide_diagnostics.F90 \
                       glimmer_routing.F90 glimmer_ncio.F90 glimmer_ncparams.F90 \
-        		      fo_upwind_advect.F90 glam.F90 glam_strs2.F90 \
-        		      glide_deriv.F90 glide_mask.F90 glide_nonlin.F90 \
-        		      glide_grids.F90 glide_stress.F90 glide_ground.F90 glide_vertint.F90\
-        		      glide_thckmask.F90 glide_velo_higher.F90 xls.f90 \
-        		      remap_advection.F90 remap_glamutils.F90 \
-        		      glide_mask.inc glide_nan.inc glide_bwater.F90 \
+		      fo_upwind_advect.F90 glam.F90 glam_strs2.F90 \
+		      glide_deriv.F90 glide_mask.F90 glide_nonlin.F90 \
+		      glide_grids.F90 glide_stress.F90 glide_ground.F90 glide_vertint.F90\
+		      glide_thckmask.F90 glide_velo_higher.F90 xls.f90 \
+		      remap_advection.F90 remap_glamutils.F90 \
+		      glide_mask.inc glide_nan.inc glide_bwater.F90 \
                       glimmer_restart_gcm.F90 glissade_temp.F90 \
                       glam_Basal_Proc.F90 glide_damage.F90 fgmresD.f90
 
-libglide_la_LDFLAGS=-all-static
-
+libglide_la_LDFLAGS=-all-static -L/share/apps/intel/Compiler/11.1/046/mkl/lib/em64t
+#libglide_la_LIBADD = -lmkl_intel_thread -lmkl_intel_lp64 
+libglide_la_LIBADD =  -lmkl_core -lmkl_intel_lp64 -lmkl_intel_thread
 test_setup_SOURCES = test_setup.F90
-test_setup_LDADD = libglide.la ../libglimmer/libglimmer.la ../libglimmer/libglimmer-IO.la $(NETCDF_LDFLAGS) $(HDF5_LDFLAGS) $(NETCDF_LIBS)
+test_setup_LDADD = libglide.la ../libglimmer/libglimmer.la ../libglimmer/libglimmer-IO.la $(NETCDF_LDFLAGS) $(HDF5_LDFLAGS) $(NETCDF_LIBS) 
 
 AM_FCFLAGS = $(F90_MODFLAG)../libglimmer $(F90_MODFLAG)../libglimmer-solve $(NETCDF_FCFLAGS)
 

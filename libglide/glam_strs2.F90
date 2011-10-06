@@ -260,7 +260,7 @@ subroutine glam_velo_fordsiapstr(ewn,      nsn,    upn,  &
   real (kind = dp), save, dimension(2) :: resid     ! vector for storing u resid and v resid 
   real (kind = dp) :: plastic_resid_norm = 0.0d0    ! norm of residual used in Newton-based plastic bed iteration
 
-  integer, parameter :: cmax = 300                  ! max no. of iterations
+  integer, parameter :: cmax = 100                   ! max no. of iterations
   integer :: counter, linit                         ! iteation counter, ???
   character(len=100) :: message                     ! error message
 
@@ -381,7 +381,7 @@ subroutine glam_velo_fordsiapstr(ewn,      nsn,    upn,  &
 !  print *, 'iter #     uvel resid         vvel resid       target resid'
   print *, 'iter #     resid (L2 norm)       target resid'
   print *, ' '
-
+ 
   ! ****************************************************************************************
   ! START of Picard iteration
   ! ****************************************************************************************
@@ -595,8 +595,8 @@ subroutine glam_velo_fordsiapstr(ewn,      nsn,    upn,  &
                               plastic_coeff_lhs, plastic_coeff_rhs, plastic_rhs, plastic_resid )
 
     ! apply unstable manifold correction to converged velocities
-    uvel = mindcrshstr(1,whichresid,uvel,counter,resid(1))
-    vvel = mindcrshstr(2,whichresid,tvel,counter,resid(2))
+    uvel = mindcrshstr3(1,whichresid,uvel,counter, 10, 1.2d0, 0.01d0, resid(1))
+    vvel = mindcrshstr3(2,whichresid,tvel,counter, 10, 1.2d0, 0.01d0, resid(2))
 
 ! implement periodic boundary conditions in x (if flagged)
 ! >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -1067,7 +1067,6 @@ subroutine findefvs_with_damage(ewn,  nsn, upn,       &
 
   integer, intent(in) :: whichefvs, counter
 
-  !print *, 'inside findefvs_with_damage' 
   call findefvsstr(ewn,  nsn, upn,       &
                    stagsigma, counter,   &
                    whichefvs, efvs,      &
@@ -1076,9 +1075,12 @@ subroutine findefvs_with_damage(ewn,  nsn, upn,       &
                    dusrfdew,  dthckdew,  &
                     dusrfdns,  dthckdns,  &
                     mask)
-  !efvs(:,:,:) = (1.d0 - damage(:,:,:))*efvs(:,:,:)
-  ! Raj : uncomment line below when working
-  efvs = (1.d0 - damage)*efvs
+
+  ! Rajma : uncomment line below when working
+  !print *, 'inside findefvs_with_damage' 
+  !efvs(:,:,:) = (1.d0 - damage(:,:,:))*efvs(:,:,:) or better below
+  !efvs = (1.d0 - damage)*efvs
+
 end subroutine findefvs_with_damage
 
 subroutine findefvsstr(ewn,  nsn, upn,       &
@@ -1221,7 +1223,7 @@ subroutine findefvsstr(ewn,  nsn, upn,       &
     ! horiz grid, even though it does not). 
 
             ! Below, p2=(1-n)/2n. The 1/2 is from taking the sqr root of the squared eff. strain rate
-            efvs(1:upn-1,ew,ns) = flwafact(1:upn-1,ew,ns) * effstr**p2
+            efvs(1:upn-1,ew,ns) = max(1.0d-4,flwafact(1:upn-1,ew,ns) * effstr**p2)
 !            efvs(:,ew,ns) = flwafact(:,ew,ns) * effstr**p2
 
         else
@@ -1749,8 +1751,197 @@ subroutine ghost_postprocess( ewn, nsn, upn, uindx, uk_1, vk_1, &
 end subroutine ghost_postprocess
 
 !***********************************************************************
+function mindcrshstr3(pt,whichresid,vel,counter,start_umc,cvg_accel,small_vel,resid)
 
-function mindcrshstr(pt,whichresid,vel,counter,resid)
+  ! Function to perform 'unstable manifold correction' (see Hindmarsch and Payne, 1996,
+  ! "Time-step limits for stable solutions of the ice-sheet equation", Annals of 
+  ! Glaciology, 23, p.74-85)
+
+  ! **cvg*** Dropped the Payne and Hindmarsch UMC, now using a strategy from DeSmedt, Pattyn,
+  !  and De Goen, J. Glaciology 2010
+
+  ! **cvg*** Jan 2011, putting back in the UMC
+
+  implicit none
+
+  real (kind = dp), intent(in), dimension(:,:,:) :: vel
+  integer, intent(in) :: counter, pt, whichresid 
+  integer, intent(in) :: start_umc
+  real (kind=dp), intent(in) :: cvg_accel 
+  real (kind=dp), intent(in) :: small_vel
+  real (kind = dp), intent(out) :: resid
+
+
+  real (kind = dp), dimension(size(vel,1),size(vel,2),size(vel,3)) :: mindcrshstr3
+
+  real (kind = dp), parameter :: small = epsilon(1.d0) !1.0e-16_dp
+
+  real (kind=dp) :: in_prod, len_new, len_old, mean_rel_diff, sig_rel_diff
+  real (kind=dp) :: theta
+  real (kind = dp), intrinsic :: abs, acos
+  
+  integer, dimension(2), save :: new = 1, old = 2
+  logical, dimension(2), save :: performed_umc = .false.
+
+  integer :: locat(3)
+  
+  integer :: nr
+  integer,      dimension(size(vel,1),size(vel,2),size(vel,3)) :: vel_ne_0
+  real(kind=dp),dimension(size(vel,1),size(vel,2),size(vel,3)) :: rel_diff
+
+  logical,parameter :: hindmarch_payne_umc = .true.
+  logical,parameter  :: deschmedt_scheme = .false.
+
+  if (counter == 1) then
+    usav(:,:,:,pt) = 0.0d0
+    corr(:,:,:,:,:) = 0.0d0
+  end if
+
+  corr(:,:,:,new(pt),pt) = vel - usav(:,:,:,pt)  
+
+  if (counter >= start_umc) then
+  
+    
+    if (hindmarch_payne_umc) then
+
+       if (performed_umc(pt)) then
+          ! did the umc last iteration, don't repeat it
+          performed_umc(pt) = .false.
+          mindcrshstr3 = vel
+       else
+
+	  in_prod = sum( corr(:,:,:,new(pt),pt) * corr(:,:,:,old(pt),pt) )
+	  len_new = sqrt(sum( corr(:,:,:,new(pt),pt) * corr(:,:,:,new(pt),pt) ))
+	  len_old = sqrt(sum( corr(:,:,:,old(pt),pt) * corr(:,:,:,old(pt),pt) ))
+	  theta = acos( in_prod / (len_new * len_old + small) )
+
+	  print *, 'theta', theta
+          !if (theta > (11.d0/12.d0)*pi) then
+          if (theta > (5.d0/6.d0)*pi) then
+             performed_umc(pt) = .true.    
+             print *, 'performing UMC for vel', pt
+             mindcrshstr3 = usav(:,:,:,pt) + (len_old/ &
+                  sqrt(sum( &
+                  (corr(:,:,:,old(pt),pt) - corr(:,:,:,new(pt),pt)) * &
+                  (corr(:,:,:,old(pt),pt) - corr(:,:,:,new(pt),pt))))) * &
+                  corr(:,:,:,new(pt),pt)
+          else
+             mindcrshstr3 = vel
+          end if
+       end if
+
+    elseif (deschmedt_scheme) then
+
+       in_prod = sum( corr(:,:,:,new(pt),pt) * corr(:,:,:,old(pt),pt) )
+       len_new = sqrt(sum( corr(:,:,:,new(pt),pt) * corr(:,:,:,new(pt),pt) ))
+       len_old = sqrt(sum( corr(:,:,:,old(pt),pt) * corr(:,:,:,old(pt),pt) ))
+       theta = acos( in_prod / (len_new * len_old + small) )
+
+       if (theta  < (1.d0/8.d0)*pi) then
+          mindcrshstr3 = usav(:,:,:,pt) + cvg_accel * corr(:,:,:,new(pt),pt)
+       else if(theta < (19.0/20.0)*pi) then
+          mindcrshstr3 = vel
+       else 
+          mindcrshstr3 = usav(:,:,:,pt) + (1.0/cvg_accel) * corr(:,:,:,new(pt),pt)
+       end if
+
+    else
+
+       mindcrshstr3 = vel
+
+    endif 
+
+  else 
+
+     mindcrshstr3 = vel;
+    
+  end if
+
+  ! now swap slots for storing the previous correction
+  if (new(pt) == 1) then
+      old(pt) = 1; new(pt) = 2
+  else
+      old(pt) = 2; new(pt) = 1
+  end if
+
+  if (counter == 1) then
+   	usav_avg = 1.0_dp
+  else
+	usav_avg(1) = sum( abs(usav(:,:,:,1)) ) / size(vel)  ! transport vel scale from prev iter
+	usav_avg(2) = sum( abs(usav(:,:,:,2)) ) / size(vel)  ! transport vel scale from prev iter
+  end if
+
+!  print *, 'usav_avg(1)',usav_avg(1),'usav_avg(2)',usav_avg(2)
+
+  select case (whichresid)
+
+  ! options for residual calculation method, as specified in configuration file 
+  ! (see additional notes in "higher-order options" section of documentation)
+  ! case(0): use max of abs( vel_old - vel ) / vel ) 
+  ! case(1): use max of abs( vel_old - vel ) / vel ) but ignore basal vels 
+  ! case(2): use mean of abs( vel_old - vel ) / vel )
+
+   case(0)
+    rel_diff = 0.0_dp
+    vel_ne_0 = 0
+
+    where ( abs(mindcrshstr3) > small_vel)
+	vel_ne_0 = 1
+	rel_diff = abs((usav(:,:,:,pt) - mindcrshstr3) / mindcrshstr3)
+	rel_diff = rel_diff * sqrt(2.0_dp)*usav_avg(pt)/sqrt(sum(usav_avg ** 2.0_dp))
+    end where
+
+    resid = max(0.0_dp,  &
+    	        maxval( rel_diff) )
+    
+    locat = maxloc( rel_diff  )
+
+!    mean_rel_diff = sum(rel_diff) / sum(vel_ne_0)
+!    sig_rel_diff = sqrt( sum((rel_diff - mean_rel_diff) ** 2.0 )/ sum(vel_ne_0) )
+!    print *, 'mean', mean_rel_diff, 'sig', sig_rel_diff
+
+    !write(*,*) 'locat', locat
+    !call write_xls('resid1.txt',abs((usav(1,:,:,pt) - mindcrshstr3(1,:,:)) / (mindcrshstr3(1,:,:) + 1e-20)))
+
+   case(1)
+    !**cvg*** should replace vel by mindcrshstr3 in the following lines, I belive
+    nr = size( vel, dim=1 ) ! number of grid points in vertical ...
+    resid = maxval( abs((usav(1:nr-1,:,:,pt) - mindcrshstr3(1:nr-1,:,:) ) / mindcrshstr3(1:nr-1,:,:) ), &
+                        MASK = mindcrshstr3 .ne. 0.0_dp)
+    locat = maxloc( abs((usav(1:nr-1,:,:,pt) - mindcrshstr3(1:nr-1,:,:) ) / mindcrshstr3(1:nr-1,:,:) ), &
+                	MASK = mindcrshstr3 .ne. 0.0_dp)
+
+   case(2)
+    !**cvg*** should replace vel by mindcrshstr3 in the following lines, I belive
+    nr = size( mindcrshstr3, dim=1 )
+    vel_ne_0 = 0
+    where ( mindcrshstr3 .ne. 0.0_dp ) vel_ne_0 = 1
+
+    ! include basal velocities in resid. calculation when using MEAN
+    resid = sum( abs((usav(:,:,:,pt) - mindcrshstr3 ) / mindcrshstr3 ), &
+            MASK = mindcrshstr3 .ne. 0.0_dp) / sum( vel_ne_0 )
+
+    ! ignore basal velocities in resid. calculation when using MEAN
+    ! resid = sum( abs((usav(1:nr-1,:,:,pt) - vel(1:nr-1,:,:) ) / vel(1:nr-1,:,:) ),   &
+    !           MASK = vel .ne. 0.0_dp) / sum( vel_ne_0(1:nr-1,:,:) )
+
+    ! NOTE that the location of the max residual is somewhat irrelevent here
+    !      since we are using the mean resid for convergence testing
+    locat = maxloc( abs((usav(:,:,:,pt) - mindcrshstr3) / mindcrshstr3 ), MASK = mindcrshstr3 .ne. 0.0_dp)
+
+  end select
+
+  usav(:,:,:,pt) = mindcrshstr3
+
+    ! Additional debugging line, useful when trying to determine if convergence is being consistently 
+    ! held up by the residual at one or a few particular locations in the domain.
+    print '("* ",i3,g20.6,3i6,g20.6)', counter, resid, locat, mindcrshstr3(locat(1),locat(2),locat(3))
+
+  return
+
+end function mindcrshstr3
+
+function mindcrshstr_x1(pt,whichresid,vel,counter,resid)
 
   ! Function to perform 'unstable manifold correction' (see Hindmarsch and Payne, 1996,
   ! "Time-step limits for stable solutions of the ice-sheet equation", Annals of 
@@ -1763,7 +1954,7 @@ function mindcrshstr(pt,whichresid,vel,counter,resid)
 
   real (kind = dp), intent(out) :: resid
 
-  real (kind = dp), dimension(size(vel,1),size(vel,2),size(vel,3)) :: mindcrshstr
+  real (kind = dp), dimension(size(vel,1),size(vel,2),size(vel,3)) :: mindcrshstr_x1
 
   real (kind = dp), parameter :: ssthres = 5.0_dp * pi / 6.0_dp, &
                                  critlimit = 10.0_dp / (scyr * vel0), &
@@ -1789,22 +1980,22 @@ function mindcrshstr(pt,whichresid,vel,counter,resid)
           (abs(corr(:,:,:,new(pt),pt)) * abs(corr(:,:,:,old(pt),pt)) + small)) > &
            ssthres .and. corr(:,:,:,new(pt),pt) - corr(:,:,:,old(pt),pt) /= 0.0_dp )
 
-      mindcrshstr = usav(:,:,:,pt) + &
+      mindcrshstr_x1 = usav(:,:,:,pt) + &
                     corr(:,:,:,new(pt),pt) * abs(corr(:,:,:,old(pt),pt)) / &
                     abs(corr(:,:,:,new(pt),pt) - corr(:,:,:,old(pt),pt))
 
-!      mindcrshstr = vel; ! jfl uncomment this and comment out line above 
-!                         ! to avoid the unstable manifold correction
+      mindcrshstr_x1 = vel; ! jfl uncomment this and comment out line above 
+                         ! to avoid the unstable manifold correction
 
     elsewhere
 
-      mindcrshstr = vel;
+      mindcrshstr_x1 = vel;
 
     end where
 
   else
 
-    mindcrshstr = vel;
+    mindcrshstr_x1 = vel;
 
   end if
 
@@ -1860,11 +2051,11 @@ function mindcrshstr(pt,whichresid,vel,counter,resid)
 
   return
 
-end function mindcrshstr
+end function mindcrshstr_x1
 
 !***********************************************************************
 
-function mindcrshstr2(pt,whichresid,vel,counter,resid)
+function mindcrshstr_x2(pt,whichresid,vel,counter,resid)
 
   ! Function to perform 'unstable manifold correction' (see Hindmarsch and Payne, 1996,
   ! "Time-step limits for stable solutions of the ice-sheet equation", Annals of 
@@ -1879,7 +2070,7 @@ function mindcrshstr2(pt,whichresid,vel,counter,resid)
   integer, intent(in) :: counter, pt, whichresid 
   real (kind = dp), intent(out) :: resid
 
-  real (kind = dp), dimension(size(vel,1),size(vel,2),size(vel,3)) :: mindcrshstr2
+  real (kind = dp), dimension(size(vel,1),size(vel,2),size(vel,3)) :: mindcrshstr_x2
 
   integer, parameter :: start_umc = 3
   real (kind=dp), parameter :: cvg_accel = 2.0_dp
@@ -1912,19 +2103,19 @@ function mindcrshstr2(pt,whichresid,vel,counter,resid)
   theta = acos( in_prod / (len_new * len_old + small) )
     
    if (theta  < (1.0/8.0)*pi) then
-        mindcrshstr2 = usav(:,:,:,pt) + cvg_accel * corr(:,:,:,new(pt),pt)
+        mindcrshstr_x2 = usav(:,:,:,pt) + cvg_accel * corr(:,:,:,new(pt),pt)
 !        print *, theta/pi, 'increased correction'
    else if(theta < (19.0/20.0)*pi) then
-        mindcrshstr2 = vel
+        mindcrshstr_x2 = vel
 !        print *, theta/pi, 'standard correction'
    else 
-        mindcrshstr2 = usav(:,:,:,pt) + (1.0/cvg_accel) * corr(:,:,:,new(pt),pt)
+        mindcrshstr_x2 = usav(:,:,:,pt) + (1.0/cvg_accel) * corr(:,:,:,new(pt),pt)
 !        print *, theta/pi, 'decreasing correction'
    end if
 
   else 
 
-    mindcrshstr2 = vel;
+    mindcrshstr_x2 = vel;
  !   print *, 'Not attempting adjustment to correction'  
    
   end if
@@ -1957,24 +2148,24 @@ function mindcrshstr2(pt,whichresid,vel,counter,resid)
    case(0)
     rel_diff = 0.0_dp
     vel_ne_0 = 0
-    where ( mindcrshstr2 .ne. 0.0_dp )
+    where ( mindcrshstr_x2 .ne. 0.0_dp )
         vel_ne_0 = 1
-        rel_diff = abs((usav(:,:,:,pt) - mindcrshstr2) / mindcrshstr2) & 
+        rel_diff = abs((usav(:,:,:,pt) - mindcrshstr_x2) / mindcrshstr_x2) & 
                            * usav_avg(pt)/sqrt(sum(usav_avg ** 2.0))
     end where
 
-    resid = maxval( rel_diff, MASK = mindcrshstr2 .ne. 0.0_dp )
-    locat = maxloc( rel_diff, MASK = mindcrshstr2 .ne. 0.0_dp )
+    resid = maxval( rel_diff, MASK = mindcrshstr_x2 .ne. 0.0_dp )
+    locat = maxloc( rel_diff, MASK = mindcrshstr_x2 .ne. 0.0_dp )
 
 !    mean_rel_diff = sum(rel_diff) / sum(vel_ne_0)
 !    sig_rel_diff = sqrt( sum((rel_diff - mean_rel_diff) ** 2.0 )/ sum(vel_ne_0) )
 !    print *, 'mean', mean_rel_diff, 'sig', sig_rel_diff
 
     !write(*,*) 'locat', locat
-    !call write_xls('resid1.txt',abs((usav(1,:,:,pt) - mindcrshstr2(1,:,:)) / (mindcrshstr2(1,:,:) + 1e-20)))
+    !call write_xls('resid1.txt',abs((usav(1,:,:,pt) - mindcrshstr_x2(1,:,:)) / (mindcrshstr_x2(1,:,:) + 1e-20)))
 
    case(1)
-    !**cvg*** should replace vel by mindcrshstr2 in the following lines, I belive
+    !**cvg*** should replace vel by mindcrshstr_x2 in the following lines, I belive
     nr = size( vel, dim=1 ) ! number of grid points in vertical ...
     resid = maxval( abs((usav(1:nr-1,:,:,pt) - vel(1:nr-1,:,:) ) / vel(1:nr-1,:,:) ),  &
                         MASK = vel .ne. 0.0_dp)
@@ -1982,7 +2173,7 @@ function mindcrshstr2(pt,whichresid,vel,counter,resid)
             MASK = vel .ne. 0.0_dp)
 
    case(2)
-    !**cvg*** should replace vel by mindcrshstr2 in the following lines, I belive
+    !**cvg*** should replace vel by mindcrshstr_x2 in the following lines, I belive
     nr = size( vel, dim=1 )
     vel_ne_0 = 0
     where ( vel .ne. 0.0_dp ) vel_ne_0 = 1
@@ -2001,7 +2192,7 @@ function mindcrshstr2(pt,whichresid,vel,counter,resid)
 
   end select
 
-  usav(:,:,:,pt) = mindcrshstr2
+  usav(:,:,:,pt) = mindcrshstr_x2
 
     ! Additional debugging line, useful when trying to determine if convergence is being consistently 
     ! held up by the residual at one or a few particular locations in the domain.
@@ -2009,7 +2200,7 @@ function mindcrshstr2(pt,whichresid,vel,counter,resid)
 
   return
 
-end function mindcrshstr2
+end function mindcrshstr_x2
 
 !***********************************************************************
 
@@ -2098,14 +2289,14 @@ subroutine findcoefstr(ewn,  nsn,   upn,            &
      ! Calculate the depth-averaged value of the rate factor, needed below when applying an ice shelf
      ! boundary condition (complicated code so as not to include funny values at boundaries ...
      ! ... kind of a mess and could be redone or made into a function or subroutine).
-     flwabar = ( sum( flwa(:,ew,ns), 1, flwa(1,ew,ns)*vis0_glam < 1.0d-10 )/real(upn) + &
-               sum( flwa(:,ew,ns+1), 1, flwa(1,ew,ns+1)*vis0_glam < 1.0d-10 )/real(upn)  + &
-               sum( flwa(:,ew+1,ns), 1, flwa(1,ew+1,ns)*vis0_glam < 1.0d-10 )/real(upn)  + &
-               sum( flwa(:,ew+1,ns+1), 1, flwa(1,ew+1,ns+1)*vis0_glam < 1.0d-10 )/real(upn) ) / &
-               ( sum( flwa(:,ew,ns)/flwa(:,ew,ns), 1, flwa(1,ew,ns)*vis0_glam < 1.0d-10 )/real(upn) + &
-               sum( flwa(:,ew,ns+1)/flwa(:,ew,ns+1), 1, flwa(1,ew,ns+1)*vis0_glam < 1.0d-10 )/real(upn) + &
-               sum( flwa(:,ew+1,ns)/flwa(:,ew+1,ns), 1, flwa(1,ew+1,ns)*vis0 < 1.0d-10 )/real(upn) + &
-               sum( flwa(:,ew+1,ns+1)/flwa(:,ew+1,ns+1), 1, flwa(1,ew+1,ns+1)*vis0_glam < 1.0d-10 )/real(upn) )
+     flwabar = ( sum( flwa(:,ew,  ns),   1, flwa(1,ew,  ns  )*vis0_glam < 1.0d-10 )/real(upn) + &
+               	 sum( flwa(:,ew,  ns+1), 1, flwa(1,ew,  ns+1)*vis0_glam < 1.0d-10 )/real(upn)  + &
+                 sum( flwa(:,ew+1,ns),   1, flwa(1,ew+1,ns  )*vis0_glam < 1.0d-10 )/real(upn)  + &
+                 sum( flwa(:,ew+1,ns+1), 1, flwa(1,ew+1,ns+1)*vis0_glam < 1.0d-10 )/real(upn) ) / & 
+               ( sum( flwa(:,ew,  ns  )/flwa(:,ew,  ns  ), 1, flwa(1,ew,  ns  )*vis0_glam < 1.0d-10 )/real(upn) + &
+                 sum( flwa(:,ew,  ns+1)/flwa(:,ew,  ns+1), 1, flwa(1,ew,  ns+1)*vis0_glam < 1.0d-10 )/real(upn) + &
+                 sum( flwa(:,ew+1,ns  )/flwa(:,ew+1,ns  ), 1, flwa(1,ew+1,ns  )*vis0_glam < 1.0d-10 )/real(upn) + &
+                 sum( flwa(:,ew+1,ns+1)/flwa(:,ew+1,ns+1), 1, flwa(1,ew+1,ns+1)*vis0_glam < 1.0d-10 )/real(upn) )
 
 
     if( ns == 1 .and. ew == 1 ) then
@@ -2219,7 +2410,7 @@ subroutine findcoefstr(ewn,  nsn,   upn,            &
     elseif ( GLIDE_HAS_ICE(mask(ew,ns)) .and. ( GLIDE_IS_DIRICHLET_BOUNDARY(mask(ew,ns)) .or. &
              GLIDE_IS_COMP_DOMAIN_BND(mask(ew,ns)) ) .or. GLIDE_IS_LAND_MARGIN(mask(ew,ns))) &
     then
-!    print *, 'At a NON-SHELF boundary ... ew, ns = ', ew, ns
+    print *, 'At a NON-SHELF boundary ... ew, ns = ', ew, ns
 ! >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
         ! Put specified value for vel on rhs. NOTE that this is NOT zero by default 
@@ -3909,13 +4100,13 @@ subroutine calcbetasquared (whichbabc,               &
   real (kind = dp) :: smallnum = 1.0d-2
   real (kind = dp), dimension(ewn) :: grounded
   real (kind = dp) :: alpha, dx, thck_gl, betalow, betahigh, roughness
-  integer :: ew, ns
+  integer :: ew, ns, i,j
 
   select case(whichbabc)
 
     case(0)     ! constant value; useful for debugging and test cases
 
-      betasquared = 10.0d0
+      betasquared = 1.0d2
 
     case(1)     ! simple pattern; also useful for debugging and test cases
                 ! (here, a strip of weak bed surrounded by stronger bed to simulate an ice stream)
@@ -3972,6 +4163,15 @@ subroutine calcbetasquared (whichbabc,               &
   ! convert whatever the specified value is to dimensional units of (Pa s m^-1 ) 
   ! and then non-dimensionalize using PP dyn core specific scaling.
   betasquared = ( betasquared * scyr ) / ( tau0 * tim0 / len0 )
+
+  do i=1,ewn-1
+    do j=1,nsn-1
+       if (sum(topg(i:i+1,j:j+1)) < sum(lsrf(i:i+1,j:j+1))) then
+	 betasquared(i,j) = 0.0d0
+       end if
+    end do
+  end do
+
 
 end subroutine calcbetasquared
 

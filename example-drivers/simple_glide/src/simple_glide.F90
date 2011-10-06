@@ -68,6 +68,8 @@ program simple_glide
 
   integer :: tstep_count
 
+  logical,parameter :: do_restore_inflow_thk = .true.
+
   ! start gptl
 #ifdef GPTL
   ret = gptlsetoption (gptlprint_method,gptlfull_tree)
@@ -93,7 +95,9 @@ program simple_glide
   call filenames_init(commandline_configname)
 
   ! read configuration
-  call ConfigRead(commandline_configname,config)
+  print *, commandline_configname
+  call ConfigRead(trim(commandline_configname),config)
+
   ! start timing
   call system_clock(clock,clock_rate)
   t1 = real(clock,kind=dp)/real(clock_rate,kind=dp)

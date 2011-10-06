@@ -209,8 +209,6 @@ contains
        ! JCC - was in LANL but not in parallel
        !      model%temper%temp = -10.0
 
-	print *, 'inside glide_init_temp'
-	print *, model%temper%temp(5,15,:)
 
   end subroutine glide_init_temp
 

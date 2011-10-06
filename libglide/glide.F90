@@ -485,6 +485,7 @@ contains
     
     if (model%options%use_damage) then
        
+	print *, 'updating damage'
        call update_damage(model)
 
     end if

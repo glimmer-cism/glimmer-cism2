@@ -15,7 +15,7 @@ module remap_glamutils
   !whl - The current remapping scheme requires nghost = 2.
 
     !ntrace_ir = 2 for damage, ice age. 3 if including damage.
-    integer, parameter  :: ntrace_ir = 1    ! number of tracers (e.g., temperature, ice age)
+    integer, parameter  :: ntrace_ir = 3    ! number of tracers (e.g., temperature, ice age)
     integer, parameter  :: nghost_ir = 2    ! number of ghost cell (halo) layers
     
     ! *sfp** arrays needed to pass GLAM variables to/from inc. remapping solver

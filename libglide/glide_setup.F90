@@ -506,7 +506,7 @@ end function glide_calc_sigma_pattyn
     character(len=*), dimension(0:1), parameter :: ho_prognostic = (/ &
          'Evolve ice with SIA only', &
          'Pattyn scheme           ' /)
-    character(len=*), dimension(0:7), parameter :: ho_whichbabc = (/ &
+    character(len=*), dimension(0:8), parameter :: ho_whichbabc = (/ &
          'constant B^2                           ', &
          'simple pattern of B^2                  ', &
          'till yield stress (Picard)             ', &
@@ -514,7 +514,8 @@ end function glide_calc_sigma_pattyn
          'no slip (using large B^2)              ', &
          'B^2 passed from CISM                   ', &
          'no slip (Dirichlet implementation)     ', &
-         'till yield stress (Newton)             ' /)
+         'till yield stress (Newton)             ', &
+	 'free slip                              ' /)
     character(len=*), dimension(0:1), parameter :: ho_whichefvs = (/ &
          'from eff strain rate    ', &
          'constant value          ' /)
