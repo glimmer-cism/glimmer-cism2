@@ -570,6 +570,7 @@ contains
     case(2) ! *sfp* stealing this un-used option ... 
 
         ! DO NOTHING. That is, hold T const. at initially assigned value
+	model%temper%temp(:,:,:) = -10.d0
 
     end select   ! whichtemp
 
