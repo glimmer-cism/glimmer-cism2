@@ -70,6 +70,9 @@ program simple_glide
 
   logical,parameter :: do_restore_inflow_thk = .true.
 
+  real(kind=dp),dimension(:,:),allocatable :: prev_thk
+  logical :: is_steady = .false.
+
   ! start gptl
 #ifdef GPTL
   ret = gptlsetoption (gptlprint_method,gptlfull_tree)
@@ -118,7 +121,10 @@ program simple_glide
 
   tstep_count = 0
 
-  do while(time.le.model%numerics%tend)
+  allocate(prev_thk(model%general%ewn,model%general%nsn))
+  prev_thk = 0.d0
+
+  do while(time.le.model%numerics%tend .and. .not.(is_steady))
 
      call glide_tstep_p1(model,time)
      call glide_tstep_p2(model)
@@ -133,8 +139,12 @@ program simple_glide
      endif
 
      time = time + model%numerics%tinc
+     
      call simple_massbalance(climate,model,time)
      call simple_surftemp(climate,model,time)     
+
+     call check_for_steady(model,is_steady)
+
   end do
 
   ! finalise GLIDE
@@ -144,6 +154,7 @@ program simple_glide
   call glimmer_write_stats(commandline_resultsname,commandline_configname,t2-t1)
   call close_log
 
+  deallocate(prev_thk)
 
 #ifdef GLIMMER_MPI
  call MPI_Finalize(ierr)
@@ -155,5 +166,37 @@ program simple_glide
   ret = gptlpr (0)
   ret = gptlfinalize ()
 #endif
-  
+
+
+contains  
+
+subroutine check_for_steady(model, is_steady)
+
+ type(glide_global_type),intent(in) :: model
+ logical,intent(out)                :: is_steady
+
+ real(kind=dp),dimension(model%general%ewn,model%general%nsn) :: rel_thk_change
+ real(kind=dp) :: max_rel_thk_change
+
+ where (model%geometry%thck > 0.d0)
+     rel_thk_change = abs(model%geometry%thck - prev_thk)/model%geometry%thck
+ else where
+     rel_thk_change = 0.d0
+ end where
+
+ max_rel_thk_change = maxval(rel_thk_change)
+
+ prev_thk = model%geometry%thck
+
+ print *, 'max_rel_thk_change', max_rel_thk_change
+
+ if (max_rel_thk_change < 0.001) then
+    is_steady = .true.
+ else
+    is_steady = .false. 
+ end if
+
+ end subroutine check_for_steady
+
+
 end program simple_glide
