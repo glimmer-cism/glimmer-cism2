@@ -483,7 +483,7 @@ contains
     ! Update the damage variable
     !-------------------------------------------
     
-    if (model%options%use_damage) then
+    if (model%options%use_damage == 1) then
        
 	print *, 'updating damage'
        call update_damage(model)
