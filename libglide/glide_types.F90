@@ -626,12 +626,12 @@ module glide_types
   end type glide_temper
 
 
-  type glide_damage
+  type glide_damage_type
     
      !*FD holds fields related to scalar damage
      real(dp),dimension(:,:,:),pointer :: sclr_damage => null() !*FD 3D scalar damage field
      integer,dimension(:,:,:),pointer  :: fractured   => null() ! For plotting...set to 1 if damage == 1
-  end type glide_damage
+  end type glide_damage_type
 
 
   type glide_lithot_type
@@ -907,7 +907,7 @@ module glide_types
     type(glide_stress)   :: stress
     type(glide_climate)  :: climate
     type(glide_temper)   :: temper
-    type(glide_damage)   :: damage
+    type(glide_damage_type)   :: damage
     type(glide_lithot_type) :: lithot
     type(glide_funits)   :: funits
     type(glide_numerics) :: numerics
