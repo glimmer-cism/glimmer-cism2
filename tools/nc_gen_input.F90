@@ -249,13 +249,13 @@ contains
     real :: surf_1 
     real :: surf_2 
     real :: surf_3
-    real :: thk_final 
+    real :: surf_4
 
     real :: inflow_vel
 
     character (len=512) :: linear_shelf_params = "<fname> <nx> <ny> <n_level> <hx> <hy> <topog_amp> &
 	                                        &<odepth> <bed_depth> <int_depth> <surf1> <surf2> <surf3> &
-	                                        &<thk_final> <inflow_vel>"
+	                                        &<surf_4> <inflow_vel>"
 
 
     if (command_argument_count() < 16) then
@@ -317,8 +317,8 @@ contains
     write(*,*) 'surf_3', surf_3
 
     call get_command_argument(15,argstr)
-    read(argstr,'(f18.12)') thk_final
-    write(*,*) 'thk_final', thk_final
+    read(argstr,'(f18.12)') surf_4
+    write(*,*) 'surf_4', surf_4
 
     call get_command_argument(16,argstr)
     read(argstr,'(f18.12)') inflow_vel
@@ -340,9 +340,12 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     !define topg
-    do i=1,nx
+    topog = 0.0
+
+    do i=2,nx-1
 	do j=1,ny
-	   topog(i,j) = (((2.0*(i-1)/(nx-1))-1.0)**4.d0) *topog_amp
+	   !topog(i,j) = (((2.0*(i-1)/(nx-1))-1.0)**4.d0) *topog_amp
+	   topog(i,j) = 0.5d0*(cos(2*pi*real(i-1.5)/real(nx-2)) + 1.d0)*topog_amp
 	   if (j >= 3*ny/4) then
               topog(i,j) = topog(i,j) - odepth
 	   elseif (j >= 2*ny/4) then
@@ -357,16 +360,17 @@ contains
     !define thickness
     thck = 0.d0
 
-    do i=1,nx
+    do i=2,nx-1
 	do j=1,int(ny/2.0)
            thck(i,j) = surf_1 - topog(i,j) + (j-1)/(ny/2.0-1)*(surf_2-surf_1)
         end do
         do j=int(ny/2.0)+1,int(3.0*ny/4.0)
-           thck(i,j) = (surf_2-(j-ny/2.0)/(ny/4.0)*(surf_2-surf_3)) - topog(i,j)
+           thck(i,j) = surf_2- topog(i,j) + (j-ny/2.0)/(ny/4.0)*(surf_3-surf_2)
         end do
         do j=int(3.0*ny/4.0)+1,ny-4
-	   usurf = surf_3-(j-3.0*ny/4.0)/(ny-4.0-3.0*ny/4.0)*(surf_3 - 0.1*thk_final)
-           thck(i,j) = (surf_3-topog(i,3*ny/4)) - (j-3.0*ny/4.0)/(ny-4.0-3.0*ny/4.0)*(surf_3-topog(i,3*ny/4)-thk_final)
+	   usurf = surf_3- (j-3.0*ny/4.0)/(ny-4.0-3.0*ny/4.0)*(surf_3 - surf_4)
+           thck(i,j) = (surf_3-topog(i,3*ny/4)) - (j-3.0*ny/4.0)/(ny-4.0-3.0*ny/4.0)* &
+                                                  (surf_3-topog(i,3*ny/4)-10.0*surf_4)
 	   if (topog(i,j)+thck(i,j) > usurf) then
 	      thck(i,j) = max(0.0,usurf-topog(i,j))
 	   end if
@@ -378,6 +382,8 @@ contains
     ! define kinbcmask
     kinbcmask = 0
     kinbcmask(:,1:2) = 1
+    kinbcmask(1,:) = 1
+    kinbcmask(nx-1,:) = 1
 
 !    kinbcmask(:,(ny-10):ny-1) = 1
 !    kinbcmask(1:10,:) = 1
