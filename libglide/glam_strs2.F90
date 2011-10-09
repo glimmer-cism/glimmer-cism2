@@ -260,7 +260,7 @@ subroutine glam_velo_fordsiapstr(ewn,      nsn,    upn,  &
   real (kind = dp), save, dimension(2) :: resid     ! vector for storing u resid and v resid 
   real (kind = dp) :: plastic_resid_norm = 0.0d0    ! norm of residual used in Newton-based plastic bed iteration
 
-  integer, parameter :: cmax = 100                   ! max no. of iterations
+  integer, parameter :: cmax = 50                   ! max no. of iterations
   integer :: counter, linit                         ! iteation counter, ???
   character(len=100) :: message                     ! error message
 
@@ -378,8 +378,8 @@ subroutine glam_velo_fordsiapstr(ewn,      nsn,    upn,  &
   print *, ' '
   print *, 'Running Payne/Price higher-order dynamics solver'
   print *, ' '
-!  print *, 'iter #     uvel resid         vvel resid       target resid'
-  print *, 'iter #     resid (L2 norm)       target resid'
+  print *, 'iter #     uvel resid         vvel resid       target resid'
+!  print *, 'iter #     resid (L2 norm)       target resid'
   print *, ' '
  
   ! ****************************************************************************************
@@ -392,13 +392,13 @@ subroutine glam_velo_fordsiapstr(ewn,      nsn,    upn,  &
   ! Picard iteration; continue iterating until resid falls below specified tolerance
   ! or the max no. of iterations is exceeded
 
-  do while ( L2norm .ge. NL_target .and. counter < cmax)    ! use L2 norm for resid calculation
-  !do while ( maxval(resid) > minres .and. counter < cmax)   ! standard residual calculation
+  !do while ( L2norm .ge. NL_target .and. counter < cmax)    ! use L2 norm for resid calculation
+  do while ( maxval(resid) > minres .and. counter < cmax)   ! standard residual calculation
   !do while ( resid(1) > minres .and. counter < cmax)        ! standard residual (for 1d solutions where d*/dy=0) 
 
     ! calc effective viscosity using previously calc vel. field
 
-    if (use_damage) then
+    if (use_damage == 1) then
 
        call findefvs_with_damage(ewn,  nsn,  upn,      &
                                  stagsigma,  counter,    &
@@ -595,8 +595,8 @@ subroutine glam_velo_fordsiapstr(ewn,      nsn,    upn,  &
                               plastic_coeff_lhs, plastic_coeff_rhs, plastic_rhs, plastic_resid )
 
     ! apply unstable manifold correction to converged velocities
-    uvel = mindcrshstr3(1,whichresid,uvel,counter, 10, 1.2d0, 0.01d0, resid(1))
-    vvel = mindcrshstr3(2,whichresid,tvel,counter, 10, 1.2d0, 0.01d0, resid(2))
+    uvel = mindcrshstr3(1,whichresid,uvel,counter, 2, 1.5d0, 0.001d0, resid(1))
+    vvel = mindcrshstr3(2,whichresid,tvel,counter, 2, 1.5d0, 0.001d0, resid(2))
 
 ! implement periodic boundary conditions in x (if flagged)
 ! >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -612,11 +612,11 @@ subroutine glam_velo_fordsiapstr(ewn,      nsn,    upn,  &
 
 !    ! output the iteration status: iteration number, max residual, and location of max residual
 !    ! (send output to the screen or to the log file, per whichever line is commented out) 
-!    print '(i4,3g20.6)', counter, resid(1), resid(2), minres
-!    !write(message,'(" * strs ",i3,3g20.6)') counter, resid(1), resid(2), minres
-!    !call write_log (message)
+    print '(i4,3g20.6)', counter, resid(1), resid(2), minres
+    !write(message,'(" * strs ",i3,3g20.6)') counter, resid(1), resid(2), minres
+    !call write_log (message)
 
-    print '(i4,3g20.6)', counter, L2norm, NL_target    ! Output when using L2norm for convergence
+!    print '(i4,3g20.6)', counter, L2norm, NL_target    ! Output when using L2norm for convergence
 
     counter = counter + 1   ! advance the iteration counter
 
@@ -1815,16 +1815,18 @@ function mindcrshstr3(pt,whichresid,vel,counter,start_umc,cvg_accel,small_vel,re
 	  len_old = sqrt(sum( corr(:,:,:,old(pt),pt) * corr(:,:,:,old(pt),pt) ))
 	  theta = acos( in_prod / (len_new * len_old + small) )
 
-	  print *, 'theta', theta
-          !if (theta > (11.d0/12.d0)*pi) then
-          if (theta > (5.d0/6.d0)*pi) then
+          if (theta > (11.d0/12.d0)*pi) then
+          !if (theta > (5.d0/6.d0)*pi) then
              performed_umc(pt) = .true.    
-             print *, 'performing UMC for vel', pt
+             !print *, 'performing UMC for vel', pt
              mindcrshstr3 = usav(:,:,:,pt) + (len_old/ &
                   sqrt(sum( &
                   (corr(:,:,:,old(pt),pt) - corr(:,:,:,new(pt),pt)) * &
                   (corr(:,:,:,old(pt),pt) - corr(:,:,:,new(pt),pt))))) * &
                   corr(:,:,:,new(pt),pt)
+          elseif (theta < (pi/12.d0)) then
+             !print *, 'performing acceleration for vel', pt
+             mindcrshstr3 = vel + (cvg_accel/2.d0)*(corr(:,:,:,old(pt),pt)+corr(:,:,:,new(pt),pt))
           else
              mindcrshstr3 = vel
           end if
@@ -1935,7 +1937,7 @@ function mindcrshstr3(pt,whichresid,vel,counter,start_umc,cvg_accel,small_vel,re
 
     ! Additional debugging line, useful when trying to determine if convergence is being consistently 
     ! held up by the residual at one or a few particular locations in the domain.
-    print '("* ",i3,g20.6,3i6,g20.6)', counter, resid, locat, mindcrshstr3(locat(1),locat(2),locat(3))
+!    print '("* ",i3,g20.6,3i6,g20.6)', counter, resid, locat, mindcrshstr3(locat(1),locat(2),locat(3))
 
   return
 
@@ -2410,7 +2412,7 @@ subroutine findcoefstr(ewn,  nsn,   upn,            &
     elseif ( GLIDE_HAS_ICE(mask(ew,ns)) .and. ( GLIDE_IS_DIRICHLET_BOUNDARY(mask(ew,ns)) .or. &
              GLIDE_IS_COMP_DOMAIN_BND(mask(ew,ns)) ) .or. GLIDE_IS_LAND_MARGIN(mask(ew,ns))) &
     then
-    print *, 'At a NON-SHELF boundary ... ew, ns = ', ew, ns
+!    print *, 'At a NON-SHELF boundary ... ew, ns = ', ew, ns
 ! >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
         ! Put specified value for vel on rhs. NOTE that this is NOT zero by default 
