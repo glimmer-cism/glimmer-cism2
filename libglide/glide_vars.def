@@ -430,6 +430,27 @@ long_name:  Y component vertical shear stress
 data:       data%stress%tau%yz(up,:,:)
 factor:     scale3d_f9
 
+[tau_xy]
+dimensions: time, staglevel, y1, x1
+units:      kPa
+long_name:  horizontal shear stress
+data:       data%stress%tau%xy(up,:,:)
+factor:     scale3d_f9
+
+[tau_xx]
+dimensions: time, staglevel, y1, x1
+units:      kPa
+long_name:  longitudinal stress x direction
+data:       data%stress%tau%xx(up,:,:)
+factor:     scale3d_f9
+
+[tau_yy]
+dimensions: time, staglevel, y1, x1
+units:      kPa
+long_name:  longitudinal stress y direction
+data:       data%stress%tau%yy(up,:,:)
+factor:     scale3d_f9
+
 [wvel]
 dimensions:    time, level, y1, x1
 units:         meter/year

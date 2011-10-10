@@ -30,6 +30,8 @@
 
 ! New file for damage mechanics stuff
 
+#include "glide_mask.inc"
+
 module glide_damage
 
   use glide_types
@@ -53,13 +55,12 @@ contains
                                               ! 5 => A square/rectangle of damage
                                               ! 6 => Some initial distribution of damage
 
-    ! Set all damage, fracture  to zero. 
+    ! Set all damage to zero. 
     model%damage%sclr_damage(:,:,:) = 0.0d0
-    model%damage%fractured = 0
 
     ! Test Case 1: Square of damage
     if (which_scenario==1) then
-      model%damage%sclr_damage(:,15:20,25:27) = 0.1d0
+      model%damage%sclr_damage(:,15:25,25:35) = 0.10d0
 
     ! Test Case 2: A column of damage
     elseif (which_scenario==2) then
@@ -116,38 +117,41 @@ contains
 
     ewn = model%general%ewn
     nsn = model%general%nsn
-    upn = model%general%upn-1
+    upn = model%general%upn
 
     allocate(damageSource(upn-1,ewn,nsn))
     damageSource = 0.0d0
 
     ! Step 01: Calculate dynamic function of damage at each point
-    do ew=1, ewn
-      do ns = 1, nsn
+    do ew=2, ewn-1       !model%stress%tau%*** are only valid away from the boundary
+      do ns = 2, nsn-1
         ! If there is ice...
-        if (model%geometry%mask(ew,ns)> 0) then
-          do up = 1, upn
+        if (GLIDE_HAS_ICE(model%geometry%mask(ew,ns))) then
 
-            damageSource(up,ew,ns) = damage_source(model%stress%tau%scalar(up,ew,ns)*tau0, &
-                                                   model%stress%tau%xx(up,ew,ns)*tau0, &
-                                                   model%stress%tau%yy(up,ew,ns)*tau0, &
-                                                   model%stress%tau%xy(up,ew,ns)*tau0, &
-                                                   model%stress%tau%yz(up,ew,ns)*tau0, &
-                                                   model%stress%tau%xz(up,ew,ns)*tau0, &
-                                                   model%damage%sclr_damage(up,ew,ns), &
-                                                   model%geometry%thck(ew,ns)*thk0, &
-                                                   up, & 
-                                                   use_healing)
+          do up = 1, upn-1
 
-            model%damage%sclr_damage(up,ew,ns) = model%damage%sclr_damage(up,ew,ns) + damageSource(up,ew,ns)            
+            !damageSource(up,ew,ns) = damage_source(model%stress%tau%scalar(up,ew,ns)*tau0, &
+!                                                   model%stress%tau%xx(up,ew,ns)*tau0, &
+!                                                   model%stress%tau%yy(up,ew,ns)*tau0, &
+!                                                   model%stress%tau%xy(up,ew,ns)*tau0, &
+!                                                   model%stress%tau%yz(up,ew,ns)*tau0, &
+!                                                   model%stress%tau%xz(up,ew,ns)*tau0, &
+!                                                   model%damage%sclr_damage(up,ew,ns), &
+!                                                   model%geometry%thck(ew,ns)*thk0, &
+!                                                   model%numerics%sigma(up), & 
+!                                                  use_healing, &
+ !                                                  up,ew,ns)
+
+            !model%damage%sclr_damage(up,ew,ns) = model%damage%sclr_damage(up,ew,ns) + damageSource(up,ew,ns)            
 
             if(model%damage%sclr_damage(up,ew,ns) >= 0.56d0) then
-              model%damage%sclr_damage(up,ew,ns) = 1.0d0
-              model%damage%fractured = 1
+              model%damage%sclr_damage(up,ew,ns) = 1.0d0-10.0d-5 ! For non-zero viscosity
             end if
            
             if (model%damage%sclr_damage(up,ew,ns) < 0.0d0) then
-              print *, 'Warning: Damage < 0.0 at up,ew,ns', up,ew,ns, '. Setting damage to 0.0\n'
+              print *, ' '
+              print *, 'WARNING: Damage < 0.0 at up,ew,ns', up,ew,ns, '. Setting damage to 0.0'
+              print *, ' '
               model%damage%sclr_damage = 0.0d0
             end if
 
@@ -162,7 +166,7 @@ contains
   end subroutine update_damage
 
 
-  function damage_source(tau, tau_xx, tau_yy, tau_xy, tau_yz, tau_xz, damage,iceThickness, up, healing)
+  function damage_source(tau, tau_xx, tau_yy, tau_xy, tau_yz, tau_xz, damage,iceThickness, sigma, healing, up, ew, ns)
 
     !-------------------------------------------------------------------------------------+
     ! To Do: 1. Calculate parameters: alpha,beta,B,k1,r,stress_threshold                  +  
@@ -170,7 +174,7 @@ contains
     !-------------------------------------------------------------------------------------+
 
     use glimmer_physcon,  only: rhoi, grav, pi
-    use glimmer_paramets, only: len0, thk0, tau0
+    use glimmer_paramets, only: len0
     use glimmer_global,   only: dp
 
     implicit none
@@ -179,8 +183,9 @@ contains
     ! Subroutine arguments
     !--------------------------------------------------
     real (kind = dp), intent(in) :: tau, tau_xx, tau_yy, tau_xy, tau_yz, tau_xz, damage, iceThickness
-    integer, intent(in) :: up
+    real (kind = dp), intent(in) :: sigma
     logical, intent(in) :: healing
+    integer, intent(in) :: up,ew,ns
 
     real (kind = dp) :: damage_source
 
@@ -195,10 +200,10 @@ contains
     real(dp), parameter :: r                    = 0.43d0             ! 
     real(dp), parameter :: stressThreshold_Ref  = 3.3d5              ! Reference Stress Threshold
     real(dp), parameter :: FPZ_size             = 10.0d0             ! Fracture Process Zone size = L_f
-    real(dp), parameter :: FZ_CharacSize        = 1000.0d0             ! FIX ME... Characteristic size of Fracture Zone = L_g
+    real(dp), parameter :: FZ_CharacSize        = 0.d0              ! FIX ME... Characteristic size of Fracture Zone = L_g
     real(dp), parameter :: weibullParam         = 8.0d0              ! Weibull parameter
     real(dp), parameter :: dimSimilarity        = 3.0d0              ! Dimensional similarity parameter
-    real(dp), parameter :: refLength            = 10.d0               ! Reference Length
+    real(dp), parameter :: refLength            = 0.1d0              ! Reference Length
 
     !--------------------------------------------------
     ! Internal variables
@@ -221,16 +226,17 @@ contains
     !--------------------------------------------------
 
     ! Hydrostatic Pressure
-    !                  P = (-1/3)*(sigma_xx + sigma_yy + sigma_zz)  pressure
-    !           sigma_zz = tau_zz - P                               deviatoric stress
-    !    (d sigma_zz)/dz = (d tau_zz)/dz - dP/dz = rho_ice * grav   hydrostatic approx
-    !                  P = tau_zz + rho_ice*grav*(s-z)              integrate to surface
+    !                  P = (1/3)(sigma_xx + sigma_yy + sigma_zz)        pressure
+    !           sigma_zz = tau_zz + P                                   deviatoric stress
+    !    (d sigma_zz)/dz = (d tau_zz)/dz + dP/dz = rho_ice * grav       hydrostatic approx
+    !                  P = 3*rho_ice*grav*(s-z)- tau_zz                 integrate to surface
     !
-    !              sigma = up = (s-z)/iceThickness                  (s-z) calc
-    !              (s-z) = iceThickness*up 
+    !              sigma = (s-z)/iceThickness                           (s-z) calc
+    !              (s-z) = iceThickness*sigma
 
     tau_zz = -1.0d0 * (tau_xx + tau_yy)
-    hydrostatic_pressure = rhoi*grav*(iceThickness*up) + tau_zz
+    hydrostatic_pressure = rhoi*grav*(iceThickness*sigma) + tau_zz
+    
 
     ! Effective Stresses
     sigma_xx = (tau_xx - hydrostatic_pressure) / ((1.0d0 - damage) + epsilon(1.d0))
@@ -251,17 +257,6 @@ contains
     stress_tensor(3,2) = stress_tensor(2,3) !sigma_yz
     stress_tensor(3,3) = sigma_zz
 
-!    LAPACK: Test symmetric matrix
-!    stress_tensor(1,1) = 3.0d0
-!    stress_tensor(1,2) = 2.0d0
-!    stress_tensor(1,3) = 4.0d0
-!    stress_tensor(2,1) = stress_tensor(1,2)
-!    stress_tensor(2,2) = 0.0d0
-!    stress_tensor(2,3) = 2.0d0
-!    stress_tensor(3,1) = stress_tensor(1,3)
-!    stress_tensor(3,2) = stress_tensor(2,3)
-!    stress_tensor(3,3) = 3.0d0
-
     ! LAPACK: test vars
     lwork = -1
     lwmax = 1000
@@ -276,7 +271,9 @@ contains
 
     ! LAPACK: Check for convergence
     if (info .gt. 0) then
-      print *, 'Algorithm failed to compute eigenvalues.'
+      print *, ' '
+      print *, 'WARNING: Algorithm failed to compute eigenvalues of Cauchy stress tensor (damage module).'
+      print *, ' '
     end if
 
     ! Maximum Principal Stress
@@ -285,8 +282,6 @@ contains
     ! Stress invariants
     invariant_I  = sigma_xx + sigma_yy + sigma_zz 
     invariant_II_dev = 0.5d0*(tau_xx)**2.0d0 + 0.5d0*(tau_yy)**2.0d0 + 0.5d0*tau_zz**2.0d0 + (tau_xy)**2.0d0 + (tau_yz)**2.0d0 + (tau_xz)**2.0d0
-    !old calc: invariant_II_dev = 0.5d0*tau_xx**2.0d0 + 0.5d0*tau_yy**2.0d0 + 0.5d0*tau_zz**2.0d0 + tau_xy**2.0d0 + tau_yz**2.0d0 + tau_xz**2.0d0
-
 
     ! Calculation of k_parameter (damage magnification parameter)
     ! As k up (down) --> damage source up (down)
@@ -301,12 +296,19 @@ contains
     end if
 
     ! Stress Threshold calculation
-    characSize = (FPZ_size*FZ_characSize**2.0d0)**(1.0d0/3.0d0)
+    characSize = (FZ_characSize*FPZ_size**2.0d0)**(1.0d0/3.0d0)
     stressThreshold = stressThreshold_ref * (characSize/refLength)**(-dimSimilarity/weibullParam)
 
     ! Pralong and Funk (2005): Equation (25)
+    ! Note: Pralong multiplies psi by an additional 1/(1-D), but this seems to be a typo
+    ! Note: Taking absolute value of invariant_I...pressure is non-negative
+    if(invariant_II_dev<0.0d0) then
+      print *, ' '
+      print *, 'WARNING: Second invariant of effective Cauchy stress tensor (damage module) is negative.'
+      print *, ' '
+    end if
     psi = (alpha*max_principal_stress + beta*sqrt(abs(3.0d0*invariant_II_dev)) + (1.0d0-alpha-beta)*invariant_I) - stressThreshold
-    !psi = 1.0d0 / (1.0d0 - damage)            ! FIX ME: Where did this come from in the paper?
+    !psi = (alpha*max_principal_stress + beta*sqrt(abs(3.0d0*invariant_II_dev)) + (1.0d0-alpha-beta)*abs(invariant_I)) - stressThreshold
 
     ! Pralong and Funk (2005): Equation (24)
     if (healing) then
@@ -319,9 +321,37 @@ contains
       source = B_parameter * (max(psi,0.0d0)**r) * ((1.0d0-damage)**(-1.0d0*k_parameter))
     end if
 
+    ! Some debugging...
+    if(invariant_II_dev<0.0d0) then
+      print *, ' '
+      print *, 'WARNING: Second invariant of effective Cauchy stress tensor (damage module) is negative.'
+      print *, ' '
+    end if
+
+
+!    if((hydrostatic_pressure < 0.0d0) .and. (sigma .ne. 0.0d0)) then
+!      print *, ' '
+!      print *, 'NEGATIVE PRESSURE and POSITIVE SIGMA '
+!      print *, 'sigma/up/ew/nw:',sigma,up,ew,ns
+!      print *, 'Presure is ', hydrostatic_pressure
+!      print *, 'first', rhoi*grav*(iceThickness*sigma)
+!      print *, 'tau_xx,tau_yy', tau_xx,tau_yy
+!    elseif(hydrostatic_pressure < 0.0d0) then
+!      print *, ' '
+!      print *, 'WARNING: Presure negative at up',up,'ew',ew,'ns',ns ! First Invariant of Cauchy stress tensor (damage module) is positive.'
+!      print *, 'NEGATIVE PRESSURE and ZERO SIGMA '
+!      print *, 'sigma/up/ew/nw:',sigma,up,ew,ns
+!      print *, 'Presure is ', hydrostatic_pressure
+!      print *, 'first', rhoi*grav*(iceThickness*sigma)
+!      print *, 'tau_zz', tau_zz
+!      print *, ' '
+!    end if
+
     ! Check for bad damage source term. 
     if (isnan(source)) then
-      print *, 'Bad damage source. Setting damage source to zero.' 
+      print *, ' ' 
+      print *, 'WARNING: Bad damage source. Setting damage source to zero.' 
+      print *, ' ' 
       source = 0.0d0
     end if
 

@@ -55,9 +55,10 @@ contains
 
     if( model%numerics%tend > model%numerics%tstart) then
 
-      if (model%options%use_damage == 1 .and. model%options%whichtemp == TEMP_REMAP_ADV) then
+!      if (model%options%use_damage == 1 .and. model%options%whichtemp == TEMP_REMAP_ADV) then
+      if (model%options%use_damage == 1) then
 
-	print *, 'should see this'
+	!RajMA print *, 'should see this'
 
         !Passing model%velocity%uvel twice
         call horizontal_remap_in (model%remap_wk,          model%numerics%dt,                     &
@@ -102,7 +103,7 @@ contains
         ! put output from inc. remapping code back into format that model wants
         ! (this subroutine lives in module remap_glamutils)
 
-	print *, 'calling horizontal remap out'
+	!RajMa print *, 'calling horizontal remap out'
         call horizontal_remap_out (model%remap_wk,     model%geometry%thck,            &
             model%climate%acab, model%numerics%dt,              &
             model%temper%temp(1:model%general%upn-1,:,:),        &

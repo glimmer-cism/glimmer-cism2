@@ -82,8 +82,6 @@ program simple_glide
   ret = gptlstart ('total')
 #endif
 
-
-
 #ifdef GLIMMER_MPI
  call MPI_Init(ierr)
 ! call MPI_Comm_size(MPI_COMM_WORLD,nproc,ierr)
@@ -131,7 +129,6 @@ program simple_glide
      call glide_tstep_p3(model)
 
      ! override masking stuff for now
-
      tstep_count = tstep_count + 1
      if (mod(tstep_count, model%numerics%ndiag) == 0) then
         call glide_write_diag(model, time, model%numerics%idiag, &
@@ -177,6 +174,7 @@ subroutine check_for_steady(model, is_steady)
 
  real(kind=dp),dimension(model%general%ewn,model%general%nsn) :: rel_thk_change
  real(kind=dp) :: max_rel_thk_change
+ real(kind=dp),parameter :: steadiness_tol = 5.0d-4
 
  where (model%geometry%thck > 0.d0)
      rel_thk_change = abs(model%geometry%thck - prev_thk)/model%geometry%thck
@@ -190,7 +188,7 @@ subroutine check_for_steady(model, is_steady)
 
  print *, 'max_rel_thk_change', max_rel_thk_change
 
- if (max_rel_thk_change < 0.001) then
+ if (max_rel_thk_change < steadiness_tol) then
     is_steady = .true.
  else
     is_steady = .false. 

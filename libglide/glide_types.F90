@@ -630,7 +630,6 @@ module glide_types
     
      !*FD holds fields related to scalar damage
      real(dp),dimension(:,:,:),pointer :: sclr_damage => null() !*FD 3D scalar damage field
-     integer,dimension(:,:,:),pointer  :: fractured   => null() ! For plotting...set to 1 if damage == 1
   end type glide_damage_type
 
 
@@ -1045,9 +1044,7 @@ contains
     call coordsystem_allocate(model%general%ice_grid, model%temper%dissipcol)
 
     call coordsystem_allocate(model%general%ice_grid,upn-1, model%damage%sclr_damage) 
-    call coordsystem_allocate(model%general%ice_grid,upn-1, model%damage%fractured) 
     model%damage%sclr_damage = 0.0d0
-    model%damage%fractured   = 0.0d0
 
 !whl - For whichtemp = TEMP_REMAP_ADV, temperature and flow factor live on the staggered
 !      vertical grid.  In this case, temperature and flwa are defined at the
@@ -1242,7 +1239,6 @@ contains
     deallocate(model%ground%gline_flux)
 
     deallocate(model%damage%sclr_damage)
-    deallocate(model%damage%fractured)
 
     deallocate(model%lithot%temp)
     deallocate(model%lithot%mask)

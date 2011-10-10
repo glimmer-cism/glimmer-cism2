@@ -393,7 +393,7 @@ subroutine glam_velo_fordsiapstr(ewn,      nsn,    upn,  &
   ! or the max no. of iterations is exceeded
 
   !do while ( L2norm .ge. NL_target .and. counter < cmax)    ! use L2 norm for resid calculation
-  do while ( maxval(resid) > minres .and. counter < cmax)   ! standard residual calculation
+  do while ( (maxval(resid) > minres .and. counter < cmax) .or. (counter < 3))   ! standard residual calculation
   !do while ( resid(1) > minres .and. counter < cmax)        ! standard residual (for 1d solutions where d*/dy=0) 
 
     ! calc effective viscosity using previously calc vel. field
@@ -1079,7 +1079,7 @@ subroutine findefvs_with_damage(ewn,  nsn, upn,       &
   ! Rajma : uncomment line below when working
   !print *, 'inside findefvs_with_damage' 
   !efvs(:,:,:) = (1.d0 - damage(:,:,:))*efvs(:,:,:) or better below
-  !efvs = (1.d0 - damage)*efvs
+  !  efvs = (1.d0 - damage)*efvs
 
 end subroutine findefvs_with_damage
 
@@ -1815,8 +1815,11 @@ function mindcrshstr3(pt,whichresid,vel,counter,start_umc,cvg_accel,small_vel,re
 	  len_old = sqrt(sum( corr(:,:,:,old(pt),pt) * corr(:,:,:,old(pt),pt) ))
 	  theta = acos( in_prod / (len_new * len_old + small) )
 
-          if (theta > (11.d0/12.d0)*pi) then
-          !if (theta > (5.d0/6.d0)*pi) then
+
+!         RajMA commented out...
+!	  print *, 'theta', theta 
+          !if (theta > (11.d0/12.d0)*pi) then
+          if (theta > (5.d0/6.d0)*pi) then
              performed_umc(pt) = .true.    
              !print *, 'performing UMC for vel', pt
              mindcrshstr3 = usav(:,:,:,pt) + (len_old/ &
@@ -1937,7 +1940,8 @@ function mindcrshstr3(pt,whichresid,vel,counter,start_umc,cvg_accel,small_vel,re
 
     ! Additional debugging line, useful when trying to determine if convergence is being consistently 
     ! held up by the residual at one or a few particular locations in the domain.
-!    print '("* ",i3,g20.6,3i6,g20.6)', counter, resid, locat, mindcrshstr3(locat(1),locat(2),locat(3))
+
+    !print '("* ",i3,g20.6,3i6,g20.6)', counter, resid, locat, mindcrshstr3(locat(1),locat(2),locat(3))
 
   return
 

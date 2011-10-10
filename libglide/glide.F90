@@ -485,7 +485,8 @@ contains
     
     if (model%options%use_damage == 1) then
        
-	print *, 'updating damage'
+       ! RajMa print *, 'updating damage'
+	print *, 'damage', model%damage%sclr_damage(:,20,:)
        call update_damage(model)
 
     end if
