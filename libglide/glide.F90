@@ -448,6 +448,8 @@ contains
 
          call glissade_temp_driver(model)
 
+	 model%temper%temp = -10.d0
+
        else
 
          ! standard Glide driver, including temperature advection
