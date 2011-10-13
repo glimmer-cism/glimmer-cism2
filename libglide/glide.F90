@@ -448,7 +448,6 @@ contains
 
          call glissade_temp_driver(model)
 
-	 model%temper%temp = -10.d0
 
        else
 
@@ -483,16 +482,10 @@ contains
 
     !--------------------------------------------
     ! Update the damage variable
-    !-------------------------------------------
-    
+    !-------------------------------------------    
     if (model%options%use_damage == 1) then
-       
-       ! RajMa print *, 'updating damage'
-	print *, 'damage', model%damage%sclr_damage(:,20,:)
        call update_damage(model)
-
     end if
-
 
   end subroutine glide_tstep_p1
 

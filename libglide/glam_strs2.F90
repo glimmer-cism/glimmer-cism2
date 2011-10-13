@@ -237,7 +237,7 @@ subroutine glam_velo_fordsiapstr(ewn,      nsn,    upn,  &
   ! take the place of the subroutine 'calcbetasquared' below. For now, there is simply an option
   ! in the subroutine 'calcbetasquared' (case 9) to use this external, CISM specified value for
   ! the betasquared field as opposed to one of the values calculated internally.
-  real (kind = dp), dimension(:,:),   intent(in)  :: beta
+  real (kind = dp), dimension(:,:),   intent(inout)  :: beta
 
   integer, intent(in) :: whichbabc    ! options for betasquared field to use
   integer, intent(in) :: whichefvs    ! options for efvs calculation (calculate it or make it uniform)
@@ -260,7 +260,7 @@ subroutine glam_velo_fordsiapstr(ewn,      nsn,    upn,  &
   real (kind = dp), save, dimension(2) :: resid     ! vector for storing u resid and v resid 
   real (kind = dp) :: plastic_resid_norm = 0.0d0    ! norm of residual used in Newton-based plastic bed iteration
 
-  integer, parameter :: cmax = 50                   ! max no. of iterations
+  integer, parameter :: cmax = 100                   ! max no. of iterations
   integer :: counter, linit                         ! iteation counter, ???
   character(len=100) :: message                     ! error message
 
@@ -699,7 +699,7 @@ subroutine JFNK                 (ewn,      nsn,    upn,  &
   !*sfp* This is the betasquared field from CISM (externally specified), and should eventually
   ! take the place of the subroutine 'calcbetasquared' below (for now, using this value instead
   ! will simply be included as another option within that subroutine) 
-  real (kind = dp), dimension(:,:),   intent(in)  :: beta 
+  real (kind = dp), dimension(:,:),   intent(inout)  :: beta 
 
   integer, intent(in) :: whichbabc
   integer, intent(in) :: whichefvs
@@ -1578,7 +1578,8 @@ subroutine calc_F (ewn, nsn, upn, stagsigma, counter,            &
                                                   d2usrfdewdns, d2thckdewdns,&
                                                   dlsrfdew, dlsrfdns, &
                                                   stagthck, lsrf, topg, &
-                                                  minTauf, beta
+                                                  minTauf
+  real (kind=dp), dimension(:,:), intent(inout) :: beta
 
   real (kind = dp), dimension(:,:,:), intent(inout) :: efvs, btraction
   real (kind = dp), dimension(:,:,:), intent(in) :: uvel, vvel, flwa
@@ -2250,7 +2251,7 @@ subroutine findcoefstr(ewn,  nsn,   upn,            &
                                                   thck, lsrf, topg
 
   real (kind = dp), dimension(:,:), intent(in) :: minTauf
-  real (kind = dp), dimension(:,:), intent(in) :: beta
+  real (kind = dp), dimension(:,:), intent(inout) :: beta
   real (kind = dp), dimension(:,:,:), intent(in) :: flwa
   real (kind = dp), dimension(:,:,:), intent(inout) :: btraction
 
@@ -2288,6 +2289,8 @@ subroutine findcoefstr(ewn,  nsn,   upn,            &
                         othervel(upn,:,:),      &
                         minTauf, beta,          &
                         betasquared )
+
+  beta = sqrt(betasquared)
 
   do ns = 1,nsn-1
     do ew = 1,ewn-1

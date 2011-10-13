@@ -451,6 +451,13 @@ long_name:  longitudinal stress y direction
 data:       data%stress%tau%yy(up,:,:)
 factor:     scale3d_f9
 
+[efvs]
+dimensions: time, level, y1, x1
+units:      Pa*s
+long_name:  effective viscosity
+data: data%stress%efvs(up,:,:)
+factor:   1
+
 [wvel]
 dimensions:    time, level, y1, x1
 units:         meter/year

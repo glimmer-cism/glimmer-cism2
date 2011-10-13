@@ -55,23 +55,20 @@ contains
 
     if( model%numerics%tend > model%numerics%tstart) then
 
-!      if (model%options%use_damage == 1 .and. model%options%whichtemp == TEMP_REMAP_ADV) then
-      if (model%options%use_damage == 1) then
+      if (model%options%use_damage == 1 .and. model%options%whichtemp == TEMP_REMAP_ADV) then
 
-	!RajMA print *, 'should see this'
-
-        !Passing model%velocity%uvel twice
-        call horizontal_remap_in (model%remap_wk,          model%numerics%dt,                     &
+        call horizontal_remap_in (model%remap_wk, model%numerics%dt,           &
             model%geometry%thck(1:model%general%ewn-1,1:model%general%nsn-1),  &
-            model%velocity%uflx, model%velocity%vflx,               &
-            model%geomderv%stagthck, model%numerics%thklim,                 &
-            model%options%periodic_ew, model%options%periodic_ns,           &
-            model%velocity%uvel, model%velocity%vvel,               &
-            model%temper%temp  (1:model%general%upn-1,                      &
-            1:model%general%ewn-1,1:model%general%nsn-1), &
-            model%damage%sclr_damage (1:model%general%upn-1, &
-                                      1:model%general%ewn, &
-                                      1:model%general%nsn) &
+            model%velocity%uflx, model%velocity%vflx,                          &
+            model%geomderv%stagthck, model%numerics%thklim,                    &
+            model%options%periodic_ew, model%options%periodic_ns,              &
+            model%velocity%uvel, model%velocity%vvel,                          &
+            model%temper%temp  (1:model%general%upn-1,                         &
+                                1:model%general%ewn-1,                         &
+                                1:model%general%nsn-1)                         &
+            model%damage%sclr_damage (1:model%general%upn-1,                   &
+                                      1:model%general%ewn-1,                   &
+                                      1:model%general%nsn-1)                   &
             )
 
         ! Remap temperature and fractional thickness for each layer
