@@ -125,8 +125,15 @@ program simple_glide
   do while(time.le.model%numerics%tend .and. .not.(is_steady))
 
      call glide_tstep_p1(model,time)
-     call glide_tstep_p2(model)
-     call glide_tstep_p3(model)
+
+     !have to specify temperature of inflowing ice for ice_stream case
+     model%temper%temp(:,:,1:3) = climate%airt(1)
+
+     ! zero out the efvs in the inflow edge
+     model%stress%efvs(:,:,1:2) = 0.d0
+
+     call glide_tstep_p2(model,no_write=.false.)
+     call glide_tstep_p3(model,no_write=.true.)
 
      ! override masking stuff for now
      tstep_count = tstep_count + 1
