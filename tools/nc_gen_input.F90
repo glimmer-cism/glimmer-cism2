@@ -36,6 +36,7 @@ program nc_gen_input
   real,dimension(:,:),allocatable :: thck,topog
   real,dimension(:,:),allocatable :: kinbcmask
   real,dimension(:,:,:),allocatable :: uvelhom,vvelhom
+  real,dimension(:,:,:),allocatable :: temp
 
   !get arguments from command line
 
@@ -251,14 +252,14 @@ contains
     real :: surf_3
     real :: surf_4
 
-    real :: inflow_vel
+    real :: inflow_vel, init_temp
 
     character (len=512) :: linear_shelf_params = "<fname> <nx> <ny> <n_level> <hx> <hy> <topog_amp> &
 	                                        &<odepth> <bed_depth> <int_depth> <surf1> <surf2> <surf3> &
-	                                        &<surf_4> <inflow_vel>"
+	                                        &<surf_4> <inflow_vel> <init_temp>"
 
 
-    if (command_argument_count() < 16) then
+    if (command_argument_count() < 17) then
        write(*,*)"Incorrect number of parameters. Linear shelf requires: &
             &  ",trim(linear_shelf_params)
        stop 1
@@ -324,9 +325,14 @@ contains
     read(argstr,'(f18.12)') inflow_vel
     write(*,*) 'inflow_vel', inflow_vel
 
+    call get_command_argument(17,argstr)
+    read(argstr,'(f18.12)') init_temp
+    write(*,*) 'init_temp', init_temp
+
     allocate(xs(nx),ys(ny),level(n_level),xstag(nx-1),ystag(ny-1))
     allocate(topog(nx,ny),thck(nx,ny),kinbcmask(nx-1,ny-1))
     allocate(uvelhom(nx-1,ny-1,n_level), vvelhom(nx-1,ny-1,n_level))
+    allocate(temp(nx,ny,n_level))
 
     !now populate the dimension variables
     xs = (/ ( (real(i-w_marg)-0.5d0)*hx,i=1,nx ) /)
@@ -391,11 +397,13 @@ contains
 
     vvelhom = inflow_vel
     uvelhom = 0.0
+    temp = init_temp
 
     call write_nc_file(.true.)
 
     deallocate(level,xs,ys,xstag,ystag)
     deallocate(thck,topog,kinbcmask,uvelhom,vvelhom)
+    deallocate(temp)
 
   end subroutine make_ice_stream
 
@@ -407,7 +415,7 @@ contains
     integer :: nc_id
     integer :: time_dimid,x_dimid,y_dimid,xstag_dimid,ystag_dimid,level_dimid
     integer :: x_varid,y_varid,time_varid,level_varid
-    integer :: thck_varid,topog_varid,kinbcmask_varid,uvel_varid,vvel_varid
+    integer :: thck_varid,topog_varid,kinbcmask_varid,uvel_varid,vvel_varid,temp_varid
     integer :: xstag_varid,ystag_varid
 
     call check( nf90_create(fname, NF90_CLOBBER, nc_id) )
@@ -452,21 +460,20 @@ contains
     call check( nf90_def_var(nc_id,'kinbcmask',NF90_DOUBLE,(/xstag_dimid,ystag_dimid,time_dimid/),kinbcmask_varid) )
     call check( nf90_put_att(nc_id, kinbcmask_varid, 'long_name', 'kinematic boundary condition mask') )
 
-    if (write_vel) then
-       call check( nf90_def_dim(nc_id,'level',n_level,level_dimid) )
-       call check( nf90_def_var(nc_id,'level',NF90_DOUBLE,(/level_dimid/),level_varid) )
-       call check( nf90_put_att(nc_id, level_varid, 'long_name', 'level') )
-       call check( nf90_put_att(nc_id, level_varid, 'units', '1') )
+    call check( nf90_def_dim(nc_id,'level',n_level,level_dimid) )
+    call check( nf90_def_var(nc_id,'level',NF90_DOUBLE,(/level_dimid/),level_varid) )
+    call check( nf90_put_att(nc_id, level_varid, 'long_name', 'level') )
+    call check( nf90_put_att(nc_id, level_varid, 'units', '1') )
+    call check( nf90_def_var(nc_id,'uvel',NF90_DOUBLE,(/xstag_dimid,ystag_dimid,level_dimid,time_dimid/),uvel_varid) )
+    call check( nf90_put_att(nc_id, uvel_varid, 'long_name', 'ice velocity in x direction') )
+    call check( nf90_put_att(nc_id, uvel_varid, 'units', 'meter/year') )
+    call check( nf90_def_var(nc_id,'vvel',NF90_DOUBLE,(/xstag_dimid,ystag_dimid,level_dimid,time_dimid/),vvel_varid) )
+    call check( nf90_put_att(nc_id, vvel_varid, 'long_name', 'ice velocity in y direction') )
+    call check( nf90_put_att(nc_id, vvel_varid, 'units', 'meter/year') )
 
-       call check( nf90_def_var(nc_id,'uvel',NF90_DOUBLE,(/xstag_dimid,ystag_dimid,level_dimid,time_dimid/),uvel_varid) )
-       call check( nf90_put_att(nc_id, uvel_varid, 'long_name', 'ice velocity in x direction') )
-       call check( nf90_put_att(nc_id, uvel_varid, 'units', 'meter/year') )
-
-       call check( nf90_def_var(nc_id,'vvel',NF90_DOUBLE,(/xstag_dimid,ystag_dimid,level_dimid,time_dimid/),vvel_varid) )
-       call check( nf90_put_att(nc_id, vvel_varid, 'long_name', 'ice velocity in y direction') )
-       call check( nf90_put_att(nc_id, vvel_varid, 'units', 'meter/year') )
-
-    end if
+    call check( nf90_def_var(nc_id,'temp',NF90_DOUBLE,(/x_dimid,y_dimid,level_dimid,time_dimid/),temp_varid) )
+    call check( nf90_put_att(nc_id, temp_varid, 'long_name', 'temperature') )
+    call check( nf90_put_att(nc_id, temp_varid, 'units', 'degrees Celcius') )
 
     call check( nf90_enddef(nc_id) )
 
@@ -484,11 +491,11 @@ contains
     call check( nf90_put_var(nc_id, topog_varid, topog) )
     call check( nf90_put_var(nc_id, kinbcmask_varid, kinbcmask) )
     
-    if (write_vel) then
-       call check( nf90_put_var(nc_id,level_varid, level) )
-       call check( nf90_put_var(nc_id, uvel_varid, uvelhom) )
-       call check( nf90_put_var(nc_id, vvel_varid, vvelhom) )
-    end if
+    call check( nf90_put_var(nc_id,level_varid, level) )
+    call check( nf90_put_var(nc_id, uvel_varid, uvelhom) )
+    call check( nf90_put_var(nc_id, vvel_varid, vvelhom) )
+
+    call check( nf90_put_var(nc_id, temp_varid, temp) )
 
     call check( nf90_close(nc_id) )
 
