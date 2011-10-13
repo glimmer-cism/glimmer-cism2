@@ -65,7 +65,7 @@ contains
             model%velocity%uvel, model%velocity%vvel,                          &
             model%temper%temp  (1:model%general%upn-1,                         &
                                 1:model%general%ewn-1,                         &
-                                1:model%general%nsn-1)                         &
+                                1:model%general%nsn-1),                        &
             model%damage%sclr_damage (1:model%general%upn-1,                   &
                                       1:model%general%ewn-1,                   &
                                       1:model%general%nsn-1)                   &
