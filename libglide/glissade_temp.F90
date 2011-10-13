@@ -333,8 +333,8 @@ contains
 
 !whl - would need a different threshold if running in single precision
              if ( abs((efinal-einit-delta_e)/(tim0*model%numerics%dttem)) > 1.0e-8 ) then
-                write(message,*) 'WARNING: Energy conservation error, ew, ns =', ew, ns
-                call write_log(message)
+!                write(message,*) 'WARNING: Energy conservation error, ew, ns =', ew, ns
+!                call write_log(message)
 ! Can uncomment the following for diagnostics
 !                write(50,*) 'Interior fluxes:'
 !                write(50,*) 'ftop (pos up)=', -model%temper%ucondflx(ew,ns) 
@@ -368,7 +368,8 @@ contains
     do ns = 1,model%general%nsn
        do ew = 1,model%general%ewn
 
-          if (GLIDE_IS_THIN(model%geometry%thkmask(ew,ns))) then
+          if (GLIDE_IS_THIN(model%geometry%thkmask(ew,ns)) .or.  &
+              GLIDE_IS_CALVING(model%geometry%thkmask(ew,ns))) then
              model%temper%temp(:,ew,ns) = min(0.0d0, dble(model%climate%artm(ew,ns)))
           else if (model%geometry%thkmask(ew,ns) < 0) then
              model%temper%temp(:,ew,ns) = min(0.0d0, dble(model%climate%artm(ew,ns)))
