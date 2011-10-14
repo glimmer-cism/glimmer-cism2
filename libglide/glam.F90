@@ -101,10 +101,18 @@ contains
         ! (this subroutine lives in module remap_glamutils)
 
 	!RajMa print *, 'calling horizontal remap out'
-        call horizontal_remap_out (model%remap_wk,     model%geometry%thck,            &
-            model%climate%acab, model%numerics%dt,              &
-            model%temper%temp(1:model%general%upn-1,:,:),        &
-            model%damage%sclr_damage(1:model%general%upn-1,:,:))
+        call horizontal_remap_out (model%remap_wk,              &
+            model%geometry%thck(1:model%general%ewn-1,          &
+		                1:model%general%nsn-1),         &
+            model%climate%acab(1:model%general%ewn-1,    &
+                               1:model%general%nsn-1),   &
+            model%numerics%dt,              &
+            model%temper%temp(1:model%general%upn-1,            &
+                              1:model%general%ewn-1,            &
+                              1:model%general%nsn-1),           &
+            model%damage%sclr_damage(1:model%general%upn-1,     &
+	                             1:model%general%ewn-1,            &
+                                     1:model%general%nsn-1))  
 
     elseif (model%options%whichtemp == TEMP_REMAP_ADV) then   ! Use IR to advect temperature
        ! (and other tracers, if present)
@@ -169,7 +177,9 @@ contains
        ! put output from inc. remapping code back into format that model wants
        ! (this subroutine lives in module remap_glamutils)
 
-       call horizontal_remap_out (model%remap_wk,     model%geometry%thck,            &
+       call horizontal_remap_out (model%remap_wk,   &
+	            model%geometry%thck(1:model%general%ewn-1,          &
+				        1:model%general%nsn-1),         &
 	            model%climate%acab, model%numerics%dt,              &
 	            model%temper%temp(1:model%general%upn-1, &
 	                              1:model%general%ewn-1,1:model%general%nsn-1))
@@ -185,6 +195,7 @@ contains
        ! call inc. remapping code for thickness advection (i.e. dH/dt calcualtion)
        ! (this subroutine lives in module remap_advection)
 
+
        call horizontal_remap( model%remap_wk%dt_ir,                                         &
             model%general%ewn-1,        model%general%nsn-1,              &
             ntrace_ir,                  nghost_ir,                        &
@@ -198,7 +209,7 @@ contains
        ! Put output from inc. remapping code back into format that model wants.
        ! (This subroutine lives in module remap_glamutils)
 
-       call horizontal_remap_out (model%remap_wk,     model%geometry%thck,                 &
+       call horizontal_remap_out (model%remap_wk,     model%geometry%thck,       &
             model%climate%acab, model%numerics%dt )
 
     endif   ! whichtemp

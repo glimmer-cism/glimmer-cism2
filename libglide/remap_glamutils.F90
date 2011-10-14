@@ -422,6 +422,7 @@ module remap_glamutils
 
     !whl - Add other tracers here, if present
 
+
     !Apply accumulation
     thck = thck + acab*dt
 
@@ -436,8 +437,12 @@ module remap_glamutils
     ! should probably be added as a config file option (apply the mask or not) if
     ! only to remind us that we are making that choice at present. 
 
-    thck = thck * wk%mask_ir
-    
+    do i=1,wk%ewn_ir
+	do j=1,wk%nsn_ir
+          thck(i,j) = thck(i,j) * wk%mask_ir(i,j)
+        enddo
+    enddo
+
     !Do the same for temperature and tracers.
 
     if (present(temp)) then   
