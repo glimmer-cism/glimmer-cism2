@@ -369,7 +369,7 @@ contains
        do ew = 1,model%general%ewn
 
           if (GLIDE_IS_THIN(model%geometry%thkmask(ew,ns)) .or.  &
-              GLIDE_IS_CALVING(model%geometry%thkmask(ew,ns))) then
+              GLIDE_IS_MARGIN(model%geometry%thkmask(ew,ns))) then
              model%temper%temp(:,ew,ns) = min(0.0d0, dble(model%climate%artm(ew,ns)))
           else if (model%geometry%thkmask(ew,ns) < 0) then
              model%temper%temp(:,ew,ns) = min(0.0d0, dble(model%climate%artm(ew,ns)))
