@@ -254,13 +254,13 @@ subroutine glam_velo_fordsiapstr(ewn,      nsn,    upn,  &
 
   integer :: ew, ns, up     ! counters for horiz and vert do loops
 
-  real (kind = dp), parameter :: minres = 1.0d-4    ! assume vel fields converged below this resid 
+  real (kind = dp), parameter :: minres = 5.0d-4    ! assume vel fields converged below this resid 
   real (kind = dp), parameter :: NL_tol = 1.0d-06   ! to have same criterion
                                                     ! than with JFNK
   real (kind = dp), save, dimension(2) :: resid     ! vector for storing u resid and v resid 
   real (kind = dp) :: plastic_resid_norm = 0.0d0    ! norm of residual used in Newton-based plastic bed iteration
 
-  integer, parameter :: cmax = 100                   ! max no. of iterations
+  integer, parameter :: cmax = 25                   ! max no. of iterations
   integer :: counter, linit                         ! iteation counter, ???
   character(len=100) :: message                     ! error message
 
@@ -409,6 +409,7 @@ subroutine glam_velo_fordsiapstr(ewn,      nsn,    upn,  &
                                  dusrfdns,   dthckdns, &
                                  umask, damage)
     else
+!    print *,'going into findefvsstr', flwa(1,:,20)
     call findefvsstr(ewn,  nsn,  upn,      &
                      stagsigma,  counter,    &
                      whichefvs,  efvs,     &
@@ -1058,7 +1059,8 @@ subroutine findefvs_with_damage(ewn,  nsn, upn,       &
 
   integer, intent(in) :: ewn, nsn, upn
   real (kind = dp), intent(in), dimension(:)     :: stagsigma
-  real (kind = dp), intent(in), dimension(:,:,:) :: uvel, vvel, flwa
+  real (kind = dp), intent(in), dimension(:,:,:) :: uvel, vvel
+  real (kind = dp), intent(in), dimension(:,:,:) :: flwa
   real (kind = dp), intent(inout), dimension(:,:,:) :: efvs
   real (kind = dp), intent(in), dimension(:,:) :: thck, dthckdew, dusrfdew, &
                                                   dusrfdns, dthckdns
@@ -1188,7 +1190,6 @@ subroutine findefvsstr(ewn,  nsn, upn,       &
             ! "effstr" = eff. strain rate squared
             effstr = ugradew**2 + vgradns**2 + ugradew*vgradns + &
                          0.25_dp * (vgradew + ugradns)**2 + &
-!                         f1 * (ugradup**2 + vgradup**2)      ! make line ACTIVE for "capping" version (see note below)   
                          f1 * (ugradup**2 + vgradup**2) + effstrminsq ! make line ACTIVE for new version
 
     ! -----------------------------------------------------------------------------------
@@ -1205,11 +1206,6 @@ subroutine findefvsstr(ewn,  nsn, upn,       &
     ! doi:10.1029/2008JC005017, 2009). Long term, the capping version should probably be
     ! available as a config file option or possibly removed altogether.   
 
-    ! Old "capping" scheme       ! these lines must be active to use the "capping" scheme for the efvs calc
-!            where (effstr < effstrminsq)
-!                   effstr = effstrminsq
-!            end where
-
     ! Note that the vert dims are explicit here, since glide_types defines this 
     ! field as having dims 1:upn. This is something that we'll have to decide on long-term;
     ! should efvs live at cell centroids in the vert (as is assumed in this code)
@@ -1223,9 +1219,7 @@ subroutine findefvsstr(ewn,  nsn, upn,       &
     ! horiz grid, even though it does not). 
 
             ! Below, p2=(1-n)/2n. The 1/2 is from taking the sqr root of the squared eff. strain rate
-            efvs(1:upn-1,ew,ns) = max(1.0d-4,flwafact(1:upn-1,ew,ns) * effstr**p2)
-!            efvs(:,ew,ns) = flwafact(:,ew,ns) * effstr**p2
-
+            efvs(1:upn-1,ew,ns) = max(2.0d-4,flwafact(1:upn-1,ew,ns) * effstr**p2)
         else
            efvs(:,ew,ns) = effstrminsq ! if the point is associated w/ no ice, set to min value
         end if
