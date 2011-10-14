@@ -452,7 +452,7 @@ data:       data%stress%tau%yy(up,:,:)
 factor:     scale3d_f9
 
 [efvs]
-dimensions: time, level, y1, x1
+dimensions: time, staglevel, y1, x1
 units:      Pa*s
 long_name:  effective viscosity
 data: data%stress%efvs(up,:,:)
@@ -485,19 +485,17 @@ coordinates:   lon lat
 
 
 [flwa]
-dimensions:    time, level, y1, x1
+dimensions:    time, staglevel, y1, x1
 units:         pascal/year
 long_name:     Pre-exponential flow law parameter
 data:          data%temper%flwa(up,:,:)
 factor:        scale3d_f8
-hot:           1
-coordinates:   lon lat
 
 [temp]
 dimensions:    time, level, y1, x1
 units:         degree_Celsius
 long_name:     ice temperature
-data:          data%temper%temp(up,1:data%general%ewn,1:data%general%nsn)
+data:          data%temper%temp(up,:,:)
 standard_name: land_ice_temperature
 hot:           1
 coordinates:   lon lat
