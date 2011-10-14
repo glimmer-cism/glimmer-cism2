@@ -195,10 +195,8 @@ contains
 !    kinbcmask(:,(ny-6):(ny-1)) = 1 !north edge
 
     kinbcmask(:,1:kinbcw) = 1 !south edge
-!    if (noslip) then		    
-       kinbcmask(1:(1+zero_buf),:) = 1
-       kinbcmask((nx-1-zero_buf):(nx-1),:) = 1
-!    end if
+    kinbcmask(1:(1+zero_buf),:) = 1
+    kinbcmask((nx-1-zero_buf):(nx-1),:) = 1
 
     uvelhom = 0.d0
     vvelhom = 0.d0
@@ -240,7 +238,7 @@ contains
     real :: hx,hy
     real :: rhoi, rhoo
     real :: usurf
-    integer,parameter :: s_marg = 2, w_marg = 1
+    integer,parameter :: s_marg = 2, w_marg = 3
 
     real :: topog_amp
     real :: odepth
@@ -348,10 +346,10 @@ contains
     !define topg
     topog = 0.0
 
-    do i=2,nx-1
+    do i=1,nx
 	do j=1,ny
-	   !topog(i,j) = (((2.0*(i-1)/(nx-1))-1.0)**4.d0) *topog_amp
-	   topog(i,j) = 0.5d0*(cos(2*pi*real(i-1.5)/real(nx-2)) + 1.d0)*topog_amp
+	   topog(i,j) = 0.5d0*topog_amp* &
+                       (cos(2*pi*real(i-w_marg-0.5)/real(nx-2.0*w_marg)) + 1.d0)
 	   if (j >= 3*ny/4) then
               topog(i,j) = topog(i,j) - odepth
 	   elseif (j >= 2*ny/4) then
@@ -366,7 +364,7 @@ contains
     !define thickness
     thck = 0.d0
 
-    do i=2,nx-1
+    do i=1+w_marg,nx-w_marg
 	do j=1,int(ny/2.0)
            thck(i,j) = surf_1 - topog(i,j) + (j-1)/(ny/2.0-1)*(surf_2-surf_1)
         end do
@@ -387,13 +385,9 @@ contains
 
     ! define kinbcmask
     kinbcmask = 0
-    kinbcmask(:,1:2) = 1
-    kinbcmask(1,:) = 1
-    kinbcmask(nx-1,:) = 1
-
-!    kinbcmask(:,(ny-10):ny-1) = 1
-!    kinbcmask(1:10,:) = 1
-!    kinbcmask(nx-10:nx,:) = 1
+    kinbcmask(:,1:s_marg) = 1
+    kinbcmask(1:w_marg,:) = 1
+    kinbcmask(nx-w_marg:nx-1,:) = 1
 
     vvelhom = inflow_vel
     uvelhom = 0.0
