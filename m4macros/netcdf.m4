@@ -152,15 +152,26 @@ NcError err_handler;
         [Fortran],[
         AC_SEARCH_LIBS(NF_INQ_LIBVERS,netcdff,[acx_netcdf_ok=yes],[acx_netcdf_ok=no; AC_MSG_ERROR(cannot find netCDF fortran library)])
         AC_REQUIRE([AX_F90_MODULE_FLAG])
-        if test x"$netcdf_inc_path"x != xx ; then
-           NETCDF_FCFLAGS="$ax_cv_f90_modflag$netcdf_inc_path"
-        else
-           NETCDF_FCFLAGS="$ax_cv_f90_modflag/usr/include"
-        fi
-	FCFLAGS="$FCFLAGS $NETCDF_FCFLAGS"
         AC_MSG_CHECKING([for f90 netCDF interface])
-        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([],[use netcdf])],[acx_netcdf_ok=yes; AC_MSG_RESULT([yes])],
-                                                             [acx_netcdf_ok=no; AC_MSG_RESULT([no])])
+        nc_module_path="not found"
+        ax_save_FCFLAGS="$FCFLAGS"
+        for ncmpath in "$netcdf_inc_path" /usr/include /usr/lib64/gfortran/modules /usr/lib/gfortran/modules; do
+            if test "$nc_module_path" = "not found" ; then
+               FCFLAGS="$ax_save_FCFLAGS $ax_cv_f90_modflag$ncmpath"
+               AC_COMPILE_IFELSE([AC_LANG_PROGRAM([],[use netcdf])],[nc_module_path="$ncmpath"],[])
+               FCFLAGS="$ax_save_FCFLAGS"
+            fi
+	done
+
+        if test "$nc_module_path" = "not found" ; then
+           acx_netcdf_ok=no
+           AC_MSG_RESULT([no])
+        else
+           acx_netcdf_ok=yes
+           NETCDF_FCFLAGS="$ax_cv_f90_modflag$nc_module_path"
+           AC_MSG_RESULT([yes])
+        fi
+        FCFLAGS="$FCFLAGS $NETCDF_FCFLAGS"
         ])
 
 	# check if netCDF4 API is available
