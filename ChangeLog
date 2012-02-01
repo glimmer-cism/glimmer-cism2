@@ -1,3 +1,9 @@
+2012-02-01 Magnus Hagdorn
+ * configure.in: figure out how to have unlimited source lines, some bug fixes
+ * libglimmer/glimmer_commandline.F90: handle command line argument parsing
+ * libglint/glint_commandline.F90: ditto
+ * m4macros/netcdf.m4: fix bug
+
 2011-07-13 Ian Rutt
  * Reverted glide_thkmask to use thickness>0.0 and acab>0.0 as criteria
    for inclusion in SIA thickness calculation.

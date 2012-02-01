@@ -57,7 +57,9 @@ contains
 
     integer numargs,nfiles
     integer :: i
+#ifndef HAVE_2003ARGS
     integer, external :: iargc
+#endif
     character(len=100) :: argument
     integer, dimension(100) :: argumentIdx
     

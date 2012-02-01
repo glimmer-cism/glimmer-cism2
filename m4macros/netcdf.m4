@@ -159,7 +159,7 @@ NcError err_handler;
         fi
 	FCFLAGS="$FCFLAGS $NETCDF_FCFLAGS"
         AC_MSG_CHECKING([for f90 netCDF interface])
-        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([],[use netcdf])],[acx_netcdf_ok=yes; AC_MSG_RESULT([yes])],
+        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([],[     use netcdf])],[acx_netcdf_ok=yes; AC_MSG_RESULT([yes])],
                                                              [acx_netcdf_ok=no; AC_MSG_RESULT([no])])
         ])
 

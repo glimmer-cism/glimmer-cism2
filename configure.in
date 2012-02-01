@@ -84,6 +84,7 @@ FCFLAGS=$glimmer_FCFLAGS
 FFLAGS=$glimmer_FFLAGS
 AC_LANG(Fortran)
 AC_FC_SRCEXT(f90)
+AX_F90_NO_LINE_LIMIT_FLAG
 # Define FCLIBS for fortran libraries needed for CXX linking
 AC_FC_LIBRARY_LDFLAGS
 AC_FC_PP_DEFINE
@@ -103,7 +104,7 @@ AC_FC_MODULE_FLAG
 # checking for f2003 command line parser
 AC_MSG_CHECKING([for f2003 command line parser])
 AC_LINK_IFELSE([AC_LANG_PROGRAM([],
-               [i=command_argument_count()
+               [           i=command_argument_count()
                 call get_command_argument(i)  ])],
                [AC_DEFINE(HAVE_2003ARGS,,[defined if you have fortran 2003 intrinsics for parsing command line])
                 AC_MSG_RESULT(yes)], [AC_MSG_RESULT(no)])
