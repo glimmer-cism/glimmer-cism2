@@ -97,7 +97,7 @@ if opts.options.vectors != None:
     n={'vel':'vel','bvel':'bas'}[opts.options.vectors]
     u = infile.getvar('u%s'%n).get2Dfield(time,level=level,clip=opts.options.vectors)
     v = infile.getvar('v%s'%n).get2Dfield(time,level=level,clip=opts.options.vectors)
-    x,y = numpy.meshgrid(infile.file.variables['x0'],infile.file.variables['y0'])
+    x,y = numpy.meshgrid(infile.file.variables['x0'][:]/1000.,infile.file.variables['y0'][:]/1000.)
     m.quiver(x,y,u,v,units='x')
 
 m.set_aspect('equal')
@@ -117,7 +117,7 @@ if opts.options.profname !=None:
         pdata = PyGC.IO.GCprofile(infile,interval=opts.options.interval)
         pdata.coords_file(pn,opts.options.prof_is_projected)
         if pdata.interpolated.shape[1] > 0:
-            m.plot(pdata.interpolated[0],pdata.interpolated[1],color='k')
+            m.plot(pdata.interpolated[0]*pdata.xscale,pdata.interpolated[1]*pdata.xscale,color='k')
             m.annotate(string.ascii_uppercase[i],xy=pdata.interpolated[:,0])
         i=i+1
 

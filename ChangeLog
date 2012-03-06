@@ -1,3 +1,8 @@
+2012-03-06 Magnus Hagdorn
+ * PyGC/progs/Makefile.am: add new file
+ * PyGC/progs/animate: add script to generate animations
+ * PyGC/progs/plotGCvar: fix some bugs
+
 2011-11-07 Magnus Hagdorn
  * m4macros/netcdf.m4: the netCDF4 package of SL6 stores the module files in
    a new location so we need to look for them in various places
